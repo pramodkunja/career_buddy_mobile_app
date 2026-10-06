@@ -1,0 +1,148 @@
+import 'package:career_buddy_lms/app/router/route_paths.dart';
+import 'package:career_buddy_lms/core/errors/failures.dart';
+import 'package:career_buddy_lms/core/utils/result.dart';
+import 'package:career_buddy_lms/features/auth/domain/entities/auth_user.dart';
+import 'package:career_buddy_lms/features/auth/domain/entities/student_registration_data.dart';
+import 'package:career_buddy_lms/features/auth/domain/repositories/auth_repository.dart';
+import 'package:career_buddy_lms/features/auth/presentation/providers/auth_providers.dart';
+import 'package:career_buddy_lms/features/employer/domain/entities/employer_job_applications.dart';
+import 'package:career_buddy_lms/features/employer/domain/repositories/employer_job_applications_repository.dart';
+import 'package:career_buddy_lms/features/employer/presentation/providers/employer_job_applications_providers.dart';
+import 'package:career_buddy_lms/features/employer/presentation/screens/employer_job_applications_screen.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
+
+/// `BuddyChatbotOverlay` (now part of every screen's `Scaffold`, per the
+/// web's unconditional `{% include 'includes/aria_assistant.html' %}`)
+/// reads `authControllerProvider` for its greeting, which otherwise falls
+/// through to `authRepositoryProvider` -> `authRemoteDataSourceProvider` ->
+/// `apiClientProvider` (unimplemented outside `main()`). Overriding
+/// `authRepositoryProvider` directly — same pattern as
+/// `GrammarDetailScreen`'s own test doubles — avoids that without this
+/// screen's own tests needing to care about auth at all.
+class _FakeAuthRepository implements AuthRepository {
+  @override
+  Future<AuthUser?> restoreSession() async => null;
+
+  @override
+  Future<Result<AuthUser>> login({required String usernameOrEmail, required String password}) async =>
+      throw UnimplementedError();
+
+  @override
+  Future<Result<void>> logout() async => const Success(null);
+
+  @override
+  Future<Result<String>> sendOtp(String email) async => throw UnimplementedError();
+
+  @override
+  Future<Result<String>> verifyOtp({required String email, required String code}) async =>
+      throw UnimplementedError();
+
+  @override
+  Future<Result<AuthUser>> register(StudentRegistrationData data) async => throw UnimplementedError();
+}
+
+class _FakeRepository implements EmployerJobApplicationsRepository {
+  _FakeRepository(this.result);
+
+  Result<EmployerJobApplicationsPage> result;
+  String? lastStatusFilter;
+  int callCount = 0;
+
+  @override
+  Future<Result<EmployerJobApplicationsPage>> getApplications(int jobId, {String statusFilter = ''}) async {
+    callCount++;
+    lastStatusFilter = statusFilter;
+    return result;
+  }
+}
+
+const _oneApplication = EmployerJobApplicationsPage(
+  jobTitle: 'Backend Engineer',
+  applications: [
+    EmployerJobApplicationListItem(
+      applicationId: 12,
+      applicantName: 'Sai Venkat',
+      applicantEmail: 'sai@example.com',
+      yearsExperience: 0,
+      status: 'reviewing',
+    ),
+  ],
+);
+
+Future<_FakeRepository> _pump(WidgetTester tester, Result<EmployerJobApplicationsPage> result) async {
+  final repo = _FakeRepository(result);
+  final router = GoRouter(
+    initialLocation: '/employer-jobs/68/applications',
+    routes: [
+      GoRoute(
+        path: RoutePaths.employerJobApplicationsPattern,
+        builder: (context, state) => const EmployerJobApplicationsScreen(jobId: 68),
+      ),
+      GoRoute(
+        path: RoutePaths.employerApplicationDetailPattern,
+        builder: (context, state) => Scaffold(body: Text('DETAIL:${state.pathParameters['id']}')),
+      ),
+    ],
+  );
+
+  await tester.pumpWidget(
+    ProviderScope(
+      overrides: [
+        authRepositoryProvider.overrideWithValue(_FakeAuthRepository()),
+        employerJobApplicationsRepositoryProvider.overrideWithValue(repo),
+      ],
+      child: MaterialApp.router(routerConfig: router),
+    ),
+  );
+  await tester.pump();
+  return repo;
+}
+
+void main() {
+  group('EmployerJobApplicationsScreen', () {
+    testWidgets('renders the job title and every candidate card', (tester) async {
+      await _pump(tester, const Success(_oneApplication));
+
+      expect(find.text('Backend Engineer'), findsOneWidget);
+      expect(find.text('Sai Venkat'), findsOneWidget);
+      expect(find.text('sai@example.com'), findsOneWidget);
+      expect(find.text('0 yr(s) experience'), findsOneWidget);
+    });
+
+    testWidgets('shows the empty-state copy when there are no applications', (tester) async {
+      await _pump(tester, const Success(EmployerJobApplicationsPage(jobTitle: 'Backend Engineer', applications: [])));
+
+      expect(find.text('No applications found for this status.'), findsOneWidget);
+    });
+
+    testWidgets('tapping a candidate navigates to the existing Application Detail screen', (tester) async {
+      await _pump(tester, const Success(_oneApplication));
+
+      await tester.tap(find.text('Sai Venkat'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+
+      expect(find.text('DETAIL:12'), findsOneWidget);
+    });
+
+    testWidgets('selecting a status filter chip refetches with that status', (tester) async {
+      final repo = await _pump(tester, const Success(_oneApplication));
+      expect(repo.lastStatusFilter, '');
+
+      await tester.tap(find.widgetWithText(ChoiceChip, 'Under Review'));
+      await tester.pump();
+
+      expect(repo.lastStatusFilter, 'reviewing');
+      expect(repo.callCount, 2);
+    });
+
+    testWidgets('shows a retryable error view for a generic failure', (tester) async {
+      await _pump(tester, const Failed(ServerFailure()));
+
+      expect(find.text('Retry'), findsOneWidget);
+    });
+  });
+}

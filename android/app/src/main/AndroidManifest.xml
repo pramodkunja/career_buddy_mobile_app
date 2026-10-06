@@ -1,0 +1,66 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Batch 14 — every real network feature in this app (the Django API,
+         Group Discussion's WebSocket, Skill-Up's WebView, resume/certificate
+         downloads) needs this. It was previously only present in Flutter's
+         own auto-generated `src/debug/`/`src/profile/` manifest overlays
+         (added there for the VM service/hot-reload, not for real app
+         traffic) — confirmed missing from the actual RELEASE APK's merged
+         manifest via `aapt2 dump permissions` on the real built artifact,
+         meaning every release build until now would have had no network
+         access at all. -->
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- W014 AI Speaking: records audio for the existing analyze_speaking
+         endpoint's server-side transcription/evaluation (`record` package). -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO"/>
+    <!-- Batch 9 — AI Mock Interview's live camera preview (`camera` package). -->
+    <uses-permission android:name="android.permission.CAMERA"/>
+    <uses-feature android:name="android.hardware.camera" android:required="false"/>
+    <!-- Batch 14 — the raw package-style label was never replaced with a
+         real display name; every other part of this app (MaterialApp's own
+         `title`, the login screen) consistently calls itself "Career
+         Buddy" — matching that here so the home-screen launcher doesn't
+         show "career_buddy_lms" to a real user. -->
+    <application
+        android:label="Career Buddy"
+        android:name="${applicationName}"
+        android:icon="@mipmap/ic_launcher">
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTop"
+            android:taskAffinity=""
+            android:theme="@style/LaunchTheme"
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
+            android:hardwareAccelerated="true"
+            android:windowSoftInputMode="adjustResize">
+            <!-- Specifies an Android theme to apply to this Activity as soon as
+                 the Android process has started. This theme is visible to the user
+                 while the Flutter UI initializes. After that, this theme continues
+                 to determine the Window background behind the Flutter UI. -->
+            <meta-data
+              android:name="io.flutter.embedding.android.NormalTheme"
+              android:resource="@style/NormalTheme"
+              />
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+        </activity>
+        <!-- Don't delete the meta-data below.
+             This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
+        <meta-data
+            android:name="flutterEmbedding"
+            android:value="2" />
+    </application>
+    <!-- Required to query activities that can process text, see:
+         https://developer.android.com/training/package-visibility and
+         https://developer.android.com/reference/android/content/Intent#ACTION_PROCESS_TEXT.
+
+         In particular, this is used by the Flutter engine in io.flutter.plugin.text.ProcessTextPlugin. -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.PROCESS_TEXT"/>
+            <data android:mimeType="text/plain"/>
+        </intent>
+    </queries>
+</manifest>

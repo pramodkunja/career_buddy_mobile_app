@@ -1,0 +1,186 @@
+name: career_buddy_lms
+description: "Career Buddy LMS mobile app"
+# The following line prevents the package from being accidentally published to
+# pub.dev using `flutter pub publish`. This is preferred for private packages.
+publish_to: 'none' # Remove this line if you wish to publish to pub.dev
+
+# The following defines the version and build number for your application.
+# A version number is three numbers separated by dots, like 1.2.43
+# followed by an optional build number separated by a +.
+# Both the version and the builder number may be overridden in flutter
+# build by specifying --build-name and --build-number, respectively.
+# In Android, build-name is used as versionName while build-number used as versionCode.
+# Read more about Android versioning at https://developer.android.com/studio/publish/versioning
+# In iOS, build-name is used as CFBundleShortVersionString while build-number is used as CFBundleVersion.
+# Read more about iOS versioning at
+# https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
+# In Windows, build-name is used as the major, minor, and patch parts
+# of the product and file versions while build-number is used as the build suffix.
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.12.2
+
+# Dependencies specify other packages that your package needs in order to work.
+# To automatically upgrade your package dependencies to the latest versions
+# consider running `flutter pub upgrade --major-versions`. Alternatively,
+# dependencies can be manually updated by changing the version numbers below to
+# the latest version available on pub.dev. To see which dependencies have newer
+# versions available, run `flutter pub outdated`.
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # The following adds the Cupertino Icons font to your application.
+  # Use with the CupertinoIcons class for iOS style icons.
+  cupertino_icons: ^1.0.8
+
+  # State management, used consistently across the app.
+  flutter_riverpod: ^3.4.3
+  # HTTP client with interceptor support (timeouts, error mapping, auth headers).
+  dio: ^5.11.1
+  # Declarative routing with auth guards (redirect callbacks).
+  go_router: ^17.3.0
+  # Secure (Keychain/Keystore) storage for session/token data.
+  flutter_secure_storage: ^11.1.1
+  # The backend authenticates via Django session cookies today (verified against
+  # users/views.py + users/forms.py), not a token API, so the HTTP client needs a
+  # persisted cookie jar to behave like a browser across requests.
+  cookie_jar: ^4.0.9
+  dio_cookie_manager: ^3.5.0
+  # Directory to persist the cookie jar to, so the Django session survives
+  # app restarts instead of forcing a re-login every launch.
+  path_provider: ^2.1.6
+  # Matches the web app's font stack (Outfit body / Newsreader display), verified
+  # in templates/base.html.
+  google_fonts: ^8.2.1
+  record: ^7.1.1
+  flutter_tts: ^4.2.5
+  # ARIA/Buddy voice playback (`riya_bot.views.riya_tts`) returns real
+  # pre-rendered Sarvam TTS audio bytes (base64 WAV), not text for
+  # `flutter_tts` to synthesize — a genuine audio-file player is needed to
+  # play them, which no existing dependency here provides (`flutter_tts` is
+  # device-voice-synthesis only; `record` is capture-only).
+  audioplayers: ^6.1.0
+  # Employer Registration's optional company-logo upload
+  # (`EmployerRegisterForm.company_logo`, `accounts_app/forms.py:31-34`).
+  image_picker: ^1.2.0
+  # Resume Parsing's resume upload (`career_app.views.resume_job_match`) —
+  # picks an arbitrary PDF/DOCX/plain-text file, which `image_picker`
+  # (images only) can't do.
+  file_picker: ^13.1.0
+  # Opens the public "Download Template" static .docx links and the
+  # (session-protected) "View File" link on Resume History in the device's
+  # browser — see `ResumeHistoryScreen`'s doc comment for the latter's
+  # documented limitation.
+  url_launcher: ^6.3.1
+  # Skill Up's 48 lesson pages (`static/001 Career Buddy/**/*.html`) are a
+  # hand-built static mini-site, not Django templates/an API — the only
+  # honest way to show their real content (not a re-authored summary) is
+  # to load the real page, the same way the web's own in-page `<iframe>`
+  # viewer does. See `SkillUpLessonScreen`'s doc comment.
+  webview_flutter: ^4.13.0
+  # Grammar's per-topic lesson video (`protected_media/subjectvideos/
+  # <slug>.mp4`, session-cookie-gated, so it's fetched via the app's own
+  # authenticated Dio client to a local temp file, then played from disk).
+  video_player: ^2.9.2
+  # Batch 9 — AI Mock Interview needs a live camera preview
+  # (`resume_camera_verified`'s real requirement — the web self-attests via
+  # `getUserMedia`; Flutter needs the native equivalent).
+  camera: ^0.12.1
+  # Batch 9 — on-device speech-to-text, the native-mobile equivalent of the
+  # web's browser-only `SpeechRecognition` API. Used by the Timer exercise
+  # type (`exercises.js`'s `initTimer()`) and Group Discussion (`gd.js`'s
+  # live transcription of the user's spoken turn) — neither is "faked",
+  # both genuinely capture real speech, just via the platform's native STT
+  # instead of the browser's.
+  speech_to_text: ^7.5.0
+  # Batch 9 — Group Discussion's live AI-agent conversation is a real
+  # Django Channels WebSocket (`ws/GD_app/<session_id>/`), not HTTP.
+  web_socket_channel: ^3.0.3
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  # Lets W020's mock-test controller test drive its client-side exam timer
+  # (a real `Timer.periodic`) deterministically instead of waiting out real
+  # wall-clock minutes.
+  fake_async: ^1.3.3
+
+  # Lets the Grammar video-viewer tests fake `video_player`'s platform
+  # channel (`FakeVideoPlayerPlatform` in `test/features/grammar/
+  # grammar_test_doubles.dart`) — otherwise a transitive-only dependency.
+  video_player_platform_interface: ^6.9.0
+
+  # Lets the Group Discussion WebSocket-service test build a fake
+  # `WebSocketChannel` (`web_socket_channel` extends `StreamChannelMixin`)
+  # wired directly over a plain `StreamController` instead of a real socket
+  # — otherwise a transitive-only dependency (of `web_socket_channel`).
+  stream_channel: ^2.1.4
+
+  # The "flutter_lints" package below contains a set of recommended lints to
+  # encourage good coding practices. The lint set provided by the package is
+  # activated in the `analysis_options.yaml` file located at the root of your
+  # package. See that file for information about deactivating specific lint
+  # rules and activating additional ones.
+  flutter_lints: ^6.0.0
+
+# For information on the generic Dart part of this file, see the
+# following page: https://dart.dev/tools/pub/pubspec
+
+# The following section is specific to Flutter packages.
+flutter:
+
+  # The following line ensures that the Material Icons font is
+  # included with your application, so that you can use the icons in
+  # the material Icons class.
+  uses-material-design: true
+
+  # Web assets copied verbatim from the (read-only) Django project's
+  # `static/images/` — see `docs/UI_PARITY_MASTER_AUDIT.md` §7 Batch 5A for
+  # which web template/CSS rule each one backs. The Django source files
+  # themselves were never modified, only copied.
+  assets:
+    - assets/images/job_seekers.png
+    - assets/images/clients.png
+    - assets/images/student_learning.png
+    - assets/images/student_job_applying.png
+    - assets/images/Ai_Robot.png
+    - assets/images/employer_hiring.png
+    - assets/images/employer_interview.png
+    - assets/images/template_modern_professional.png
+    - assets/images/template_executive_tech.png
+    - assets/images/template_minimalist_career.png
+    # Batch 7 — Grammar's 9 topics, extracted verbatim (via a read-only
+    # `ast.literal_eval` script, never Django code execution) from
+    # `subject_views.py`'s own `SUBJECT_TOPIC_CARDS`/`SUBJECT_TOPICS`/
+    # `TOPIC_EMOJI` constants — the exact real content, not re-authored.
+    # See `docs/UI_PARITY_MASTER_AUDIT.md` §7 Batch 7 for how it was made.
+    - assets/data/grammar_data.json
+
+  # An image asset can refer to one or more resolution-specific "variants", see
+  # https://flutter.dev/to/resolution-aware-images
+
+  # For details regarding adding assets from package dependencies, see
+  # https://flutter.dev/to/asset-from-package
+
+  # To add custom fonts to your application, add a fonts section here,
+  # in this "flutter" section. Each entry in this list should have a
+  # "family" key with the font family name, and a "fonts" key with a
+  # list giving the asset and other descriptors for the font. For
+  # example:
+  # fonts:
+  #   - family: Schyler
+  #     fonts:
+  #       - asset: fonts/Schyler-Regular.ttf
+  #       - asset: fonts/Schyler-Italic.ttf
+  #         style: italic
+  #   - family: Trajan Pro
+  #     fonts:
+  #       - asset: fonts/TrajanPro.ttf
+  #       - asset: fonts/TrajanPro_Bold.ttf
+  #         weight: 700
+  #
+  # For details regarding fonts from package dependencies,
+  # see https://flutter.dev/to/font-from-package
