@@ -759,6 +759,18 @@ abstract final class ApiEndpoints {
   /// fields exactly as implemented above (no `data` wrapper), and the
   /// transcribed text round-tripped back to the original phrase exactly,
   /// confirming the full Sarvam TTS→STT pipeline really works end to end.
+  ///
+  /// **Format matters here, confirmed in a later session**: this app's own
+  /// default mobile recorder output (`.m4a`/AAC-LC, via `package:record`)
+  /// was fed to this same endpoint/session and consistently got back
+  /// `{success: false, error: "...temporarily unavailable for this
+  /// language.", source: "stt_error"}` — reproduced across retries and both
+  /// `english`/`hindi`, while a `.wav` file to the exact same endpoint
+  /// succeeded every time. So despite the `mime_type` field accepting any
+  /// string, the real Sarvam call this view makes (`transcribe_with_sarvam`,
+  /// `riya_bot/agents/utils.py:261`) is NOT actually format-agnostic in
+  /// practice today — ARIA's recorder (`ariaAudioRecorderServiceProvider`)
+  /// therefore records to `.wav`, not this app's usual `.m4a`.
   static const String riyaVoiceTranscribe = '/api/voice/transcribe/';
 
   /// `riya_bot.views.riya_tts` — `@csrf_exempt`, `@require_POST`, no

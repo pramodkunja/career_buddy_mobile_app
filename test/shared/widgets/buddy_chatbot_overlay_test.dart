@@ -361,9 +361,17 @@ void main() {
       );
       await tester.pump();
       await tester.pump();
+      // The reply's own auto-scroll-to-bottom (`_scrollToBottom`, 200ms) —
+      // needed since the persistent welcome cards panel added below the
+      // transcript (`AriaWelcomeCardsPanel`) leaves less room for messages
+      // than before, so a 2-turn conversation can now need a scroll to
+      // bring the newest reply's chip into view. A bounded pump, not
+      // `pumpAndSettle` — the launcher's float animation repeats forever.
+      await tester.pump(const Duration(milliseconds: 250));
 
       await tester.tap(find.widgetWithText(ActionChip, 'Post New Job'));
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 600));
 
       expect(find.text('NAVIGATED'), findsOneWidget);
     });

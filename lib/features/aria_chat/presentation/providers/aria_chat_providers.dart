@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:record/record.dart' show AudioEncoder;
 
 import '../../../../core/providers/core_providers.dart';
 import '../../../ai_speaking/data/services/audio_recorder_service_impl.dart';
@@ -11,12 +12,15 @@ final ariaRemoteDataSourceProvider = Provider<AriaRemoteDataSource>((ref) {
   return AriaRemoteDataSource(ref.watch(apiClientProvider));
 });
 
-/// Reuses [AudioRecorderServiceImpl] unmodified — see its doc comment for
-/// why the same `.m4a` output is accepted by the server regardless of which
-/// feature recorded it (not format-specific server-side). Same pattern as
-/// `jamAudioRecorderServiceProvider`.
+/// Records to `.wav`, not [AudioRecorderServiceImpl]'s default `.m4a` —
+/// see that class's doc comment: confirmed live that the real
+/// `/api/voice/transcribe/` Sarvam call rejects this plugin's AAC-LC
+/// output but transcribes WAV correctly, so ARIA voice input needs its own
+/// encoder choice. The paired `mimeType: 'audio/wav'` sent in
+/// `AriaChatController.stopRecordingAndSend` must be kept in sync with
+/// this.
 final ariaAudioRecorderServiceProvider = Provider<AudioRecorderService>((ref) {
-  return AudioRecorderServiceImpl();
+  return AudioRecorderServiceImpl(null, AudioEncoder.wav, 'wav');
 });
 
 final ariaVoicePlaybackServiceProvider = Provider<AriaVoicePlaybackService>((ref) {

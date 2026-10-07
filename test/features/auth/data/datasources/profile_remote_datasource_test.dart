@@ -171,6 +171,37 @@ void main() {
       expect(fieldValue('additional_educations_json'), '[{"degree": "MBA"}]');
     });
 
+    test('sends has_experience/has_abroad_experience as "True"/"False" (Django\'s own convention), not Dart\'s lowercase bool.toString()', () async {
+      // Confirmed live against production: `has_experience`/
+      // `has_abroad_experience` are real `<select>` fields whose only valid
+      // `<option>` values are `"True"`/`"False"` (capitalized) — Dart's
+      // `true.toString()`/`false.toString()` produce lowercase `"true"`/
+      // `"false"`, which match neither option and make the whole save fail
+      // with "Select a valid choice" for ANY account that had ever answered
+      // either question (not just accounts missing a mobile number).
+      RequestOptions? captured;
+      final dio = Dio(BaseOptions(baseUrl: 'https://example.test'))
+        ..httpClientAdapter = FakeHttpClientAdapter(statusCode: 302, body: '', onRequest: (o) => captured = o);
+      final datasource = ProfileRemoteDataSource(ApiClient.forTesting(dio));
+      const edited = ProfileEditData(
+        firstName: 'Venkat',
+        lastName: 'Sai',
+        email: 'nvenkatsai@example.com',
+        englishLevel: 'intermediate',
+        bio: '',
+        additionalEducationsJson: '[]',
+        hasExperience: true,
+        hasAbroadExperience: false,
+      );
+
+      await datasource.updateProfile(edited);
+
+      final sentFields = (captured!.data as FormData).fields;
+      String fieldValue(String name) => sentFields.firstWhere((e) => e.key == name).value;
+      expect(fieldValue('has_experience'), 'True');
+      expect(fieldValue('has_abroad_experience'), 'False');
+    });
+
     test('throws ValidationException with the scraped field error on a 200', () async {
       final dio = Dio(BaseOptions(baseUrl: 'https://example.test'))
         ..httpClientAdapter = FakeHttpClientAdapter(

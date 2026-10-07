@@ -24,6 +24,11 @@ String? ariaActionFlutterRoute(String webRoute, {required bool isEmployer}) {
     case '/':
     case '/dashboard/':
       return isEmployer ? RoutePaths.employerDashboard : RoutePaths.dashboard;
+    // The web's `#recommended-jobs` in-page anchor — this app's dashboard
+    // has no separate scroll-target route, so this lands on the same
+    // screen as the plain dashboard route above.
+    case '/dashboard/#recommended-jobs':
+      return RoutePaths.dashboard;
 
     case '/activities/':
       return RoutePaths.activities;
@@ -45,6 +50,8 @@ String? ariaActionFlutterRoute(String webRoute, {required bool isEmployer}) {
     // `ApiEndpoints.workshopDashboardHtml`'s doc comment.
     case '/activities/?category=workshop':
       return RoutePaths.workshopDashboard;
+    case '/activities/?category=listening':
+      return RoutePaths.activitiesWithCategory('listening');
 
     case '/employer/employer/profile/edit/':
       return RoutePaths.employerCompanyProfile;
@@ -82,6 +89,14 @@ String? ariaActionFlutterRoute(String webRoute, {required bool isEmployer}) {
 
     case '/subject/':
       return RoutePaths.grammar;
+    // The welcome-card feature's two grammar sub-topic actions
+    // (`grammar_tenses`/`grammar_sentence_structure`, `aria_welcome_catalog.g.dart`)
+    // — this app's own grammar topic slugs (`grammar_slide_deck.dart`'s
+    // `kGrammarSlideDeckCounts`) match the web's `.html` filenames exactly.
+    case '/subject/tenses.html':
+      return RoutePaths.grammarTopic('tenses');
+    case '/subject/sentence-structure.html':
+      return RoutePaths.grammarTopic('sentence-structure');
     case '/roleplay/':
       return RoutePaths.roleplayHome;
     case '/gd/':

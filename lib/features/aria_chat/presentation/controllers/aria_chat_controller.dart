@@ -158,8 +158,20 @@ class AriaChatState {
 /// `sessionStorage`'s "gone when the tab closes" behavior), without needing
 /// any on-device persistence.
 class AriaChatController extends Notifier<AriaChatState> {
-  late final AudioRecorderService _recorder;
-  late final AriaVoicePlaybackService _playback;
+  // Not `late final` — confirmed live (switching from a job-seeker account
+  // to an employer account, or back, in the same app session, then opening
+  // ARIA chat on both): `_invalidateUserScopedProviders()`
+  // (`auth_controller.dart`) can call `ref.invalidate(ariaChatControllerProvider)`
+  // twice back to back (once on logout, once on the following login) before
+  // anything ever re-reads the provider in between, which can make
+  // Riverpod run [build] again on this *same* instance rather than a fresh
+  // one — a `late final` field then throws `LateInitializationError` on the
+  // second assignment, which silently broke the whole chat panel (no red
+  // screen, just a blank panel) rather than visibly crashing. Reassignment
+  // is harmless either way: both fields are only ever set here, from the
+  // same providers, every time.
+  late AudioRecorderService _recorder;
+  late AriaVoicePlaybackService _playback;
   int _speakGeneration = 0;
 
   /// The most recent assistant reply/greeting text spoken — replayed when
@@ -201,6 +213,29 @@ class AriaChatController extends Notifier<AriaChatState> {
     if (state.messages.isNotEmpty) return;
     state = state.copyWith(messages: [AriaChatMessage(role: AriaMessageRole.assistant, content: greeting)]);
     unawaited(_autoSpeak(greeting));
+  }
+
+  /// A tap on one of the persistent welcome panel's "predefined question"
+  /// cards (`AriaWelcomeCardsPanel` — see its own doc comment, and
+  /// `aria_welcome_card.dart`'s for where this feature comes from) — mirrors
+  /// `runWelcomeAction()` (`static/js/BOTscript.js`): the card's own
+  /// (localized) [questionText] is added as if the user had typed and sent
+  /// it, [replyText] (the card's answer plus an "Opening X." confirmation —
+  /// see `buildAriaWelcomeReply`) is added as the assistant's turn, and
+  /// [action] is spoken then navigated to once speech finishes — the exact
+  /// same [_autoSpeak]/[_onPlaybackComplete] pipeline [sendMessage]'s own
+  /// completion branch already drives, just without a real network call:
+  /// a card already knows its own answer, so (like the real web) this never
+  /// touches `/api/riya/chat/` at all.
+  void tapWelcomeCard({required String questionText, required String replyText, required AriaChatAction action}) {
+    state = state.copyWith(
+      messages: [
+        ...state.messages,
+        AriaChatMessage(role: AriaMessageRole.user, content: questionText),
+        AriaChatMessage(role: AriaMessageRole.assistant, content: replyText, actions: [action]),
+      ],
+    );
+    unawaited(_autoSpeak(replyText, navigateTo: action));
   }
 
   /// The header's manual language dropdown (`#chatbotLanguageSelect`) —
@@ -384,9 +419,12 @@ class AriaChatController extends Notifier<AriaChatState> {
     String? transcript;
     try {
       final bytes = await File(recordedPath).readAsBytes();
+      // 'audio/wav', matching `ariaAudioRecorderServiceProvider`'s WAV
+      // encoder — see that provider's doc comment for why ARIA deliberately
+      // doesn't use this app's usual m4a recording format.
       final transcription = await ref
           .read(ariaRemoteDataSourceProvider)
-          .transcribeVoice(audioBase64: base64Encode(bytes), mimeType: 'audio/m4a', language: state.language);
+          .transcribeVoice(audioBase64: base64Encode(bytes), mimeType: 'audio/wav', language: state.language);
       transcript = transcription.text;
     } catch (_) {
       transcript = null;

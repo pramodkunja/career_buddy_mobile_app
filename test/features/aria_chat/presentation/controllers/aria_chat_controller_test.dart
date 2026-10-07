@@ -36,6 +36,7 @@ class _FakeAriaRemoteDataSource implements AriaRemoteDataSource {
   Object? transcriptionError;
   final List<String> capturedTranscribeAudio = [];
   final List<String> capturedTranscribeLanguages = [];
+  final List<String> capturedTranscribeMimeTypes = [];
 
   String? ttsAudioResult;
   Object? ttsError;
@@ -78,6 +79,7 @@ class _FakeAriaRemoteDataSource implements AriaRemoteDataSource {
   }) async {
     capturedTranscribeAudio.add(audioBase64);
     capturedTranscribeLanguages.add(language);
+    capturedTranscribeMimeTypes.add(mimeType);
     if (transcriptionError != null) throw transcriptionError!;
     return AriaVoiceTranscription(text: transcriptionResult ?? '', source: 'sarvam');
   }
@@ -389,6 +391,20 @@ void main() {
       expect(fake.capturedTranscribeLanguages, ['arabic']);
       expect(fake.capturedLanguages, ['arabic']); // the auto-sent message's own streaming request
       expect(fake.capturedTtsText, isNotEmpty); // the reply's auto-speak also used state.language
+    });
+
+    test('sends the recording as audio/wav, not this app\'s usual m4a — confirmed live that the real '
+        'Sarvam transcription call rejects m4a but accepts wav', () async {
+      final fake = _FakeAriaRemoteDataSource(events: _fastPathComplete)..transcriptionResult = 'hello';
+      final recorder = _FakeAudioRecorderService();
+      final container = _container(fake, recorder: recorder);
+      final notifier = container.read(ariaChatControllerProvider.notifier);
+
+      await notifier.startRecording();
+      await notifier.stopRecordingAndSend(page: 'home', path: '/home', isEmployer: false);
+      await Future<void>.delayed(Duration.zero);
+
+      expect(fake.capturedTranscribeMimeTypes, ['audio/wav']);
     });
 
     test('is a no-op (does not cancel a recording) when already set to the same language', () async {
@@ -810,5 +826,30 @@ void main() {
 
       expect(container.read(ariaChatControllerProvider).navigationGeneration, 2);
     });
+  });
+
+  group('AriaChatController rebuild safety', () {
+    test(
+      'surviving two invalidations back to back (e.g. logout then a different-role login, '
+      'neither followed by a read in between — confirmed live via '
+      "auth_controller.dart's _invalidateUserScopedProviders(), called once per each) "
+      'never throws a LateInitializationError on re-build',
+      () async {
+        final container = _container(_FakeAriaRemoteDataSource());
+        // Build #1 — consumes the fake recorder/playback the same way opening
+        // the chat panel for the first account would.
+        container.read(ariaChatControllerProvider);
+
+        // Two invalidations with no read in between — reproduces the real
+        // logout-then-login sequence without needing a second real account.
+        container.invalidate(ariaChatControllerProvider);
+        container.invalidate(ariaChatControllerProvider);
+
+        // Build #2 (or #3) on what may be the very same Notifier instance —
+        // this is exactly where `late final _recorder`/`_playback` used to
+        // throw `LateInitializationError: ... has already been initialized`.
+        expect(() => container.read(ariaChatControllerProvider), returnsNormally);
+      },
+    );
   });
 }

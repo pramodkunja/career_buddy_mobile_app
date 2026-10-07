@@ -5,7 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   group('ariaActionFlutterRoute', () {
     test('maps every real ACTION_DEFINITIONS route this app has a screen for (riya_bot/riya_assistant.py)', () {
-      const cases = <String, String>{
+      final cases = <String, String>{
         '/dashboard/': RoutePaths.dashboard,
         '/activities/': RoutePaths.activities,
         '/activities/?category=speaking': '/activities?category=speaking',
@@ -15,6 +15,10 @@ void main() {
         '/activities/?category=communication': '/activities?category=communication',
         '/activities/?category=analysis': '/activities?category=analysis',
         '/activities/?category=workshop': RoutePaths.workshopDashboard,
+        '/activities/?category=listening': '/activities?category=listening',
+        '/dashboard/#recommended-jobs': RoutePaths.dashboard,
+        '/subject/tenses.html': RoutePaths.grammarTopic('tenses'),
+        '/subject/sentence-structure.html': RoutePaths.grammarTopic('sentence-structure'),
         '/employer/employer/profile/edit/': RoutePaths.employerCompanyProfile,
         '/employer/employer/candidates/search/': RoutePaths.employerSearchCandidates,
         '/employer/employer/jobs/new/': RoutePaths.employerJobCreate,

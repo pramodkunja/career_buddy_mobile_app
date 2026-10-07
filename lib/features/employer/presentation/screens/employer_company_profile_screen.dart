@@ -18,6 +18,7 @@ import '../../../../shared/widgets/drawer_aware_back_leading.dart';
 import '../../../auth/presentation/widgets/employer_phone_input_field.dart';
 import '../../domain/entities/employer_profile_form.dart';
 import '../controllers/employer_profile_controller.dart';
+import '../providers/employer_dashboard_providers.dart';
 
 /// `jobs_app.views.employer_profile_create`/`employer_profile_edit`
 /// (`templates/employer/profile_form.html`) — one Flutter destination for
@@ -149,6 +150,14 @@ class _ProfileFormState extends ConsumerState<_ProfileForm> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(widget.isCreate ? 'Company profile created!' : 'Profile updated!')),
         );
+        // Confirmed live: editing an existing profile (isCreate == false)
+        // never navigates away, so without this the dashboard kept showing
+        // its stale `EmployerProfileIncompleteFailure` state
+        // (`employer_dashboard_screen.dart`'s `_ProfileIncompleteView`,
+        // gated on the real `_employer_profile_complete` GST+PAN check) even
+        // after the server had already accepted the new GSTIN/PAN — the
+        // dashboard provider was never re-fetched to find out.
+        ref.invalidate(employerDashboardControllerProvider);
         if (widget.isCreate) context.go(RoutePaths.employerDashboard);
       case Failed(failure: final failure):
         setState(() => _submitError = failure.message);

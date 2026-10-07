@@ -4,10 +4,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../features/aria_chat/domain/aria_welcome_catalog.g.dart';
 import '../../features/aria_chat/domain/entities/aria_chat_message.dart';
 import '../../features/aria_chat/domain/entities/aria_language.dart';
+import '../../features/aria_chat/domain/entities/aria_welcome_card.dart';
 import '../../features/aria_chat/presentation/aria_action_routes.dart';
+import '../../features/aria_chat/presentation/aria_welcome_reply.dart';
+import '../../features/aria_chat/presentation/aria_welcome_section.dart';
 import '../../features/aria_chat/presentation/controllers/aria_chat_controller.dart';
+import '../../features/aria_chat/presentation/widgets/aria_welcome_cards_panel.dart';
 import '../../features/auth/presentation/controllers/auth_controller.dart';
 
 /// `#riya-assistant-root`/`.riya-launcher`/`.riya-thought-bubble`
@@ -283,6 +288,70 @@ class _ChatPanelState extends ConsumerState<_ChatPanel> {
     return authState is AuthAuthenticated && authState.user.isEmployer;
   }
 
+  /// `getAssistantRole()` (`static/js/BOTscript.js`) — see
+  /// `ariaWelcomeSection()`'s doc comment for why this app has no
+  /// "memory-only guest role" equivalent to reproduce: every screen this
+  /// overlay is mounted on already knows the real auth state, so a guest is
+  /// always exactly `"guest"`, never a mid-conversation "guest who said
+  /// they're a job seeker" (that distinction only exists because the real
+  /// web lets a signed-out visitor browse while mid-chat; this app's
+  /// sign-up/sign-in screens aren't reachable with the overlay open there).
+  String get _assistantRole {
+    final authState = ref.read(authControllerProvider);
+    if (authState is! AuthAuthenticated) return 'guest';
+    return authState.user.isEmployer ? 'employer' : 'student';
+  }
+
+  /// Same best-effort "what screen is the user on" signal as
+  /// `BuddyChatbotOverlay._currentRoute()` — duplicated rather than shared
+  /// because that one lives on a different, private State class with no
+  /// public surface to call into (this class already independently reads
+  /// [authControllerProvider] for [_isEmployer] the same way, for the same
+  /// reason).
+  String _currentPath() {
+    try {
+      return GoRouterState.of(context).uri.toString();
+    } catch (_) {
+      return '/';
+    }
+  }
+
+  /// `renderPersistentWelcome()`'s own role/section resolution
+  /// (`static/js/BOTscript.js`): a guest always sees their role-level cards
+  /// ([kAriaWelcomeRoleContext]) — "a signed-out visitor gets the role
+  /// cards wherever they are: the section cards all lead somewhere that
+  /// needs an account" (the real comment, reproduced verbatim) — while a
+  /// signed-in student/employer sees their current section's cards
+  /// ([kAriaWelcomeSectionContext]) when [ariaWelcomeSection] recognizes the
+  /// route, falling back to their role-level cards otherwise (an
+  /// unrecognized screen, same as the real `SECTION_CONTEXT[section] ||
+  /// roleContext`).
+  AriaWelcomeCardGroup get _currentWelcomeGroup {
+    final role = _assistantRole;
+    if (role == 'guest') return kAriaWelcomeRoleContext['guest']!;
+    final section = ariaWelcomeSection(path: _currentPath(), isEmployer: _isEmployer);
+    return kAriaWelcomeSectionContext[section] ?? kAriaWelcomeRoleContext[role]!;
+  }
+
+  /// A tapped welcome-card — mirrors `runWelcomeAction()`
+  /// (`static/js/BOTscript.js`): compose the card's full (localized) reply
+  /// once here (where both the card and the current language are in
+  /// scope), then hand the user-visible question text, the composed reply,
+  /// and the resolved [AriaChatAction] to the controller, which owns
+  /// appending both chat turns and driving speech/navigation — see
+  /// [AriaChatController.tapWelcomeCard]'s doc comment.
+  void _onWelcomeCardTap(AriaWelcomeCard card, String language) {
+    final catalogEntry = kAriaActionCatalog[card.actionKey];
+    if (catalogEntry == null) return;
+    ref
+        .read(ariaChatControllerProvider.notifier)
+        .tapWelcomeCard(
+          questionText: card.localizedTitle(language),
+          replyText: buildAriaWelcomeReply(card: card, language: language),
+          action: AriaChatAction(key: card.actionKey, label: catalogEntry.label, route: catalogEntry.route),
+        );
+  }
+
   /// Same "gracefully do nothing without a [GoRouterState] in scope" leniency
   /// as [_currentRoute] — a bare `MaterialApp` test host (several existing
   /// widget tests mount this overlay that way) has no [GoRouter] for
@@ -344,7 +413,12 @@ class _ChatPanelState extends ConsumerState<_ChatPanel> {
 
     return Container(
       width: 300,
-      height: 420,
+      // Taller than this widget's original 420 — the persistent welcome
+      // cards panel (`AriaWelcomeCardsPanel`) added below is a genuinely new
+      // chunk of always-visible content the original 300×420 sizing was
+      // chosen without, and squeezing it into the old height left almost
+      // nothing for the message transcript above it.
+      height: 520,
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
@@ -421,6 +495,11 @@ class _ChatPanelState extends ConsumerState<_ChatPanel> {
                 return _MessageBubble(message: message, onActionTap: _onActionTap);
               },
             ),
+          ),
+          AriaWelcomeCardsPanel(
+            group: _currentWelcomeGroup,
+            language: chatState.language,
+            onCardTap: (card) => _onWelcomeCardTap(card, chatState.language),
           ),
           if (chatState.voiceStatus != AriaVoiceStatus.idle) _VoiceStatusBanner(status: chatState.voiceStatus),
           Container(

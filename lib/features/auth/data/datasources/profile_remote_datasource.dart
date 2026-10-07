@@ -82,6 +82,19 @@ class ProfileRemoteDataSource {
 
   String _stripHtml(String value) => value.replaceAll(_htmlTagPattern, '').trim();
 
+  /// `has_experience`/`has_abroad_experience` are real `<select>` fields on
+  /// the live page (`<option value="True">Yes</option>` /
+  /// `<option value="False">No</option>`, confirmed directly against
+  /// production) — a Django `TypedChoiceField` matching the Python
+  /// convention `str(True)`/`str(False)`. Dart's own `bool.toString()`
+  /// produces lowercase `"true"`/`"false"`, which doesn't match either
+  /// `<option>`'s value, so Django's `ChoiceField` rejects the whole save
+  /// with "Select a valid choice" — confirmed live: this was the actual
+  /// cause of "Could not update your profile" for any account that had
+  /// ever answered either question (not just accounts missing a mobile
+  /// number, which is a separate, genuine data issue on some accounts).
+  static String _djangoBool(bool value) => value ? 'True' : 'False';
+
   static String _unescapeHtmlEntities(String value) => value
       .replaceAll('&amp;', '&')
       .replaceAll('&lt;', '<')
@@ -200,7 +213,7 @@ class ProfileRemoteDataSource {
         if (data.passedOutYear2 != null) 'passed_out_year_2': data.passedOutYear2.toString(),
         'iti_diploma_specialization_2': data.itiDiplomaSpecialization2,
         'higher_education_degree_2': data.higherEducationDegree2,
-        if (data.hasExperience != null) 'has_experience': data.hasExperience.toString(),
+        if (data.hasExperience != null) 'has_experience': _djangoBool(data.hasExperience!),
         if (data.experienceYears != null) 'experience_years': data.experienceYears.toString(),
         'company_name': data.companyName,
         'contact_person_role': data.contactPersonRole,
@@ -213,7 +226,7 @@ class ProfileRemoteDataSource {
         'certification': data.certification,
         'current_location': data.currentLocation,
         'preferred_location': data.preferredLocation,
-        if (data.hasAbroadExperience != null) 'has_abroad_experience': data.hasAbroadExperience.toString(),
+        if (data.hasAbroadExperience != null) 'has_abroad_experience': _djangoBool(data.hasAbroadExperience!),
         if (data.abroadYears != null) 'abroad_years': data.abroadYears.toString(),
         'abroad_country': data.abroadCountry,
         'abroad_industry': data.abroadIndustry,
