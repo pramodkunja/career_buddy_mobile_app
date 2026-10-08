@@ -9,6 +9,8 @@ import '../../../../core/utils/result.dart';
 import '../../../../core/validators/validators.dart';
 import '../../../../shared/widgets/app_button.dart';
 import '../../../../shared/widgets/app_card.dart';
+import '../../../../shared/widgets/app_error_view.dart';
+import '../../../../shared/widgets/app_loader.dart';
 import '../../../../shared/widgets/app_nav_drawer.dart';
 import '../../../../shared/widgets/app_text_field.dart';
 import '../../../../shared/widgets/buddy_chatbot_overlay.dart';
@@ -38,7 +40,13 @@ import '../providers/job_posting_providers.dart';
 /// authority, and its own per-field errors (`JobPostingRemoteDataSource`)
 /// are shown here exactly as the server phrases them.
 class PostNewJobScreen extends ConsumerStatefulWidget {
-  const PostNewJobScreen({super.key});
+  /// `jobId` non-null means Edit mode — the exact same form, seeded from
+  /// `JobPostingRepository.getJobForEdit(jobId)` instead of starting blank,
+  /// and submitted via `submitEdit` instead of `submit`. See this class's
+  /// own doc comment for the full Create contract both modes share.
+  const PostNewJobScreen({this.jobId, super.key});
+
+  final int? jobId;
 
   @override
   ConsumerState<PostNewJobScreen> createState() => _PostNewJobScreenState();
@@ -110,6 +118,11 @@ class _PostNewJobScreenState extends ConsumerState<PostNewJobScreen> {
   String? _generalError;
   Map<String, String> _fieldErrors = {};
 
+  // ── Edit mode ────────────────────────────────────────────────────────────
+  bool get _isEdit => widget.jobId != null;
+  bool _hydrated = false;
+  String? _loadError;
+
   bool get _isIt => _jobCategory == 'it';
   bool get _isNonIt => _jobCategory == 'non_it';
   bool get _isNonItTech => _isNonIt && _jobClassification == 'technical';
@@ -126,6 +139,93 @@ class _PostNewJobScreenState extends ConsumerState<PostNewJobScreen> {
       if (category.key == key) return category;
     }
     return null;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    if (_isEdit) _loadExistingJob();
+  }
+
+  Future<void> _loadExistingJob() async {
+    final result = await ref.read(jobPostingRepositoryProvider).getJobForEdit(widget.jobId!);
+    if (!mounted) return;
+    switch (result) {
+      case Success(value: final data):
+        setState(() {
+          _hydrateFrom(data);
+          _hydrated = true;
+        });
+      case Failed(failure: final failure):
+        setState(() {
+          _loadError = failure.message;
+          _hydrated = true;
+        });
+    }
+  }
+
+  /// Seeds every controller/field from an existing job's current values —
+  /// the exact inverse of [_submit]'s `JobPostingSubmission` construction.
+  void _hydrateFrom(JobPostingSubmission data) {
+    _jobCategory = data.jobCategory;
+    _jobClassification = data.jobClassification;
+    _department = data.department;
+    _departmentFunction.text = data.departmentFunction;
+    _designation = data.designation;
+    _industrySector.text = data.industrySector;
+    _title.text = data.title;
+    _jobType = data.jobType;
+    _contractDurationMonths.text = data.contractDurationMonths;
+    _employmentType = data.employmentType;
+    _experiencePreset = data.experiencePreset;
+    _experienceYearsTyped.text = data.experienceYears;
+    _location.text = data.location;
+    _educationPreset = data.educationPreset;
+    _educationOther.text = data.educationOther;
+    _functionalSkills.text = data.functionalSkills;
+    _industryExperience.text = data.industryExperience;
+    _workingHours.text = data.workingHours;
+    _salaryFormat = data.salaryFormat.isEmpty ? _salaryFormat : data.salaryFormat;
+    _salaryMin.text = data.salaryMin;
+    _salaryMax.text = data.salaryMax;
+    _openings.text = data.openings.toString();
+    _perks
+      ..clear()
+      ..addAll(data.perks);
+    _description.text = data.description;
+    _requirements.text = data.requirements;
+    _responsibilities.text = data.responsibilities;
+    _certifications.text = data.certifications;
+    _softwareSkills.text = data.softwareSkills;
+    _languageRequirements.text = data.languageRequirements;
+    _keywords.text = data.keywords;
+    _applicationContact.text = data.applicationContact;
+    _selectedSkills
+      ..clear()
+      ..addAll(data.skills);
+    _mandatorySkills
+      ..clear()
+      ..addAll(data.mandatorySkills);
+    // Any selected IT skill not in the static catalog's general list is one
+    // the employer previously free-typed (see `_addCustomItSkill`) — surface
+    // it as a pre-existing chip the same way a freshly-typed one would be.
+    if (data.jobCategory == 'it') {
+      final catalogSkills = kSkillCatalog.firstWhere((c) => c.key == 'it').skills;
+      _customItSkills
+        ..clear()
+        ..addAll(data.skills.where((s) => !catalogSkills.contains(s)));
+    }
+    _deadline = DateTime.tryParse(data.deadline);
+    _status = data.status.isEmpty ? _status : data.status;
+    _workEnvironment = data.workEnvironment;
+    _interviewMode = data.interviewMode;
+    _interviewModeOther.text = data.interviewModeOther;
+    _workMode = data.workMode;
+    _joiningRequirement = data.joiningRequirement;
+    _noticePeriod = data.noticePeriod;
+    _noticePeriodOther.text = data.noticePeriodOther;
+    _genderPreference = data.genderPreference;
+    _ageLimit.text = data.ageLimit;
   }
 
   @override
@@ -396,9 +496,8 @@ class _PostNewJobScreenState extends ConsumerState<PostNewJobScreen> {
       ageLimit: _ageLimit.text.trim(),
     );
 
-    final result = await ref
-        .read(jobPostingRepositoryProvider)
-        .submit(submission);
+    final repo = ref.read(jobPostingRepositoryProvider);
+    final result = _isEdit ? await repo.submitEdit(widget.jobId!, submission) : await repo.submit(submission);
     if (!mounted) return;
 
     switch (result) {
@@ -408,9 +507,18 @@ class _PostNewJobScreenState extends ConsumerState<PostNewJobScreen> {
         ScaffoldMessenger.of(context)
           ..hideCurrentSnackBar()
           ..showSnackBar(
-            const SnackBar(content: Text('Job posted successfully!')),
+            SnackBar(content: Text(_isEdit ? 'Job updated successfully!' : 'Job posted successfully!')),
           );
-        context.go(RoutePaths.employerJobOpenings);
+        // Edit is reached by a push (from the Dashboard's per-job Edit
+        // button) — pop back to it, same as every other push-reached
+        // employer detail screen's success path. Create is reached from the
+        // nav drawer (a `go`, no screen to pop back to), so it still lands
+        // on Job Openings, same as before.
+        if (_isEdit) {
+          context.pop();
+        } else {
+          context.go(RoutePaths.employerJobOpenings);
+        }
       case Failed(failure: final failure):
         setState(() {
           _submitting = false;
@@ -434,9 +542,30 @@ class _PostNewJobScreenState extends ConsumerState<PostNewJobScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_isEdit && !_hydrated) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Edit Job'), leading: drawerAwareBackLeading(context)),
+        drawer: const AppNavDrawer(),
+        body: const AppLoader(),
+      );
+    }
+    if (_isEdit && _loadError != null) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Edit Job'), leading: drawerAwareBackLeading(context)),
+        drawer: const AppNavDrawer(),
+        body: AppErrorView(
+          message: _loadError!,
+          onRetry: () => setState(() {
+            _hydrated = false;
+            _loadError = null;
+            _loadExistingJob();
+          }),
+        ),
+      );
+    }
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Post New Job'),
+        title: Text(_isEdit ? 'Edit Job' : 'Post New Job'),
         leading: drawerAwareBackLeading(context),
       ),
       drawer: const AppNavDrawer(),

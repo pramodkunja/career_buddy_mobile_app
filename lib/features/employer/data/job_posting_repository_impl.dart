@@ -19,4 +19,23 @@ class JobPostingRepositoryImpl implements JobPostingRepository {
       return Failed(ExceptionMapper.map(e));
     }
   }
+
+  @override
+  Future<Result<void>> submitEdit(int jobId, JobPostingSubmission data) async {
+    try {
+      await _remote.submitEdit(jobId, data);
+      return const Success(null);
+    } on AppException catch (e) {
+      return Failed(ExceptionMapper.map(e));
+    }
+  }
+
+  @override
+  Future<Result<JobPostingSubmission>> getJobForEdit(int jobId) async {
+    try {
+      return Success(await _remote.getJobForEdit(jobId));
+    } on AppException catch (e) {
+      return Failed(ExceptionMapper.map(e));
+    }
+  }
 }

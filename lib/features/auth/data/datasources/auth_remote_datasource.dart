@@ -3,6 +3,7 @@ import 'package:dio/dio.dart';
 import '../../../../core/errors/exceptions.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../../core/network/api_endpoints.dart';
+import '../../../../core/utils/django_bool.dart';
 import '../../domain/entities/student_registration_data.dart';
 
 /// Talks to the Django session-auth login view directly (there is no JSON
@@ -183,7 +184,10 @@ class AuthRemoteDataSource {
         if (data.passedOutYear2 != null) 'passed_out_year_2': data.passedOutYear2.toString(),
         'iti_diploma_specialization_2': data.itiDiplomaSpecialization2,
         'higher_education_degree_2': data.higherEducationDegree2,
-        if (data.hasExperience != null) 'has_experience': data.hasExperience.toString(),
+        // `has_experience`/`has_abroad_experience` need Python's `str(bool)`
+        // convention (`"True"`/`"False"`), not Dart's lowercase
+        // `bool.toString()` — see `djangoBool`'s doc comment.
+        if (data.hasExperience != null) 'has_experience': djangoBool(data.hasExperience!),
         if (data.experienceYears != null) 'experience_years': data.experienceYears.toString(),
         'company_name': data.companyName,
         'contact_person_role': data.contactPersonRole,
@@ -196,7 +200,7 @@ class AuthRemoteDataSource {
         'certification': data.certification,
         'current_location': data.currentLocation,
         'preferred_location': data.preferredLocation,
-        if (data.hasAbroadExperience != null) 'has_abroad_experience': data.hasAbroadExperience.toString(),
+        if (data.hasAbroadExperience != null) 'has_abroad_experience': djangoBool(data.hasAbroadExperience!),
         if (data.abroadYears != null) 'abroad_years': data.abroadYears.toString(),
         'abroad_country': data.abroadCountry,
         'abroad_industry': data.abroadIndustry,

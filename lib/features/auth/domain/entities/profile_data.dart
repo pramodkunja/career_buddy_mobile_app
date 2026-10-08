@@ -19,6 +19,9 @@ class ProfileOverview {
     required this.englishLevel,
     required this.bio,
     required this.additionalEducationsJson,
+    this.contactPersonRole = '',
+    this.contactPersonMobile = '',
+    this.contactPersonEmail = '',
   });
 
   final String fullName;
@@ -45,6 +48,17 @@ class ProfileOverview {
   /// same round-trip-only reasoning as [englishLevel]. Defaults to `'[]'`
   /// when the page has nothing to scrape.
   final String additionalEducationsJson;
+
+  /// `contact_person_role`/`contact_person_mobile`/`contact_person_email` —
+  /// unlike every other field above, these have no Overview `info-item` on
+  /// the live page at all (confirmed directly against production), so they
+  /// can only be recovered from the Edit tab's own form markup — see
+  /// `ProfileRemoteDataSource`'s extraction doc comments. Editable via the
+  /// Edit tab (unlike [englishLevel]/[bio]/[additionalEducationsJson], which
+  /// are round-trip-only with no corresponding UI).
+  final String contactPersonRole;
+  final String contactPersonMobile;
+  final String contactPersonEmail;
 
   String field(String label) => fields[label] ?? '';
 }

@@ -163,6 +163,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const PostNewJobScreen(),
       ),
       GoRoute(
+        path: RoutePaths.employerJobEditPattern,
+        builder: (context, state) {
+          final id = int.tryParse(state.pathParameters['id'] ?? '') ?? -1;
+          return PostNewJobScreen(jobId: id);
+        },
+      ),
+      GoRoute(
         path: RoutePaths.employerAllApplications,
         builder: (context, state) => const EmployerAllApplicationsScreen(),
       ),

@@ -1,3 +1,4 @@
+import 'package:career_buddy_lms/app/router/route_paths.dart';
 import 'package:career_buddy_lms/core/errors/failures.dart';
 import 'package:career_buddy_lms/core/utils/result.dart';
 import 'package:career_buddy_lms/features/auth/domain/entities/auth_user.dart';
@@ -11,6 +12,7 @@ import 'package:career_buddy_lms/features/employer/presentation/screens/employer
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 
 class _FakeAuthRepository implements AuthRepository {
   @override
@@ -195,14 +197,41 @@ void main() {
       expect(find.text('Job deleted.'), findsOneWidget);
     });
 
-    testWidgets('tapping Edit shows the not-yet-available notice, not a broken screen', (tester) async {
-      await _pump(tester, const Success(_summary));
+    testWidgets('tapping Edit navigates to Edit Job for that exact job id, reusing Post New Job\'s screen', (tester) async {
+      tester.view.physicalSize = const Size(400, 2200);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
 
-      await tester.tap(find.byTooltip('Edit'));
+      final repo = _FakeEmployerDashboardRepository(const Success(_summary));
+      final router = GoRouter(
+        initialLocation: '/',
+        routes: [
+          GoRoute(path: '/', builder: (context, state) => const EmployerDashboardScreen()),
+          GoRoute(
+            path: RoutePaths.employerJobEditPattern,
+            builder: (context, state) => Scaffold(body: Text('EDIT JOB ${state.pathParameters['id']}')),
+          ),
+        ],
+      );
+      addTearDown(router.dispose);
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            authRepositoryProvider.overrideWithValue(_FakeAuthRepository()),
+            employerDashboardRepositoryProvider.overrideWithValue(repo),
+          ],
+          child: MaterialApp.router(routerConfig: router),
+        ),
+      );
       await tester.pump();
 
-      expect(find.text('Edit Job'), findsOneWidget);
-      expect(find.textContaining('isn\'t available in the app yet'), findsOneWidget);
+      await tester.tap(find.byTooltip('Edit'));
+      await tester.pumpAndSettle();
+
+      // `_summary`'s one job has `jobId: 1` — confirms the tapped job's own
+      // id is threaded through, not a hardcoded/wrong one.
+      expect(find.text('EDIT JOB 1'), findsOneWidget);
     });
   });
 }

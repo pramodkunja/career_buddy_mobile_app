@@ -93,13 +93,20 @@ abstract final class ApiEndpoints {
   /// `errorlist` rendering — see `JobPostingRemoteDataSource`).
   static const String employerJobCreate = '/employer/employer/jobs/new/';
 
-  /// `jobs_app.views.job_edit` — presumed same live-vs-repo form-contract
-  /// divergence as [employerJobCreate] (not independently re-verified this
-  /// task, which only covered *creating* a job); not wired to a Flutter
-  /// screen. Scoped to the caller's own jobs **or** any `is_seeded=True`
-  /// platform job — editing a seeded job transfers its ownership to the
-  /// caller (`jobs_app/views.py:606-620`, intentional, not
-  /// reproduced-around).
+  /// `jobs_app.views.job_edit` — confirmed live (Phase 1 Critical Fixes,
+  /// job 68): byte-identical 46-field contract to [employerJobCreate] (same
+  /// `name="..."` attributes, same `err_<field>` error markup), with one
+  /// quirk — the `<select name="job_category">`/`job_classification`/
+  /// `department`/`employment_type`/`education`/`joining_requirement`
+  /// elements are NOT rendered with their stored value `selected` the way
+  /// every other field (text inputs, `job_type`, `experience`,
+  /// `salary_format`, `status`, every checkbox/radio) correctly is — see
+  /// `JobPostingRemoteDataSource.getJobForEdit`'s doc comment for how this
+  /// is worked around. The `<form>` has no `action=`, i.e. it POSTs back to
+  /// this same edit URL, not [employerJobCreate]. Scoped to the caller's
+  /// own jobs **or** any `is_seeded=True` platform job — editing a seeded
+  /// job transfers its ownership to the caller (`jobs_app/views.py:606-620`,
+  /// intentional, not reproduced-around).
   static String employerJobEdit(int pk) => '/employer/employer/jobs/$pk/edit/';
 
   /// `jobs_app.views.job_delete` — POST-only (a GET just redirects back to

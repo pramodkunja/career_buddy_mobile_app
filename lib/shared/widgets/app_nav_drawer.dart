@@ -103,6 +103,12 @@ class AppNavDrawer extends ConsumerWidget {
               _NavTile(icon: Icons.account_tree_outlined, label: 'Sitemap', onTap: () => _goComingSoon(context, RoutePaths.sitemap)),
               _NavTile(icon: Icons.description_outlined, label: 'Resume Parsing', onTap: () => _goComingSoon(context, RoutePaths.resumeBuilder)),
               _NavTile(icon: Icons.spellcheck_outlined, label: 'Grammar', onTap: () => _goComingSoon(context, RoutePaths.grammar)),
+              // `jobs_app.views.job_openings` — plain `@login_required` on
+              // the real backend (confirmed live), not employer-gated, even
+              // though it's reached via the same screen/route the employer
+              // sidebar also links — see `RoutePaths.employerJobOpenings`'s
+              // doc comment.
+              _NavTile(icon: Icons.work_outline, label: 'Job Openings', onTap: () => _goComingSoon(context, RoutePaths.employerJobOpenings)),
               _NavTile(
                 icon: Icons.grid_view_rounded,
                 label: 'Activities',

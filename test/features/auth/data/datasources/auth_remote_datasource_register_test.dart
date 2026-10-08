@@ -90,5 +90,102 @@ void main() {
 
       await expectLater(datasource.register(buildData()), throwsA(isA<ValidationException>()));
     });
+
+    // Phase 1 Critical Fixes — `has_experience`/`has_abroad_experience` are
+    // real Django `TypedChoiceField`s whose only valid `<option>` values are
+    // `"True"`/`"False"` (capitalized, Python's `str(bool)` convention,
+    // confirmed live) — Dart's own `bool.toString()` produces lowercase
+    // `"true"`/`"false"`, which matches neither option and fails the whole
+    // registration with "Select a valid choice" for anyone who answers
+    // either question. See `djangoBool`'s doc comment.
+    test('sends has_experience as "True" when true', () async {
+      RequestOptions? captured;
+      final dio = Dio(BaseOptions(baseUrl: 'https://example.test'))
+        ..httpClientAdapter = GetPrimesCsrfAdapter(postStatusCode: 302, onPostRequest: (o) => captured = o);
+      final datasource = AuthRemoteDataSource(ApiClient.forTesting(dio));
+
+      await datasource.register(
+        StudentRegistrationData(
+          firstName: 'Test',
+          lastName: 'User',
+          email: 'test@example.com',
+          username: 'testuser',
+          password: 'Aa1!aaaa',
+          passwordConfirm: 'Aa1!aaaa',
+          aadharNumber: '123456789012',
+          resumeFilePath: tempResume.path,
+          resumeFileName: 'test_resume.pdf',
+          hasExperience: true,
+        ),
+      );
+
+      final sentFields = (captured!.data as FormData).fields;
+      expect(sentFields.firstWhere((e) => e.key == 'has_experience').value, 'True');
+    });
+
+    test('sends has_experience as "False" when false, and has_abroad_experience as "False" when false', () async {
+      RequestOptions? captured;
+      final dio = Dio(BaseOptions(baseUrl: 'https://example.test'))
+        ..httpClientAdapter = GetPrimesCsrfAdapter(postStatusCode: 302, onPostRequest: (o) => captured = o);
+      final datasource = AuthRemoteDataSource(ApiClient.forTesting(dio));
+
+      await datasource.register(
+        StudentRegistrationData(
+          firstName: 'Test',
+          lastName: 'User',
+          email: 'test@example.com',
+          username: 'testuser',
+          password: 'Aa1!aaaa',
+          passwordConfirm: 'Aa1!aaaa',
+          aadharNumber: '123456789012',
+          resumeFilePath: tempResume.path,
+          resumeFileName: 'test_resume.pdf',
+          hasExperience: false,
+          hasAbroadExperience: false,
+        ),
+      );
+
+      final sentFields = (captured!.data as FormData).fields;
+      expect(sentFields.firstWhere((e) => e.key == 'has_experience').value, 'False');
+      expect(sentFields.firstWhere((e) => e.key == 'has_abroad_experience').value, 'False');
+    });
+
+    test('sends has_abroad_experience as "True" when true', () async {
+      RequestOptions? captured;
+      final dio = Dio(BaseOptions(baseUrl: 'https://example.test'))
+        ..httpClientAdapter = GetPrimesCsrfAdapter(postStatusCode: 302, onPostRequest: (o) => captured = o);
+      final datasource = AuthRemoteDataSource(ApiClient.forTesting(dio));
+
+      await datasource.register(
+        StudentRegistrationData(
+          firstName: 'Test',
+          lastName: 'User',
+          email: 'test@example.com',
+          username: 'testuser',
+          password: 'Aa1!aaaa',
+          passwordConfirm: 'Aa1!aaaa',
+          aadharNumber: '123456789012',
+          resumeFilePath: tempResume.path,
+          resumeFileName: 'test_resume.pdf',
+          hasAbroadExperience: true,
+        ),
+      );
+
+      final sentFields = (captured!.data as FormData).fields;
+      expect(sentFields.firstWhere((e) => e.key == 'has_abroad_experience').value, 'True');
+    });
+
+    test('omits has_experience/has_abroad_experience entirely when unanswered (null), not a stray "null" string', () async {
+      RequestOptions? captured;
+      final dio = Dio(BaseOptions(baseUrl: 'https://example.test'))
+        ..httpClientAdapter = GetPrimesCsrfAdapter(postStatusCode: 302, onPostRequest: (o) => captured = o);
+      final datasource = AuthRemoteDataSource(ApiClient.forTesting(dio));
+
+      await datasource.register(buildData());
+
+      final sentFields = (captured!.data as FormData).fields;
+      expect(sentFields.where((e) => e.key == 'has_experience'), isEmpty);
+      expect(sentFields.where((e) => e.key == 'has_abroad_experience'), isEmpty);
+    });
   });
 }

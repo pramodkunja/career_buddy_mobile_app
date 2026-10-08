@@ -67,6 +67,22 @@ const _fixtureHtmlWithEditForm =
     // model the real server output byte-for-byte.
     'const rawData = "[{\\u0022degree\\u0022: \\u0022B.Tech\\u0022, \\u0022year\\u0022: \\u00222019\\u0022}]";';
 
+/// `contact_person_role`/`contact_person_mobile`/`contact_person_email` have
+/// no Overview `info-item` at all (confirmed directly against production —
+/// see `ProfileRemoteDataSource`'s doc comment), so they're only present in
+/// the Edit tab's own `<input>` markup — modeled here on the exact live
+/// markup for a POPULATED value (role/email: plain `value="..."` attribute;
+/// mobile: the same hidden-input-with-`value`-attribute pattern already
+/// confirmed for `mobile`/`alternate_mobile`).
+const _fixtureHtmlWithContactPerson =
+    '$_fixtureHtmlWithEditForm'
+    '<input type="text" name="contact_person_role" class="form-control" '
+    'value="HR Manager" placeholder="Contact Role (e.g. HR Manager, Team Lead)" '
+    'maxlength="100" id="id_contact_person_role">'
+    '<input type="hidden" name="contact_person_mobile" value="+919876500000" id="id_contact_person_mobile">'
+    '<input type="email" name="contact_person_email" class="form-control" '
+    'value="hr@example.com" placeholder="Contact Email ID" maxlength="320" id="id_contact_person_email">';
+
 void main() {
   group('getProfile', () {
     test('parses header, stats, recent results, and info-item fields', () async {
@@ -121,6 +137,30 @@ void main() {
       expect(profile.additionalEducationsJson, '[]');
     });
 
+    test('extracts contactPersonRole/Mobile/Email from the Edit tab markup when populated', () async {
+      final dio = Dio(BaseOptions(baseUrl: 'https://example.test'))
+        ..httpClientAdapter = FakeHttpClientAdapter(statusCode: 200, body: _fixtureHtmlWithContactPerson);
+      final datasource = ProfileRemoteDataSource(ApiClient.forTesting(dio));
+
+      final profile = await datasource.getProfile();
+
+      expect(profile.contactPersonRole, 'HR Manager');
+      expect(profile.contactPersonMobile, '+919876500000');
+      expect(profile.contactPersonEmail, 'hr@example.com');
+    });
+
+    test('defaults contactPersonRole/Mobile/Email to empty when unset (no "value" attribute, matching production for an account with no stored data)', () async {
+      final dio = Dio(BaseOptions(baseUrl: 'https://example.test'))
+        ..httpClientAdapter = FakeHttpClientAdapter(statusCode: 200, body: _fixtureHtmlWithEditForm);
+      final datasource = ProfileRemoteDataSource(ApiClient.forTesting(dio));
+
+      final profile = await datasource.getProfile();
+
+      expect(profile.contactPersonRole, '');
+      expect(profile.contactPersonMobile, '');
+      expect(profile.contactPersonEmail, '');
+    });
+
     test('throws ServerException on a non-200 response', () async {
       final dio = Dio(BaseOptions(baseUrl: 'https://example.test'))
         ..httpClientAdapter = FakeHttpClientAdapter(statusCode: 500, body: '');
@@ -169,6 +209,40 @@ void main() {
       expect(fieldValue('english_level'), 'advanced');
       expect(fieldValue('bio'), 'A real bio with a " quote.');
       expect(fieldValue('additional_educations_json'), '[{"degree": "MBA"}]');
+    });
+
+    test('sends contact_person_role/mobile/email under their exact Django field names, preserved unchanged when only an unrelated field is edited', () async {
+      // Regression guard for the Contact Person data-loss bug: before this
+      // fix, `_EditTabState._submit()` never populated these 3 fields from
+      // the loaded profile, so every save sent `ProfileEditData`'s `''`
+      // defaults — silently wiping any existing Contact Person data
+      // server-side (`ProfileUpdateForm.save()` has no "blank = keep
+      // existing" fallback for these 3 fields, unlike Aadhar/PAN/Passport).
+      RequestOptions? captured;
+      final dio = Dio(BaseOptions(baseUrl: 'https://example.test'))
+        ..httpClientAdapter = FakeHttpClientAdapter(statusCode: 302, body: '', onRequest: (o) => captured = o);
+      final datasource = ProfileRemoteDataSource(ApiClient.forTesting(dio));
+      const edited = ProfileEditData(
+        firstName: 'Changed', // the user only touched this field...
+        lastName: 'Sai',
+        email: 'nvenkatsai@example.com',
+        englishLevel: 'intermediate',
+        bio: '',
+        additionalEducationsJson: '[]',
+        // ...but these 3 must still round-trip through unchanged, exactly
+        // as `getProfile()` last scraped them.
+        contactPersonRole: 'HR Manager',
+        contactPersonMobile: '+919876500000',
+        contactPersonEmail: 'hr@example.com',
+      );
+
+      await datasource.updateProfile(edited);
+
+      final sentFields = (captured!.data as FormData).fields;
+      String fieldValue(String name) => sentFields.firstWhere((e) => e.key == name).value;
+      expect(fieldValue('contact_person_role'), 'HR Manager');
+      expect(fieldValue('contact_person_mobile'), '+919876500000');
+      expect(fieldValue('contact_person_email'), 'hr@example.com');
     });
 
     test('sends has_experience/has_abroad_experience as "True"/"False" (Django\'s own convention), not Dart\'s lowercase bool.toString()', () async {

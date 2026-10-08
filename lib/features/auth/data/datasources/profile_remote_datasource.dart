@@ -5,6 +5,7 @@ import 'package:dio/dio.dart';
 import '../../../../core/errors/exceptions.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../../core/network/api_endpoints.dart';
+import '../../../../core/utils/django_bool.dart';
 import '../../domain/entities/profile_data.dart';
 
 /// `users/views.py:profile_view` (`ApiEndpoints.profile`) — a single URL
@@ -80,20 +81,32 @@ class ProfileRemoteDataSource {
     r'const rawData = "((?:[^"\\]|\\.)*)";',
   );
 
-  String _stripHtml(String value) => value.replaceAll(_htmlTagPattern, '').trim();
+  // `contact_person_role`/`contact_person_mobile`/`contact_person_email`
+  // (`templates/users/profile.html`'s Edit tab) — confirmed directly against
+  // production that, unlike every other profile field, these three have NO
+  // Overview `info-item` rendered anywhere on the page, so [getProfile] must
+  // scrape their current value (if any) from the Edit tab's own `<input>`
+  // markup instead, the same way it already does for [_extractEnglishLevel]/
+  // [_extractBio]. Each is a plain `forms.TextInput`/`forms.EmailInput` (role/
+  // email) or a hidden input driven by the same `phone-input-widget` JS
+  // component as the existing `mobile`/`alternate_mobile` fields (confirmed
+  // live: an unset value renders the bare tag with no `value` attribute at
+  // all, a set one renders a plain `value="+91..."` directly on the hidden
+  // input, matching `mobile`'s own confirmed markup) — so one matcher (match
+  // the whole tag, then look for a `value="..."` attribute inside it) covers
+  // all three regardless of whether a value is present.
+  static final _contactPersonRoleInputPattern = RegExp(
+    r'<input[^>]*\bname="contact_person_role"[^>]*>',
+  );
+  static final _contactPersonMobileInputPattern = RegExp(
+    r'<input[^>]*\bname="contact_person_mobile"[^>]*>',
+  );
+  static final _contactPersonEmailInputPattern = RegExp(
+    r'<input[^>]*\bname="contact_person_email"[^>]*>',
+  );
+  static final _inputValueAttrPattern = RegExp(r'\bvalue="([^"]*)"');
 
-  /// `has_experience`/`has_abroad_experience` are real `<select>` fields on
-  /// the live page (`<option value="True">Yes</option>` /
-  /// `<option value="False">No</option>`, confirmed directly against
-  /// production) — a Django `TypedChoiceField` matching the Python
-  /// convention `str(True)`/`str(False)`. Dart's own `bool.toString()`
-  /// produces lowercase `"true"`/`"false"`, which doesn't match either
-  /// `<option>`'s value, so Django's `ChoiceField` rejects the whole save
-  /// with "Select a valid choice" — confirmed live: this was the actual
-  /// cause of "Could not update your profile" for any account that had
-  /// ever answered either question (not just accounts missing a mobile
-  /// number, which is a separate, genuine data issue on some accounts).
-  static String _djangoBool(bool value) => value ? 'True' : 'False';
+  String _stripHtml(String value) => value.replaceAll(_htmlTagPattern, '').trim();
 
   static String _unescapeHtmlEntities(String value) => value
       .replaceAll('&amp;', '&')
@@ -133,6 +146,13 @@ class ProfileRemoteDataSource {
     } on FormatException {
       return '[]';
     }
+  }
+
+  String _extractInputValue(RegExp tagPattern, String html) {
+    final tag = tagPattern.firstMatch(html)?.group(0);
+    if (tag == null) return '';
+    final raw = _inputValueAttrPattern.firstMatch(tag)?.group(1) ?? '';
+    return _unescapeHtmlEntities(raw);
   }
 
   Future<ProfileOverview> getProfile() async {
@@ -180,6 +200,9 @@ class ProfileRemoteDataSource {
         englishLevel: _extractEnglishLevel(html),
         bio: _extractBio(html),
         additionalEducationsJson: _extractAdditionalEducationsJson(html),
+        contactPersonRole: _extractInputValue(_contactPersonRoleInputPattern, html),
+        contactPersonMobile: _extractInputValue(_contactPersonMobileInputPattern, html),
+        contactPersonEmail: _extractInputValue(_contactPersonEmailInputPattern, html),
       );
     } on DioException catch (e) {
       throw e.error is AppException ? e.error as AppException : const UnexpectedResponseException();
@@ -213,7 +236,7 @@ class ProfileRemoteDataSource {
         if (data.passedOutYear2 != null) 'passed_out_year_2': data.passedOutYear2.toString(),
         'iti_diploma_specialization_2': data.itiDiplomaSpecialization2,
         'higher_education_degree_2': data.higherEducationDegree2,
-        if (data.hasExperience != null) 'has_experience': _djangoBool(data.hasExperience!),
+        if (data.hasExperience != null) 'has_experience': djangoBool(data.hasExperience!),
         if (data.experienceYears != null) 'experience_years': data.experienceYears.toString(),
         'company_name': data.companyName,
         'contact_person_role': data.contactPersonRole,
@@ -226,7 +249,7 @@ class ProfileRemoteDataSource {
         'certification': data.certification,
         'current_location': data.currentLocation,
         'preferred_location': data.preferredLocation,
-        if (data.hasAbroadExperience != null) 'has_abroad_experience': _djangoBool(data.hasAbroadExperience!),
+        if (data.hasAbroadExperience != null) 'has_abroad_experience': djangoBool(data.hasAbroadExperience!),
         if (data.abroadYears != null) 'abroad_years': data.abroadYears.toString(),
         'abroad_country': data.abroadCountry,
         'abroad_industry': data.abroadIndustry,

@@ -61,10 +61,20 @@ abstract final class RoutePaths {
   // against the live production form, not this repo's much smaller
   // committed `JobPostingForm` — see `ApiEndpoints.employerJobCreate`'s
   // doc comment), `employerAllApplications`, `employerJobOpenings`, and
-  // `employerSearchCandidates`. All are `@login_required(login_url=
+  // `employerSearchCandidates`. `employerJobCreate`/`employerAllApplications`/
+  // `employerSearchCandidates` are `@login_required(login_url=
   // 'employer_portal:employer_login')` on the web — see
-  // [employerProtectedRoutes].
+  // [employerProtectedRoutes]. `employerJobOpenings` is the one exception —
+  // see its own doc comment below.
   static const String employerJobCreate = '/employer-jobs/new';
+
+  /// `jobs_app.views.job_edit` (`ApiEndpoints.employerJobEdit`) — reuses
+  /// `PostNewJobScreen` in edit mode (`jobId` non-null), not a second form.
+  /// Employer-only, same as every other per-job action — see
+  /// [employerProtectedRoutes].
+  static const String employerJobEditPattern = '/employer-jobs/:id/edit';
+  static String employerJobEdit(int jobId) => '/employer-jobs/$jobId/edit';
+
   static const String employerAllApplications = '/employer-applications';
 
   /// `jobs_app.views.job_applications` — per-job candidate list, reached
@@ -99,6 +109,17 @@ abstract final class RoutePaths {
   /// (`EmployerDashboardScreen`'s `_ProfileIncompleteView`), not from the
   /// nav drawer. Same `EmployerCompanyProfileScreen`, `isCreate: true`.
   static const String employerCompanyProfileCreate = '/employer-company-profile/create';
+
+  /// `jobs_app.views.job_openings` — despite living under the `employer_urls`
+  /// module and this constant's name (kept as-is to avoid a wider rename
+  /// across the router/nav drawer/tests for a Phase 1 navigation fix), the
+  /// real view is plain `@login_required` with no employer-portal-session
+  /// check at all — confirmed live: a plain student account reaches it with
+  /// a 200. It is therefore deliberately left OUT of
+  /// [employerProtectedRoutes] (unlike every other constant in this block)
+  /// so both roles can reach it, matching that exact contract — see
+  /// `JobOpeningsScreen`'s own doc comment, which confirms the screen/
+  /// controller/datasource are already fully role-agnostic.
   static const String employerJobOpenings = '/employer-job-openings';
   static const String employerSearchCandidates = '/employer-candidates';
 
@@ -408,14 +429,15 @@ abstract final class RoutePaths {
   /// sibling employer-only views are on the web
   /// (`@login_required(login_url='employer_portal:employer_login')`) — an
   /// unauthenticated hit bounces to [employerLogin], not the student
-  /// [login], matching that exact `login_url=`.
+  /// [login], matching that exact `login_url=`. [employerJobOpenings] is
+  /// deliberately NOT a member — see its own doc comment for why (plain
+  /// `@login_required` on the real backend, reachable by both roles).
   static const Set<String> employerProtectedRoutes = {
     employerDashboard,
     employerJobCreate,
     employerAllApplications,
     employerCompanyProfile,
     employerCompanyProfileCreate,
-    employerJobOpenings,
     employerSearchCandidates,
   };
 

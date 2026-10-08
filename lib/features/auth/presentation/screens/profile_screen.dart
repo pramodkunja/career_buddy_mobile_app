@@ -232,6 +232,8 @@ class _EditTabState extends ConsumerState<_EditTab> {
   late final TextEditingController _higherDegree2;
   late final TextEditingController _experienceYears;
   late final TextEditingController _companyName;
+  late final TextEditingController _contactPersonRole;
+  late final TextEditingController _contactPersonEmail;
   late final TextEditingController _skills;
   late final TextEditingController _currentCtc;
   late final TextEditingController _expectedCtc;
@@ -257,6 +259,7 @@ class _EditTabState extends ConsumerState<_EditTab> {
   bool? _hasAbroadExperience;
   String _mobile = '';
   String _alternateMobile = '';
+  String _contactPersonMobile = '';
   PlatformFile? _resume;
   bool _submitting = false;
   String? _submitError;
@@ -294,6 +297,8 @@ class _EditTabState extends ConsumerState<_EditTab> {
     _higherDegree2 = TextEditingController(text: _orEmpty(d.field(ProfileFieldLabels.higherEducationDegree2)));
     _experienceYears = TextEditingController(text: _orEmpty(d.field(ProfileFieldLabels.experienceYears)).replaceAll(RegExp(r'[^\d]'), ''));
     _companyName = TextEditingController(text: _orEmpty(d.field(ProfileFieldLabels.companyName)));
+    _contactPersonRole = TextEditingController(text: d.contactPersonRole);
+    _contactPersonEmail = TextEditingController(text: d.contactPersonEmail);
     _skills = TextEditingController(text: _orEmpty(d.field(ProfileFieldLabels.skills)));
     _currentCtc = TextEditingController(text: _parseLeadingNumber(d.field(ProfileFieldLabels.currentCtc))?.toString() ?? '');
     _expectedCtc = TextEditingController(text: _parseLeadingNumber(d.field(ProfileFieldLabels.expectedCtc))?.toString() ?? '');
@@ -322,13 +327,15 @@ class _EditTabState extends ConsumerState<_EditTab> {
     // Confirmed live against a real production account during this task.
     _mobile = normalizePhoneToE164(d.field(ProfileFieldLabels.mobile));
     _alternateMobile = normalizePhoneToE164(d.field(ProfileFieldLabels.alternateMobile));
+    _contactPersonMobile = normalizePhoneToE164(d.contactPersonMobile);
   }
 
   @override
   void dispose() {
     for (final c in [
       _firstName, _lastName, _email, _languagesKnown, _itiSpec, _higherDegree,
-      _itiSpec2, _higherDegree2, _experienceYears, _companyName, _skills,
+      _itiSpec2, _higherDegree2, _experienceYears, _companyName,
+      _contactPersonRole, _contactPersonEmail, _skills,
       _currentCtc, _expectedCtc, _certification, _currentLocation,
       _preferredLocation, _abroadYears, _abroadCountry, _abroadIndustry,
       _abroadSkills, _aadhar, _pan, _passport,
@@ -371,6 +378,9 @@ class _EditTabState extends ConsumerState<_EditTab> {
       hasExperience: _hasExperience,
       experienceYears: int.tryParse(_experienceYears.text.trim()),
       companyName: _companyName.text.trim(),
+      contactPersonRole: _contactPersonRole.text.trim(),
+      contactPersonMobile: _contactPersonMobile,
+      contactPersonEmail: _contactPersonEmail.text.trim(),
       industry: _industry,
       skills: _skills.text.trim(),
       currentCtc: double.tryParse(_currentCtc.text.trim()),
@@ -485,6 +495,25 @@ class _EditTabState extends ConsumerState<_EditTab> {
               AppTextField(label: 'Certifications', controller: _certification, enabled: !_submitting),
               const SizedBox(height: AppSpacing.sm),
               _ResumePicker(fileName: _resume?.name, onPick: _submitting ? null : _pickResume),
+            ]),
+            _section(ProfileFieldLabels.contactPerson, [
+              AppTextField(label: 'Contact Role (e.g. HR Manager, Team Lead)', controller: _contactPersonRole, enabled: !_submitting),
+              const SizedBox(height: AppSpacing.sm),
+              EmployerPhoneInputField(
+                hint: 'Contact Mobile Number (optional)',
+                initialE164: _contactPersonMobile,
+                onChanged: (v) => _contactPersonMobile = v,
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              AppTextField(
+                label: 'Contact Email ID',
+                controller: _contactPersonEmail,
+                enabled: !_submitting,
+                keyboardType: TextInputType.emailAddress,
+                validator: (v) => (v == null || v.trim().isEmpty)
+                    ? null
+                    : Validators.email(v, fieldName: 'Contact Email'),
+              ),
             ]),
             _section('Location', [
               AppTextField(label: 'Current City, State', controller: _currentLocation, enabled: !_submitting),

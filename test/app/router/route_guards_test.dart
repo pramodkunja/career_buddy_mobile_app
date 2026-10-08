@@ -192,5 +192,33 @@ void main() {
         expect(computeRedirect(authState: student, matchedLocation: route), isNull);
       }
     });
+
+    // Phase 1 Critical Fixes — Job Seeker Job Openings navigation. Unlike
+    // every other `RoutePaths.employerJobOpenings`-shaped route, the real
+    // backend view behind it is plain `@login_required` with no
+    // employer-portal-session check (confirmed live) — so, unlike the rest
+    // of `employerProtectedRoutes`, it must NOT bounce a non-employer
+    // session away, and an unauthenticated hit must land on the student
+    // login (matching `@login_required`'s default), not the employer one.
+    test('employerJobOpenings is reachable by an authenticated non-employer session, unlike every other employer-protected route', () {
+      const student = AuthAuthenticated(AuthUser(username: 'jane'));
+      expect(computeRedirect(authState: student, matchedLocation: RoutePaths.employerJobOpenings), isNull);
+    });
+
+    test('employerJobOpenings is reachable by an authenticated employer session too', () {
+      const employer = AuthAuthenticated(AuthUser(username: 'acme', isEmployer: true));
+      expect(computeRedirect(authState: employer, matchedLocation: RoutePaths.employerJobOpenings), isNull);
+    });
+
+    test('an unauthenticated hit on employerJobOpenings bounces to the student login, not the employer one', () {
+      expect(
+        computeRedirect(authState: const AuthUnauthenticated(), matchedLocation: RoutePaths.employerJobOpenings),
+        RoutePaths.login,
+      );
+    });
+
+    test('employerJobOpenings is not a member of employerProtectedRoutes', () {
+      expect(RoutePaths.employerProtectedRoutes.contains(RoutePaths.employerJobOpenings), isFalse);
+    });
   });
 }

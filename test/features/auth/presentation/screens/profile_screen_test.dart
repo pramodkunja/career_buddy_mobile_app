@@ -54,6 +54,12 @@ const _overview = ProfileOverview(
   englishLevel: 'upper_intermediate',
   bio: 'Loves teaching Business English.',
   additionalEducationsJson: '[{"degree": "MBA", "year": "2021"}]',
+  // Has no Overview `info-item` at all (confirmed directly against
+  // production), only an Edit-tab UI — a real, non-default value here
+  // proves the save path preserves it even on an unrelated edit.
+  contactPersonRole: 'HR Manager',
+  contactPersonMobile: '+919876500000',
+  contactPersonEmail: 'hr@example.com',
 );
 
 /// Captures every `updateProfile` call so a test can assert on exactly what
@@ -78,7 +84,10 @@ class _FakeProfileRepository implements ProfileRepository {
 }
 
 Future<_FakeProfileRepository> _pump(WidgetTester tester) async {
-  tester.view.physicalSize = const Size(400, 2800);
+  // 3200 (was 2800) — the Contact Person section added a third field group,
+  // pushing "Save Changes" further down; at 2800 the button sat below the
+  // viewport and `tap()` silently missed it.
+  tester.view.physicalSize = const Size(400, 3200);
   tester.view.devicePixelRatio = 1.0;
   addTearDown(tester.view.reset);
 
@@ -141,8 +150,46 @@ void main() {
         // touched this field. `normalizePhoneToE164` must turn it into a
         // real E.164 value before it's ever sent.
         expect(sent.mobile, '+917993443081');
+        // Contact Person data-loss regression: these must survive an
+        // unrelated save unchanged, not get silently wiped to ''.
+        expect(sent.contactPersonRole, 'HR Manager');
+        expect(sent.contactPersonMobile, '+919876500000');
+        expect(sent.contactPersonEmail, 'hr@example.com');
       },
     );
+
+    testWidgets('the Edit tab displays existing Contact Person values and sends edits to them under exact Django field names', (
+      tester,
+    ) async {
+      final repo = await _pump(tester);
+
+      await tester.tap(find.text('Edit Details'));
+      await _settle(tester);
+
+      // Display: the existing values are pre-filled, not blank.
+      expect(find.text('HR Manager'), findsOneWidget);
+      expect(find.text('hr@example.com'), findsOneWidget);
+
+      // Edit: change Contact Role and Contact Email; leave Contact Mobile
+      // untouched.
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'Contact Role (e.g. HR Manager, Team Lead)'),
+        'Team Lead',
+      );
+      await tester.enterText(find.widgetWithText(TextFormField, 'Contact Email ID'), 'newcontact@example.com');
+      await tester.pump();
+
+      await tester.tap(find.text('Save Changes'));
+      await tester.pump();
+      await tester.pump();
+
+      expect(repo.submitted, hasLength(1));
+      final sent = repo.submitted.single;
+      expect(sent.contactPersonRole, 'Team Lead');
+      expect(sent.contactPersonEmail, 'newcontact@example.com');
+      // Untouched field preserved exactly as loaded.
+      expect(sent.contactPersonMobile, '+919876500000');
+    });
 
     testWidgets('reopening (re-fetching) after a save still reflects the same preserved englishLevel/bio/additionalEducationsJson', (
       tester,
@@ -177,7 +224,7 @@ void main() {
       // `kIndustryOptions`/`kEducationLevelOptions` entries are long)
       // overflowed by 162px at a perfectly normal 400dp width before this
       // was fixed, undetected until this test existed.
-      tester.view.physicalSize = const Size(360, 2800);
+      tester.view.physicalSize = const Size(360, 3200);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.reset);
       final repo = _FakeProfileRepository();

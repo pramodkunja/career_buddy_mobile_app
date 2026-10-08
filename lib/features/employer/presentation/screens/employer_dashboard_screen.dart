@@ -26,12 +26,11 @@ import '../providers/employer_dashboard_providers.dart';
 /// comment). Read-only display: per-job Delete (real confirm dialog + real
 /// delete call, see [_deleteJob]) and the per-job Applications link (pushes
 /// the real [EmployerJobApplicationsScreen]) are both fully built. The
-/// "Post New Job Listing" CTA now opens the real `PostNewJobScreen`
-/// (built against the live production form, not the committed, much
-/// smaller `JobPostingForm` — see `ApiEndpoints.employerJobCreate`'s doc
-/// comment). Only per-job Edit still routes to `ComingSoonScreen` — editing
-/// an existing job was not re-verified against production this task and
-/// remains deliberately deferred.
+/// "Post New Job Listing" CTA and per-job Edit (see [_editJob]) both open
+/// the real `PostNewJobScreen` (built against the live production form, not
+/// the committed, much smaller `JobPostingForm` — see
+/// `ApiEndpoints.employerJobCreate`'s doc comment), Edit in its edit mode
+/// (`jobId` non-null).
 ///
 /// **Known limitation, not fabricated**: most self-registered employers
 /// hit `_employer_profile_complete`'s GST+PAN gate
@@ -293,20 +292,11 @@ class _JobCard extends ConsumerWidget {
     _ => 'Draft',
   };
 
-  Future<void> _editJob(BuildContext context) {
-    // `job_edit` has no safe Flutter destination yet — the live production
-    // form diverges from this repo's `JobPostingForm` (see
-    // `ApiEndpoints.employerJobCreate`'s doc comment), so this stays an
-    // honest "not available" notice rather than a route to a form that
-    // could submit the wrong contract.
-    return showDialog<void>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Edit Job'),
-        content: const Text('Editing a job isn\'t available in the app yet. Please visit the Career Buddy website for now.'),
-        actions: [TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('OK'))],
-      ),
-    );
+  void _editJob(BuildContext context) {
+    // Reuses `PostNewJobScreen` in edit mode — confirmed live (Phase 1
+    // Critical Fixes, job 68) that `job_edit` is the same 46-field contract
+    // as Create — see `ApiEndpoints.employerJobEdit`'s doc comment.
+    context.push(RoutePaths.employerJobEdit(job.jobId));
   }
 
   Future<void> _deleteJob(BuildContext context, WidgetRef ref) async {

@@ -131,6 +131,19 @@ void main() {
       expect(find.text('janedoe'), findsOneWidget);
       expect(find.text('Logout'), findsOneWidget);
       expect(find.text('Job Seeker Login'), findsNothing);
+      // Phase 1 Critical Fixes: Job Openings must be reachable from the Job
+      // Seeker drawer — the screen/route already existed, it just had no
+      // entry point for this role.
+      expect(find.text('Job Openings'), findsOneWidget);
+    });
+
+    testWidgets('tapping Job Openings navigates to it', (tester) async {
+      await _pumpDrawer(tester, user: user);
+
+      await tester.tap(find.text('Job Openings'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Job Openings'), findsOneWidget);
     });
 
     testWidgets('tapping Dashboard navigates to /dashboard', (tester) async {

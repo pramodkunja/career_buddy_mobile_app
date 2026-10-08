@@ -45,12 +45,28 @@ class _FakeJobPostingRepository implements JobPostingRepository {
   Result<void> result;
   JobPostingSubmission? submitted;
   var callCount = 0;
+  var editCallCount = 0;
+  int? editedJobId;
+  Result<JobPostingSubmission>? jobForEdit;
 
   @override
   Future<Result<void>> submit(JobPostingSubmission data) async {
     callCount++;
     submitted = data;
     return result;
+  }
+
+  @override
+  Future<Result<void>> submitEdit(int jobId, JobPostingSubmission data) async {
+    editCallCount++;
+    editedJobId = jobId;
+    submitted = data;
+    return result;
+  }
+
+  @override
+  Future<Result<JobPostingSubmission>> getJobForEdit(int jobId) async {
+    return jobForEdit ?? Failed(const UnexpectedFailure('No job stubbed for this fake.'));
   }
 }
 
@@ -201,6 +217,136 @@ void main() {
       expect(repo.callCount, 1);
       expect(find.text('This field is required.'), findsOneWidget);
       expect(find.text('JOB OPENINGS'), findsNothing);
+    });
+  });
+
+  group('PostNewJobScreen — Edit mode', () {
+    const existingJob = JobPostingSubmission(
+      jobCategory: 'it',
+      jobClassification: '',
+      department: '',
+      departmentFunction: '',
+      designation: '',
+      industrySector: '',
+      title: 'Senior Backend Engineer',
+      jobType: 'full_time',
+      contractDurationMonths: '',
+      employmentType: '',
+      experiencePreset: '5-8',
+      experienceYears: '',
+      experiencePlus: false,
+      experienceYearsMax: '',
+      location: 'Pune',
+      educationPreset: '',
+      educationOther: '',
+      functionalSkills: '',
+      industryExperience: '',
+      workingHours: '',
+      salaryFormat: 'monthly',
+      salaryMin: '40000',
+      salaryMax: '60000',
+      openings: 3,
+      perks: ['laptop'],
+      description: 'Own the payments service end to end.',
+      requirements: '',
+      responsibilities: '',
+      certifications: '',
+      softwareSkills: '',
+      languageRequirements: '',
+      keywords: '',
+      applicationContact: '',
+      skills: ['python', 'django'],
+      mandatorySkills: ['python'],
+      deadline: '',
+      status: 'active',
+      workEnvironment: 'wfo',
+      interviewMode: 'virtual',
+      interviewModeOther: '',
+      workMode: '',
+      joiningRequirement: '',
+      noticePeriod: 'immediate',
+      noticePeriodOther: '',
+      genderPreference: 'both',
+      ageLimit: '',
+    );
+
+    Future<_FakeJobPostingRepository> pumpEdit(WidgetTester tester, {Result<JobPostingSubmission>? jobForEdit}) async {
+      tester.view.physicalSize = const Size(400, 20000);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      final repo = _FakeJobPostingRepository(const Success(null));
+      repo.jobForEdit = jobForEdit ?? const Success(existingJob);
+
+      final router = GoRouter(
+        initialLocation: '/',
+        routes: [
+          GoRoute(
+            path: '/',
+            builder: (context, state) => const Scaffold(body: Text('DASHBOARD')),
+            routes: [
+              GoRoute(path: 'edit', builder: (context, state) => const PostNewJobScreen(jobId: 68)),
+            ],
+          ),
+        ],
+      );
+      addTearDown(router.dispose);
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            authRepositoryProvider.overrideWithValue(_FakeAuthRepository()),
+            jobPostingRepositoryProvider.overrideWithValue(repo),
+          ],
+          child: MaterialApp.router(routerConfig: router),
+        ),
+      );
+      await tester.pump();
+      router.push('/edit');
+      await _settle(tester);
+      return repo;
+    }
+
+    testWidgets('fetches and displays the existing job\'s values, not a blank form', (tester) async {
+      await pumpEdit(tester);
+
+      expect(find.text('Edit Job'), findsOneWidget);
+      expect(find.text('Senior Backend Engineer'), findsOneWidget);
+      expect(find.text('Pune'), findsOneWidget);
+      expect(find.text('Own the payments service end to end.'), findsOneWidget);
+    });
+
+    testWidgets('submitting an unrelated edit calls submitEdit with the same job id, preserving untouched fields', (
+      tester,
+    ) async {
+      final repo = await pumpEdit(tester);
+
+      await tester.enterText(find.widgetWithText(TextFormField, 'Location'), 'Bengaluru');
+      await tester.pump();
+      await tester.tap(find.text('Save Job Posting'));
+      await _settle(tester);
+
+      expect(repo.editCallCount, 1);
+      expect(repo.editedJobId, 68);
+      expect(repo.submitted?.location, 'Bengaluru');
+      // Untouched fields survive the edit unchanged.
+      expect(repo.submitted?.title, 'Senior Backend Engineer');
+      expect(repo.submitted?.skills, containsAll(['python', 'django']));
+      expect(repo.submitted?.mandatorySkills, ['python']);
+      expect(find.text('Job updated successfully!'), findsOneWidget);
+      // Edit was reached by a push — a successful save pops back, not a
+      // `go` to Job Openings.
+      expect(find.text('DASHBOARD'), findsOneWidget);
+    });
+
+    testWidgets('shows a retry-able error view when the existing job fails to load, instead of a blank/broken form', (
+      tester,
+    ) async {
+      final repo = await pumpEdit(tester, jobForEdit: const Failed(NotFoundFailure()));
+
+      expect(find.text('Senior Backend Engineer'), findsNothing);
+      expect(find.text('Retry'), findsOneWidget);
+      expect(repo.editCallCount, 0);
     });
   });
 }

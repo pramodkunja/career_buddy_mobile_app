@@ -42,10 +42,16 @@ class FakeHttpClientAdapter implements HttpClientAdapter {
 /// returning 200 for a GET and only applying the configured status/body to
 /// POST (or any other non-GET method).
 class GetPrimesCsrfAdapter implements HttpClientAdapter {
-  GetPrimesCsrfAdapter({required this.postStatusCode, this.postBody = ''});
+  GetPrimesCsrfAdapter({required this.postStatusCode, this.postBody = '', this.onPostRequest});
 
   final int postStatusCode;
   final String postBody;
+
+  /// Lets a test inspect the real outgoing POST [RequestOptions] (e.g. its
+  /// [FormData] fields) without needing a real network call — same purpose
+  /// as [FakeHttpClientAdapter.onRequest], just scoped to the POST only
+  /// (the priming GET carries no form body worth inspecting).
+  final void Function(RequestOptions options)? onPostRequest;
 
   @override
   Future<ResponseBody> fetch(
@@ -56,6 +62,7 @@ class GetPrimesCsrfAdapter implements HttpClientAdapter {
     if (options.method == 'GET') {
       return ResponseBody.fromString('', 200);
     }
+    onPostRequest?.call(options);
     return ResponseBody.fromString(postBody, postStatusCode);
   }
 
