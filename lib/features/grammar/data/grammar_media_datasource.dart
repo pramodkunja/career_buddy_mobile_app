@@ -33,6 +33,21 @@ class GrammarMediaDataSource {
     }
   }
 
+  /// The "Lesson slides" section's small illustration — generated fresh
+  /// server-side on every request (plain XML text, not a binary asset), so
+  /// fetched as a `String` rather than bytes, ready for `SvgPicture.string`.
+  Future<String> fetchIllustrationSvg(String slug, int index) async {
+    try {
+      final response = await _apiClient.dio.get<String>(
+        ApiEndpoints.subjectIllustration(slug, index),
+        options: Options(responseType: ResponseType.plain),
+      );
+      return response.data ?? '';
+    } on DioException catch (e) {
+      throw e.error is AppException ? e.error as AppException : const UnexpectedResponseException();
+    }
+  }
+
   /// Downloads the topic's video to a local temp file and returns its
   /// path. `video_player` needs a seekable local source; downloading once
   /// up front (rather than proxying a range-request stream) is the

@@ -2,9 +2,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../activities/presentation/controllers/activity_detail_controller.dart';
 import '../../../activities/presentation/controllers/activity_list_controller.dart';
+import '../../../activities/presentation/controllers/mcq_exercise_controller.dart';
 import '../../../activities/presentation/controllers/sub_activity_detail_controller.dart';
 import '../../../activities/presentation/controllers/workshop_dashboard_controller.dart';
+import '../../../ai_listening/presentation/controllers/ai_listening_controller.dart';
+import '../../../ai_reading/presentation/controllers/ai_reading_controller.dart';
+import '../../../ai_speaking/presentation/controllers/ai_speaking_controller.dart';
+import '../../../ai_writing/presentation/controllers/ai_writing_controller.dart';
 import '../../../aria_chat/presentation/controllers/aria_chat_controller.dart';
+import '../../../bingo/presentation/controllers/bingo_exercise_controller.dart';
 import '../../../certifications/presentation/providers/certifications_providers.dart';
 import '../../../dashboard/presentation/controllers/dashboard_controller.dart';
 import '../../../employer/presentation/controllers/employer_all_applications_controller.dart';
@@ -17,10 +23,14 @@ import '../../../employer/presentation/controllers/my_application_detail_control
 import '../../../employer/presentation/controllers/public_job_detail_controller.dart';
 import '../../../employer/presentation/providers/employer_dashboard_providers.dart';
 import '../../../group_discussion/presentation/controllers/gd_history_controller.dart';
+import '../../../group_discussion/presentation/providers/gd_providers.dart';
 import '../../../jam/presentation/controllers/jam_history_controller.dart';
 import '../../../jam/presentation/controllers/jam_history_detail_controller.dart';
 import '../../../jam/presentation/controllers/jam_profile_controller.dart';
 import '../../../jam/presentation/providers/jam_providers.dart';
+import '../../../mock_interview/presentation/providers/mock_interview_providers.dart';
+import '../../../mock_tests/amcat/presentation/controllers/amcat_controller.dart';
+import '../../../mock_tests/presentation/controllers/mock_test_controller.dart';
 import '../../../resume/presentation/providers/resume_providers.dart';
 import '../../domain/entities/auth_user.dart';
 import '../../domain/entities/employer_registration_data.dart';
@@ -106,6 +116,28 @@ class AuthController extends Notifier<AuthState> {
     ref.invalidate(myApplicationDetailControllerProvider);
     ref.invalidate(publicJobDetailControllerProvider);
     ref.invalidate(employerCandidateSearchControllerProvider);
+    // Release audit (Phase 5) — these were added in later batches and missed
+    // this list, the exact same cross-account-leak class this method exists
+    // to prevent (see this method's own doc comment, confirmed live
+    // on-device). None of these are `.autoDispose` either, so each one
+    // genuinely holds its last account's state indefinitely otherwise —
+    // the `.family` ones (keyed by exercise id/subject) only collide across
+    // accounts when both happen to open the *same* id, but that is a real,
+    // reachable case on a shared device, not a hypothetical one.
+    ref.invalidate(resumeBuilderControllerProvider);
+    ref.invalidate(mockInterviewControllerProvider);
+    ref.invalidate(gdSessionControllerProvider);
+    ref.invalidate(jamSessionControllerProvider);
+    ref.invalidate(amcatControllerProvider);
+    ref.invalidate(cocubesControllerProvider);
+    ref.invalidate(mockTestControllerProvider);
+    ref.invalidate(subjectQuizControllerProvider);
+    ref.invalidate(mcqExerciseControllerProvider);
+    ref.invalidate(bingoExerciseControllerProvider);
+    ref.invalidate(aiListeningControllerProvider);
+    ref.invalidate(aiReadingControllerProvider);
+    ref.invalidate(aiSpeakingControllerProvider);
+    ref.invalidate(aiWritingControllerProvider);
   }
 
   Future<void> login({

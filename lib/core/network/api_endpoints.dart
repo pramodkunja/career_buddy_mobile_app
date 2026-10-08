@@ -137,6 +137,18 @@ abstract final class ApiEndpoints {
   /// "fix".
   static const String employerSearchCandidates = '/employer/employer/candidates/search/';
 
+  /// `jobs_app.views.download_candidates_csv` — `@login_required` plus the
+  /// same `session['portal'] == 'employer'` guard as [employerSearchCandidates].
+  /// GET-only, no CSRF. Reads `q`/`location`/`experience` — the exact same
+  /// 3 param names as [employerSearchCandidates] — but, confirmed live by
+  /// reading the view source, does NOT share that view's "no filters ⇒ show
+  /// all" default: a blank `q` returns a CSV with only the header row, even
+  /// if `location`/`experience` are set. Reproduced as-is, not "fixed" to
+  /// show all, since that's the real server's own behavior. Response is
+  /// `text/csv` with `Content-Disposition: attachment; filename=
+  /// "candidates.csv"` (a static name, no date/job/employer embedded).
+  static const String employerCandidatesDownloadCsv = '/employer/employer/candidates/download-csv/';
+
   /// `jobs_app.views.job_detail` (`employer_portal:job_detail`,
   /// `templates/jobs/job_detail.html`) — the public, job-seeker-facing job
   /// listing + apply page. No auth required for GET; works for anonymous,
@@ -437,14 +449,23 @@ abstract final class ApiEndpoints {
 
   /// Grammar (`subject_views.py`, mounted at `/subject/`). The 9 topics'
   /// text content is static (bundled as a JSON asset, see
-  /// `GrammarDataSource`) — these two are the only genuinely dynamic,
-  /// per-topic *media* endpoints, both `@login_required`, confirmed live
-  /// (302, not 404, when hit unauthenticated). [subjectSlideImage]'s
-  /// `fileName` is the real `NN.png` deck filename
-  /// (`kGrammarSlideDeckCounts`); [subjectVideo] streams the topic's local
-  /// `.mp4` with HTTP Range support for seeking.
+  /// `GrammarDataSource`) — these are the genuinely dynamic, per-topic
+  /// *media* endpoints, all `@login_required`, confirmed live (302, not
+  /// 404, when hit unauthenticated). [subjectSlideImage]'s `fileName` is
+  /// the real `NN.png` deck filename (`kGrammarSlideDeckCounts`);
+  /// [subjectVideo] streams the topic's local `.mp4` with HTTP Range
+  /// support for seeking.
   static String subjectSlideImage(String slug, String fileName) => '/subject/slides/$slug/$fileName';
   static String subjectVideo(String slug) => '/subject/video/$slug.mp4';
+
+  /// `subject_views.subject_illustration` — a small branded SVG, generated
+  /// fresh on every request from the SAME authored title/lines/accent-color
+  /// data already shown as plain text in the "Lesson slides" section (no
+  /// file on disk, confirmed live — not a static asset). `index` is
+  /// 1-based, matching how many authored slides the topic has (every one
+  /// of the 9 topics' `slide_cards` renders this unconditionally — see
+  /// `subject_views.py:_authored_slide_cards`).
+  static String subjectIllustration(String slug, int index) => '/subject/illustrations/$slug/$index.svg';
 
   /// Certifications (`skillup_assessment` app, mounted at
   /// `/skill-up/assessment/` via `business_english_lms/urls.py:32`

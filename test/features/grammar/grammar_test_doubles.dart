@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:career_buddy_lms/core/errors/exceptions.dart';
 import 'package:career_buddy_lms/core/network/api_client.dart';
 import 'package:career_buddy_lms/core/utils/result.dart';
 import 'package:career_buddy_lms/features/auth/domain/entities/auth_user.dart';
@@ -74,6 +75,22 @@ class FakeGrammarMediaDataSource extends GrammarMediaDataSource {
     final gate = videoGate;
     if (gate != null) await gate.future;
     return videoPath;
+  }
+
+  /// `null` (the default) simulates a fetch failure (e.g. unauthenticated,
+  /// or any server error) — tests asserting graceful degradation (no
+  /// illustration shown, no crash, no visible error) should leave this
+  /// unset rather than return an empty string, which would never actually
+  /// happen on a real failure (an exception, not an empty 200).
+  String? illustrationSvg = '<svg viewBox="0 0 10 10"><rect width="10" height="10"/></svg>';
+  final List<({String slug, int index})> requestedIllustrations = [];
+
+  @override
+  Future<String> fetchIllustrationSvg(String slug, int index) async {
+    requestedIllustrations.add((slug: slug, index: index));
+    final svg = illustrationSvg;
+    if (svg == null) throw const UnexpectedResponseException();
+    return svg;
   }
 }
 

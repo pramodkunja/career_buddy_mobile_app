@@ -12,6 +12,11 @@ import 'package:career_buddy_lms/features/dashboard/domain/entities/dashboard_st
 import 'package:career_buddy_lms/features/dashboard/domain/repositories/dashboard_repository.dart';
 import 'package:career_buddy_lms/features/dashboard/presentation/controllers/dashboard_controller.dart';
 import 'package:career_buddy_lms/features/dashboard/presentation/providers/dashboard_providers.dart';
+import 'package:career_buddy_lms/features/resume/domain/entities/resume_analysis.dart';
+import 'package:career_buddy_lms/features/resume/domain/entities/resume_history_item.dart';
+import 'package:career_buddy_lms/features/resume/domain/repositories/resume_repository.dart';
+import 'package:career_buddy_lms/features/resume/presentation/controllers/resume_builder_controller.dart';
+import 'package:career_buddy_lms/features/resume/presentation/providers/resume_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -81,6 +86,25 @@ class _FakeDashboardRepository implements DashboardRepository {
       ),
     );
   }
+}
+
+class _FakeResumeRepository implements ResumeRepository {
+  @override
+  Future<Result<ResumeAnalysisResult>> uploadAndAnalyze({required String filePath, required String fileName}) async =>
+      throw UnimplementedError();
+
+  @override
+  Future<Result<ResumeAnalysisResult>> reanalyze(int resumeId) async => const Success(
+    ResumeAnalysisResult(
+      analysis: ResumeAnalysis(matchPercentage: 60, matchingSkills: [], missingSkills: [], summary: '', careerAdvice: []),
+      isAtsOnly: true,
+      yearsExperience: 0.0,
+      canInterview: false,
+    ),
+  );
+
+  @override
+  Future<Result<List<ResumeHistoryItem>>> getHistory() async => throw UnimplementedError();
 }
 
 const _sampleRegistration = EmployerRegistrationData(
@@ -288,6 +312,45 @@ void main() {
         final secondFetch = await container.read(dashboardControllerProvider.future);
         expect(dashboardRepo.callCount, 2, reason: 'Dashboard must refetch for the new account, not serve User A\'s cached data');
         expect(secondFetch.stats.completedCount, 2);
+      },
+    );
+
+    test(
+      'logout() also resets plain Notifier-based user-scoped controllers (e.g. Resume Builder), '
+      'not just AsyncNotifier ones',
+      () async {
+        // Release audit (Phase 5) — `resumeBuilderControllerProvider` (and
+        // several sibling controllers: Mock Interview, GD/JAM live session,
+        // AMCAT/CoCubes/OOP/subject-quiz, and every per-exercise-type
+        // controller) were added in later batches and were missing from
+        // `_invalidateUserScopedProviders()` — the exact same bug class the
+        // Dashboard test above guards against, just for a plain `Notifier`
+        // instead of an `AsyncNotifier`. This guards one representative
+        // case of that fix.
+        final container = ProviderContainer(
+          overrides: [
+            authRepositoryProvider.overrideWithValue(_FakeAuthRepository(restoredUser: const AuthUser(username: 'a'))),
+            resumeRepositoryProvider.overrideWithValue(_FakeResumeRepository()),
+          ],
+        );
+        addTearDown(container.dispose);
+        container.read(authControllerProvider);
+        await Future<void>.delayed(Duration.zero);
+
+        // User A analyzes a resume — real result state now cached.
+        await container.read(resumeBuilderControllerProvider.notifier).reanalyze(42);
+        expect(container.read(resumeBuilderControllerProvider), isA<ResumeResultState>());
+
+        await container.read(authControllerProvider.notifier).logout();
+
+        // User A's stale analysis must not survive into the next session —
+        // reading it fresh after logout must be back to the initial state,
+        // not the leftover result.
+        expect(
+          container.read(resumeBuilderControllerProvider),
+          isA<ResumeIdle>(),
+          reason: 'A previous account\'s resume analysis must not leak into the next session',
+        );
       },
     );
   });

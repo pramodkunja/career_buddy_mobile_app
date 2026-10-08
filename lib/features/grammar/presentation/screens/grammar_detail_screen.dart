@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../app/router/route_paths.dart';
@@ -154,13 +155,16 @@ class _GrammarDetailContent extends StatelessWidget {
             onTap: () => _openSheet(context, GrammarAudioPlayerSheet(audioText: topic.audioText)),
           ),
           const SizedBox(height: AppSpacing.xl),
-          // Lesson slides text cards (`detail.html:561-579`) — the
-          // authored slide title/lines only; the paired generated-SVG
-          // illustration is intentionally not reproduced, see
-          // `GrammarSlide`'s doc comment.
+          // Lesson slides text cards (`detail.html:561-579`) — authored
+          // title/lines, paired with the real generated-SVG illustration
+          // (confirmed live: unlike the big carousel above, this one is
+          // NOT dead — every topic's `slide_cards` renders it
+          // unconditionally, see `ApiEndpoints.subjectIllustration`'s doc
+          // comment).
           if (topic.slides.isNotEmpty) ...[
             const _SectionHeading('Lesson slides'),
-            for (var i = 0; i < topic.slides.length; i++) _SlideNoteCard(index: i + 1, slide: topic.slides[i]),
+            for (var i = 0; i < topic.slides.length; i++)
+              _SlideNoteCard(index: i + 1, slide: topic.slides[i], slug: topic.slug),
             const SizedBox(height: AppSpacing.md),
           ],
           // `.editorial-box` "why learning ___ is important"
@@ -267,14 +271,15 @@ class _MediaCard extends StatelessWidget {
   }
 }
 
-class _SlideNoteCard extends StatelessWidget {
-  const _SlideNoteCard({required this.index, required this.slide});
+class _SlideNoteCard extends ConsumerWidget {
+  const _SlideNoteCard({required this.index, required this.slide, required this.slug});
 
   final int index;
   final GrammarSlide slide;
+  final String slug;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
@@ -283,17 +288,51 @@ class _SlideNoteCard extends StatelessWidget {
         border: Border.all(color: AppColors.border),
         borderRadius: BorderRadius.circular(12),
       ),
-      child: Column(
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            '$index. ${slide.title}',
-            style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: _kAccent),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '$index. ${slide.title}',
+                  style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: _kAccent),
+                ),
+                const SizedBox(height: 8),
+                for (final line in slide.lines) _BulletLine(line),
+              ],
+            ),
           ),
-          const SizedBox(height: 8),
-          for (final line in slide.lines) _BulletLine(line),
+          const SizedBox(width: 12),
+          _SlideIllustration(slug: slug, index: index),
         ],
       ),
+    );
+  }
+}
+
+/// The small generated-SVG illustration paired with each "Lesson slides"
+/// card (`ApiEndpoints.subjectIllustration`) — purely decorative (same
+/// title/lines/accent color already shown as text), so a failed/slow fetch
+/// degrades gracefully to simply not showing it, never a visible error, and
+/// never blocking the text content above from rendering immediately.
+class _SlideIllustration extends ConsumerWidget {
+  const _SlideIllustration({required this.slug, required this.index});
+
+  final String slug;
+  final int index;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final svgAsync = ref.watch(grammarIllustrationSvgProvider((slug: slug, index: index)));
+    return SizedBox(
+      width: 72,
+      height: 72,
+      child: switch (svgAsync) {
+        AsyncData(value: final svg) when svg.isNotEmpty => SvgPicture.string(svg, width: 72, height: 72),
+        _ => const SizedBox.shrink(),
+      },
     );
   }
 }

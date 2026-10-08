@@ -10,6 +10,7 @@
 
 import 'dart:convert';
 
+import '../../../../core/utils/html_unescape.dart';
 import '../../domain/entities/interview_analytics.dart';
 
 /// True when a GET to `resume_start_interview` (default `followRedirects:
@@ -109,9 +110,4 @@ InterviewAnalyticsResult parseInterviewAnalyticsHtml(String html) {
   );
 }
 
-String _unescape(String value) => value
-    .replaceAll('&amp;', '&')
-    .replaceAll('&lt;', '<')
-    .replaceAll('&gt;', '>')
-    .replaceAll('&#39;', "'")
-    .replaceAll('&quot;', '"');
+String _unescape(String value) => unescapeHtmlEntities(value);

@@ -1,3 +1,4 @@
+import '../../../core/utils/html_unescape.dart';
 import '../domain/entities/gd_report.dart';
 
 /// Reads `GD_app:session_report`'s rendered `report.html` (read in full)
@@ -51,7 +52,7 @@ List<GdReportDimension> _dimensions(String html) {
   ];
   final feedbacks = RegExp(r'<div class="dim-feedback">([^<]*)</div>')
       .allMatches(html)
-      .map((m) => m.group(1)!.trim())
+      .map((m) => unescapeHtmlEntities(m.group(1)!.trim()))
       .toList();
 
   return List.generate(4, (i) {
@@ -82,12 +83,12 @@ List<String> _listItems(String html, {required String insightBlockClass}) {
   const emptyFallbacks = {'No significant strengths recorded.', 'No improvement areas suggested.'};
   return RegExp(r'<p[^>]*>([^<]*)</p>')
       .allMatches(block)
-      .map((m) => m.group(1)!.trim())
+      .map((m) => unescapeHtmlEntities(m.group(1)!.trim()))
       .where((text) => text.isNotEmpty && !emptyFallbacks.contains(text))
       .toList();
 }
 
 String _summary(String html) {
   final match = RegExp(r'<div class="verdict-quote">"(.*?)"</div>').firstMatch(html);
-  return match == null ? '' : match.group(1)!.trim();
+  return match == null ? '' : unescapeHtmlEntities(match.group(1)!.trim());
 }

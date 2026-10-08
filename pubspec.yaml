@@ -54,6 +54,11 @@ dependencies:
   # Matches the web app's font stack (Outfit body / Newsreader display), verified
   # in templates/base.html.
   google_fonts: ^8.2.1
+  # Grammar's "Lesson slides" illustration (`subject_illustration`) is a
+  # real SVG, generated server-side on every request — no existing
+  # rendering dependency here handles vector images (confirmed: zero
+  # SvgPicture/flutter_svg usage anywhere before this).
+  flutter_svg: ^2.3.0
   record: ^7.1.1
   flutter_tts: ^4.2.5
   # ARIA/Buddy voice playback (`riya_bot.views.riya_tts`) returns real
@@ -69,11 +74,24 @@ dependencies:
   # picks an arbitrary PDF/DOCX/plain-text file, which `image_picker`
   # (images only) can't do.
   file_picker: ^13.1.0
-  # Opens the public "Download Template" static .docx links and the
-  # (session-protected) "View File" link on Resume History in the device's
-  # browser — see `ResumeHistoryScreen`'s doc comment for the latter's
-  # documented limitation.
+  # Opens the public "Download Template" static .docx link in the device's
+  # browser, and `mailto:`/`tel:` links on Candidate Search — see
+  # `ResumeHistoryScreen`'s doc comment for the "View File" feature's
+  # documented limitation. NOT used for local file:// opens — see
+  # `open_file` below for why.
   url_launcher: ^6.3.1
+  # Opens a locally-downloaded protected file (resume, certificate PDF,
+  # candidates CSV) in the device's own viewer app. `url_launcher`'s
+  # `launchUrl(Uri.file(...))` cannot do this safely: on a real device
+  # targeting SDK 24+ (confirmed via `url_launcher_android`'s own native
+  # source — it hands the raw `file://` URI straight to an
+  # `ACTION_VIEW` Intent with no `FileProvider` wrapping), Android throws
+  # `FileUriExposedException` the moment that Intent reaches another app,
+  # which every automated test misses since none exercises the real native
+  # call. `open_file` wraps the path through its own bundled `FileProvider`
+  # (merged into the manifest automatically) and returns a typed
+  # `OpenResult` instead of throwing an undiagnosable platform exception.
+  open_file: ^3.5.11
   # Skill Up's 48 lesson pages (`static/001 Career Buddy/**/*.html`) are a
   # hand-built static mini-site, not Django templates/an API — the only
   # honest way to show their real content (not a re-authored summary) is
@@ -112,6 +130,18 @@ dev_dependencies:
   # channel (`FakeVideoPlayerPlatform` in `test/features/grammar/
   # grammar_test_doubles.dart`) — otherwise a transitive-only dependency.
   video_player_platform_interface: ^6.9.0
+
+  # Lets the protected-media/certificate/CSV download controller tests fake
+  # `open_file`'s platform channel (`FakeOpenFilePlatform` in
+  # `test/support/fake_open_file_platform.dart`) so the real
+  # `ResultType.noAppToOpen` case (confirmed live on a physical device with
+  # no DOCX viewer installed) is reachable without a registered platform
+  # channel — otherwise a transitive-only dependency.
+  open_file_platform_interface: ^1.0.3
+  # Same reasoning, for `path_provider`'s platform channel
+  # (`FakePathProviderPlatform` in `test/support/fake_path_provider_platform
+  # .dart`) — otherwise a transitive-only dependency.
+  path_provider_platform_interface: ^2.1.2
 
   # Lets the Group Discussion WebSocket-service test build a fake
   # `WebSocketChannel` (`web_socket_channel` extends `StreamChannelMixin`)

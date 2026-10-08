@@ -1,3 +1,4 @@
+import '../../../core/utils/html_unescape.dart';
 import '../domain/entities/public_job_detail.dart';
 
 /// Parses `templates/jobs/job_detail.html` (`jobs_app.views.job_detail`).
@@ -39,9 +40,4 @@ final _htmlTagPattern = RegExp(r'<[^>]*>');
 
 String _stripHtml(String value) => _unescape(value.replaceAll(_htmlTagPattern, '\n').trim());
 
-String _unescape(String value) => value
-    .replaceAll('&amp;', '&')
-    .replaceAll('&lt;', '<')
-    .replaceAll('&gt;', '>')
-    .replaceAll('&#39;', "'")
-    .replaceAll('&quot;', '"');
+String _unescape(String value) => unescapeHtmlEntities(value);

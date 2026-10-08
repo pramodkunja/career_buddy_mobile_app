@@ -1,3 +1,4 @@
+import '../../../core/utils/html_unescape.dart';
 import '../domain/entities/employer_all_applications.dart';
 
 /// Parses `templates/employer/all_applications.html` (`jobs_app.views.
@@ -54,9 +55,4 @@ String _statusValueForLabel(String label) {
   return label;
 }
 
-String _unescape(String value) => value
-    .replaceAll('&amp;', '&')
-    .replaceAll('&lt;', '<')
-    .replaceAll('&gt;', '>')
-    .replaceAll('&#39;', "'")
-    .replaceAll('&quot;', '"');
+String _unescape(String value) => unescapeHtmlEntities(value);

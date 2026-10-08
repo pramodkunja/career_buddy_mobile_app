@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../app/theme/app_spacing.dart';
+import '../../../../core/media/media_url_resolver.dart';
+import '../../../../core/media/protected_media_download_controller.dart';
 import '../../../../shared/widgets/app_button.dart';
 import '../../../../shared/widgets/app_card.dart';
 import '../../../../shared/widgets/app_error_view.dart';
@@ -12,6 +14,7 @@ import '../../../../shared/widgets/buddy_chatbot_overlay.dart';
 import '../../../../shared/widgets/drawer_aware_back_leading.dart';
 import '../../domain/entities/employer_candidate_search.dart';
 import '../controllers/employer_candidate_search_controller.dart';
+import '../controllers/employer_candidates_csv_download_controller.dart';
 
 /// `jobs_app.views.search_candidates` (`templates/jobs/
 /// candidate_search.html`) — searches registered students by skills,
@@ -80,6 +83,8 @@ class _SearchBodyState extends ConsumerState<_SearchBody> {
   @override
   Widget build(BuildContext context) {
     final controller = ref.read(employerCandidateSearchControllerProvider.notifier);
+    final csvState = ref.watch(employerCandidatesCsvDownloadControllerProvider);
+    final csvDownloading = csvState is CandidatesCsvDownloading;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -116,6 +121,30 @@ class _SearchBodyState extends ConsumerState<_SearchBody> {
               ),
               const SizedBox(height: AppSpacing.sm),
               AppButton(label: 'Search', icon: Icons.search, onPressed: _search),
+              const SizedBox(height: AppSpacing.sm),
+              OutlinedButton.icon(
+                onPressed: csvDownloading
+                    ? null
+                    : () => ref
+                          .read(employerCandidatesCsvDownloadControllerProvider.notifier)
+                          .downloadAndOpen(
+                            query: controller.query,
+                            location: controller.location,
+                            experience: controller.experience,
+                          ),
+                icon: csvDownloading
+                    ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                    : const Icon(Icons.download_outlined, size: 18),
+                label: const Text('Download CSV'),
+              ),
+              if (csvState is CandidatesCsvDownloadFailed)
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Text(
+                    csvState.failure.message,
+                    style: const TextStyle(color: Color(0xFFDC2626), fontSize: 12),
+                  ),
+                ),
             ],
           ),
         ),
@@ -139,13 +168,17 @@ class _SearchBodyState extends ConsumerState<_SearchBody> {
   }
 }
 
-class _CandidateCard extends StatelessWidget {
+class _CandidateCard extends ConsumerWidget {
   const _CandidateCard({required this.candidate});
 
   final EmployerCandidateSearchResult candidate;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final resolvedResumeUrl = resolveMediaUrl(candidate.resumeUrl);
+    final resumeDownload = resolvedResumeUrl == null
+        ? const ProtectedMediaDownloadIdle()
+        : ref.watch(protectedMediaDownloadControllerProvider(resolvedResumeUrl));
     return AppCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -201,16 +234,30 @@ class _CandidateCard extends StatelessWidget {
                 onPressed: candidate.phone.isEmpty ? null : () => launchUrl(Uri.parse('tel:${candidate.phone}')),
               ),
               const Spacer(),
-              if (candidate.resumeUrl != null)
+              if (resolvedResumeUrl != null)
                 OutlinedButton.icon(
-                  onPressed: () => launchUrl(Uri.parse(candidate.resumeUrl!), mode: LaunchMode.externalApplication),
-                  icon: const Icon(Icons.picture_as_pdf_outlined, size: 16),
+                  onPressed: resumeDownload is ProtectedMediaDownloading
+                      ? null
+                      : () => ref
+                            .read(protectedMediaDownloadControllerProvider(resolvedResumeUrl).notifier)
+                            .downloadAndOpen(protectedMediaFilename(resolvedResumeUrl, '${candidate.name}_resume.pdf')),
+                  icon: resumeDownload is ProtectedMediaDownloading
+                      ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2))
+                      : const Icon(Icons.picture_as_pdf_outlined, size: 16),
                   label: const Text('View Resume'),
                 )
               else
                 const Text('No resume uploaded', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 12)),
             ],
           ),
+          if (resumeDownload is ProtectedMediaDownloadFailed)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(
+                resumeDownload.failure.message,
+                style: const TextStyle(color: Color(0xFFDC2626), fontSize: 12),
+              ),
+            ),
         ],
       ),
     );

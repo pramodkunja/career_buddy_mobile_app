@@ -1,5 +1,7 @@
 import 'package:career_buddy_lms/app/router/route_paths.dart';
 import 'package:career_buddy_lms/core/errors/failures.dart';
+import 'package:career_buddy_lms/core/media/media_url_resolver.dart';
+import 'package:career_buddy_lms/core/media/protected_media_download_controller.dart';
 import 'package:career_buddy_lms/core/utils/result.dart';
 import 'package:career_buddy_lms/features/auth/domain/entities/auth_user.dart';
 import 'package:career_buddy_lms/features/auth/domain/repositories/auth_repository.dart';
@@ -73,6 +75,24 @@ class _FakeResumeRepository implements ResumeRepository {
 
   @override
   Future<Result<List<ResumeHistoryItem>>> getHistory() async => historyResult;
+}
+
+/// Avoids exercising the real `path_provider`/`url_launcher` plugins (no
+/// platform channel is registered in a widget test) — records the call so
+/// tests can assert tapping "View File" reaches the controller with the
+/// right filename, same technique as every other fake controller in this
+/// suite.
+class _FakeProtectedMediaDownloadController extends ProtectedMediaDownloadController {
+  _FakeProtectedMediaDownloadController(super.resolvedUrl);
+
+  int callCount = 0;
+  String? lastFilename;
+
+  @override
+  Future<void> downloadAndOpen(String filename) async {
+    callCount++;
+    lastFilename = filename;
+  }
 }
 
 GoRouter _router() => GoRouter(
@@ -179,6 +199,49 @@ void main() {
       expect(repo.lastReanalyzedId, 42);
       expect(find.text('Resume Builder Screen'), findsOneWidget);
       expect(container.read(resumeBuilderControllerProvider), isA<ResumeResultState>());
+    });
+
+    testWidgets('tapping "View File" downloads the resume through the authenticated controller, not an external browser', (
+      tester,
+    ) async {
+      const fileUrl = '/media/resumes/priya_resume_final.pdf';
+      final resolvedUrl = resolveMediaUrl(fileUrl)!;
+      final fakeDownload = _FakeProtectedMediaDownloadController(resolvedUrl);
+
+      tester.view.physicalSize = const Size(400, 2200);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+      final container = ProviderContainer(
+        overrides: [
+          authRepositoryProvider.overrideWithValue(_FakeAuthRepository()),
+          resumeRepositoryProvider.overrideWithValue(
+            _FakeResumeRepository(
+              const Success([
+                ResumeHistoryItem(
+                  id: 42,
+                  fileName: 'priya_resume_final.pdf',
+                  uploadedAtDisplay: '29 Sep 2026, 3:45 PM',
+                  isCurrent: true,
+                  fileUrl: fileUrl,
+                ),
+              ]),
+            ),
+          ),
+          protectedMediaDownloadControllerProvider(resolvedUrl).overrideWith(() => fakeDownload),
+        ],
+      );
+      addTearDown(container.dispose);
+      await tester.pumpWidget(
+        UncontrolledProviderScope(container: container, child: MaterialApp.router(routerConfig: _router())),
+      );
+      await tester.pump();
+      await tester.pump();
+
+      await tester.tap(find.text('View File'));
+      await tester.pump();
+
+      expect(fakeDownload.callCount, 1);
+      expect(fakeDownload.lastFilename, 'priya_resume_final.pdf');
     });
 
     testWidgets('shows a retryable error view for a fetch failure, and Retry re-fetches', (tester) async {

@@ -38,4 +38,30 @@ class EmployerCandidateSearchRemoteDataSource {
       throw e.error is AppException ? e.error as AppException : const UnexpectedResponseException();
     }
   }
+
+  /// `jobs_app.views.download_candidates_csv` — see
+  /// `ApiEndpoints.employerCandidatesDownloadCsv`'s doc comment for the
+  /// exact contract, including the "blank `q` ⇒ header-only CSV" behavior
+  /// this intentionally does NOT work around.
+  Future<List<int>> downloadCsvBytes({
+    String query = '',
+    String location = '',
+    String experience = '',
+  }) async {
+    try {
+      final params = <String, String>{
+        if (query.isNotEmpty) 'q': query,
+        if (location.isNotEmpty) 'location': location,
+        if (experience.isNotEmpty) 'experience': experience,
+      };
+      final response = await _apiClient.dio.get<List<int>>(
+        ApiEndpoints.employerCandidatesDownloadCsv,
+        queryParameters: params.isEmpty ? null : params,
+        options: Options(responseType: ResponseType.bytes),
+      );
+      return response.data ?? const [];
+    } on DioException catch (e) {
+      throw e.error is AppException ? e.error as AppException : const UnexpectedResponseException();
+    }
+  }
 }

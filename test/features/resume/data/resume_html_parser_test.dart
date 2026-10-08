@@ -124,6 +124,16 @@ void main() {
       expect(parseResumeBuilderError(_errorFixture), "We couldn't read any text from this resume.");
     });
 
+    test('also decodes the hex apostrophe entity (&#x27;) Python\'s html.escape() actually emits', () {
+      const fixture = '''
+      <div class="error-box">
+          <i class="fas fa-exclamation-circle fa-lg"></i>
+          <div>We couldn&#x27;t read any text from this resume.</div>
+      </div>
+      ''';
+      expect(parseResumeBuilderError(fixture), "We couldn't read any text from this resume.");
+    });
+
     test('returns null when no error box is present', () {
       expect(parseResumeBuilderError(_resultFixture), isNull);
     });

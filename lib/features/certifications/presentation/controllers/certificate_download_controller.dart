@@ -1,8 +1,8 @@
 import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:open_file/open_file.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/errors/exception_mapper.dart';
 import '../../../../core/errors/exceptions.dart';
@@ -33,7 +33,7 @@ final class CertificateDownloadFailed extends CertificateDownloadState {
 /// and serves a binary `FileResponse` — an external, unauthenticated
 /// browser can't open it directly, unlike Resume History's "View File",
 /// see that screen's doc comment for the contrasting, known-limitation
-/// case), saves it to a local file, then hands it to `url_launcher` to open
+/// case), saves it to a local file, then hands it to `open_file` to open
 /// in the device's PDF viewer — the same "download authenticated bytes to
 /// a local file first" technique as
 /// `GrammarMediaDataSource.fetchVideoToTempFile`, just via the repository
@@ -58,11 +58,17 @@ class CertificateDownloadController extends Notifier<CertificateDownloadState> {
           final file = File('${dir.path}/certificate_$subject.pdf');
           await file.writeAsBytes(bytes, flush: true);
           state = const CertificateDownloadIdle();
-          await launchUrl(Uri.file(file.path), mode: LaunchMode.externalApplication);
+          final openResult = await OpenFile.open(file.path);
+          if (openResult.type != ResultType.done) {
+            // A real, reachable case confirmed on a physical device: the PDF
+            // downloaded fine but this device has no PDF viewer installed —
+            // an honest, specific message beats the generic catch-all below.
+            state = CertificateDownloadFailed(UnexpectedFailure(_openFileFailureMessage(openResult.type)));
+            return;
+          }
         } on Object {
-          // Local file-save/open failure (disk, or no PDF viewer available
-          // on the device) — not a network/server error, so it's mapped
-          // through the same `UnexpectedResponseException` ->
+          // Local file-save failure (disk) — not a network/server error, so
+          // it's mapped through the same `UnexpectedResponseException` ->
           // `UnexpectedFailure` path everything else in this app uses for
           // "something went wrong that isn't a specific, known case".
           state = CertificateDownloadFailed(ExceptionMapper.map(const UnexpectedResponseException()));
@@ -72,3 +78,10 @@ class CertificateDownloadController extends Notifier<CertificateDownloadState> {
     }
   }
 }
+
+String _openFileFailureMessage(ResultType type) => switch (type) {
+  ResultType.noAppToOpen => 'No app installed on this device can open this file. Install a compatible viewer and try again.',
+  ResultType.fileNotFound => 'The downloaded file could not be found.',
+  ResultType.permissionDenied => 'Permission denied while trying to open this file.',
+  _ => 'Something unexpected happened. Please try again.',
+};

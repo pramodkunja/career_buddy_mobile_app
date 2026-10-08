@@ -1,3 +1,4 @@
+import '../../../core/utils/html_unescape.dart';
 import '../domain/entities/employer_candidate_search.dart';
 
 /// Parses `templates/jobs/candidate_search.html` (`jobs_app.views.
@@ -44,9 +45,4 @@ List<EmployerCandidateSearchResult> parseEmployerCandidateSearchHtml(String html
   return results;
 }
 
-String _unescape(String value) => value
-    .replaceAll('&amp;', '&')
-    .replaceAll('&lt;', '<')
-    .replaceAll('&gt;', '>')
-    .replaceAll('&#39;', "'")
-    .replaceAll('&quot;', '"');
+String _unescape(String value) => unescapeHtmlEntities(value);

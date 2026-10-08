@@ -37,13 +37,15 @@ class GrammarSummaryRow {
 }
 
 /// One authored lesson slide (`topic.slides`/`topic.slide_cards`) — shown
-/// as a real `<ul>` text card under "Lesson slides" (`detail.html:561-579`).
-/// The paired image there is Django's own on-the-fly generated SVG
-/// illustration (`_build_illustration_svg`, keyed off the same title/lines/
-/// accent color already shown as text) — not real authored artwork, so
-/// omitting it in the Flutter port loses no actual information; see
-/// `GrammarDetailScreen`'s doc comment for the *real* photographed slide
-/// deck, which is reproduced as an actual image carousel instead.
+/// as a real `<ul>` text card under "Lesson slides" (`detail.html:561-579`),
+/// paired with Django's own on-the-fly generated SVG illustration
+/// (`_build_illustration_svg`, keyed off this same title/lines/accent
+/// color — `ApiEndpoints.subjectIllustration`, rendered by
+/// `GrammarDetailScreen`'s `_SlideIllustration`). Confirmed live:
+/// unconditional on every one of the 9 topics, unlike the big "Visual
+/// Guide" carousel's own illustration fallback (dead today — see
+/// `GrammarDetailScreen`'s doc comment for that *real* photographed slide
+/// deck, reproduced as an actual image carousel).
 class GrammarSlide {
   const GrammarSlide({required this.title, required this.lines});
 

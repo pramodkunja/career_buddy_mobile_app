@@ -1,3 +1,4 @@
+import '../../../core/utils/html_unescape.dart';
 import '../domain/entities/job_openings.dart';
 
 /// Parses `templates/employer/job_openings.html` (`jobs_app.views.
@@ -42,9 +43,4 @@ JobOpeningsPage parseJobOpeningsHtml(String html) {
   return JobOpeningsPage(jobs: jobs);
 }
 
-String _unescape(String value) => value
-    .replaceAll('&amp;', '&')
-    .replaceAll('&lt;', '<')
-    .replaceAll('&gt;', '>')
-    .replaceAll('&#39;', "'")
-    .replaceAll('&quot;', '"');
+String _unescape(String value) => unescapeHtmlEntities(value);

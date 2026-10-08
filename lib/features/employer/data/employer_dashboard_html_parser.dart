@@ -1,3 +1,4 @@
+import '../../../core/utils/html_unescape.dart';
 import '../domain/entities/employer_dashboard_summary.dart';
 
 /// Regex extraction against `jobs_app.views.employer_dashboard`'s
@@ -53,9 +54,4 @@ EmployerDashboardSummary parseEmployerDashboardHtml(String html) {
   );
 }
 
-String _unescape(String value) => value
-    .replaceAll('&amp;', '&')
-    .replaceAll('&lt;', '<')
-    .replaceAll('&gt;', '>')
-    .replaceAll('&#39;', "'")
-    .replaceAll('&quot;', '"');
+String _unescape(String value) => unescapeHtmlEntities(value);

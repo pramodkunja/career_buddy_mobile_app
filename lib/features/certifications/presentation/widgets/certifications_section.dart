@@ -291,7 +291,12 @@ class _SubjectActions extends ConsumerWidget {
     switch (subject.state) {
       case CertificationState.notAttempted:
         return AppButton(
-          label: 'Take Mock Test',
+          // The real web varies this by category — confirmed live:
+          // `actionNoun = (category === 'tech') ? 'Assessment' : 'Mock Test'`
+          // (`static/001 Career Buddy/index.html`) — both wordings reach the
+          // exact same underlying quiz mechanism either way, so only the
+          // label differs here, not the destination/behavior.
+          label: subject.category == 'tech' ? 'Take Assessment' : 'Take Mock Test',
           icon: Icons.play_circle_outline,
           variant: AppButtonVariant.outlined,
           fullWidth: false,

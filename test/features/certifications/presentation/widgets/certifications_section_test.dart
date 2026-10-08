@@ -228,11 +228,18 @@ void main() {
       expect(find.text('1'), findsOneWidget); // certified/earned
     });
 
-    testWidgets('not_attempted: shows the Not Attempted pill and a Take Mock Test button', (tester) async {
+    testWidgets('not_attempted (tech category): shows the Not Attempted pill and a Take Assessment button', (
+      tester,
+    ) async {
+      // `_notAttempted` is `category: 'tech'` (dsa) — the real web says
+      // "Take Assessment" for Tech specifically, "Take Mock Test" for
+      // every other category (confirmed live against `static/001 Career
+      // Buddy/index.html`'s own `actionNoun` logic).
       await _pump(tester, statusResult: Success(_fourStatesStatus));
 
       expect(find.text('Not Attempted'), findsOneWidget);
-      expect(find.text('Take Mock Test'), findsOneWidget);
+      expect(find.text('Take Assessment'), findsOneWidget);
+      expect(find.text('Take Mock Test'), findsNothing);
     });
 
     testWidgets('locked: shows the Locked pill and informational copy, with no action button', (tester) async {
@@ -261,15 +268,50 @@ void main() {
       expect(find.text('Edit Name & Regenerate'), findsOneWidget);
     });
 
-    testWidgets('tapping Take Mock Test on a generic subject routes to its subject quiz screen', (tester) async {
+    testWidgets('tapping Take Assessment on a generic Tech subject routes to its subject quiz screen', (tester) async {
       await _pump(tester, statusResult: Success(_fourStatesStatus));
 
-      await tester.ensureVisible(find.text('Take Mock Test'));
-      await tester.tap(find.text('Take Mock Test'));
+      await tester.ensureVisible(find.text('Take Assessment'));
+      await tester.tap(find.text('Take Assessment'));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
 
       expect(find.text('Quiz: dsa'), findsOneWidget);
+    });
+
+    testWidgets('not_attempted (non-tech category): still shows "Take Mock Test", matching the web\'s own wording', (
+      tester,
+    ) async {
+      const englishNotAttempted = CertificationSubject(
+        subject: 'english',
+        label: 'English & Vocabulary',
+        category: 'english',
+        state: CertificationState.notAttempted,
+        passThreshold: 70,
+        result: CertificationResult(score: null, total: null, completed: false),
+        certificate: null,
+        prefillName: 'Jane Doe',
+        nameUrl: '/skill-up/assessment/english/certificate/name/',
+      );
+      final status = CertificationsStatus(
+        categories: [
+          const CertificationCategory(
+            key: 'english',
+            label: 'English & Vocabulary',
+            total: 1,
+            attempted: 0,
+            earned: 0,
+            subjects: [englishNotAttempted],
+          ),
+        ],
+        totalCount: 1,
+        attemptedCount: 0,
+        earnedCount: 0,
+      );
+      await _pump(tester, statusResult: Success(status));
+
+      expect(find.text('Take Mock Test'), findsOneWidget);
+      expect(find.text('Take Assessment'), findsNothing);
     });
   });
 

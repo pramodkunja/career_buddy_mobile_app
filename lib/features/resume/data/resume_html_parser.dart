@@ -8,6 +8,7 @@
 // below is anchored to markup read directly from the templates, not
 // guessed.
 
+import '../../../core/utils/html_unescape.dart';
 import '../domain/entities/resume_analysis.dart';
 import '../domain/entities/resume_history_item.dart';
 
@@ -171,9 +172,4 @@ List<String> _extractAll(String text, RegExp pattern) {
   return [for (final match in pattern.allMatches(text)) _unescape(match.group(1)!.trim())];
 }
 
-String _unescape(String value) => value
-    .replaceAll('&amp;', '&')
-    .replaceAll('&lt;', '<')
-    .replaceAll('&gt;', '>')
-    .replaceAll('&#39;', "'")
-    .replaceAll('&quot;', '"');
+String _unescape(String value) => unescapeHtmlEntities(value);

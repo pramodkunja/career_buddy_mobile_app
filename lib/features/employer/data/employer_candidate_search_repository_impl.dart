@@ -22,4 +22,17 @@ class EmployerCandidateSearchRepositoryImpl implements EmployerCandidateSearchRe
       return Failed(ExceptionMapper.map(e));
     }
   }
+
+  @override
+  Future<Result<List<int>>> downloadCsvBytes({
+    String query = '',
+    String location = '',
+    String experience = '',
+  }) async {
+    try {
+      return Success(await _remote.downloadCsvBytes(query: query, location: location, experience: experience));
+    } on AppException catch (e) {
+      return Failed(ExceptionMapper.map(e));
+    }
+  }
 }

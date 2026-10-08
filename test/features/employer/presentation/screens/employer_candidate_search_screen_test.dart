@@ -1,4 +1,6 @@
 import 'package:career_buddy_lms/core/errors/failures.dart';
+import 'package:career_buddy_lms/core/media/media_url_resolver.dart';
+import 'package:career_buddy_lms/core/media/protected_media_download_controller.dart';
 import 'package:career_buddy_lms/core/utils/result.dart';
 import 'package:career_buddy_lms/features/auth/domain/entities/auth_user.dart';
 import 'package:career_buddy_lms/features/auth/domain/entities/student_registration_data.dart';
@@ -59,6 +61,21 @@ class _FakeRepository implements EmployerCandidateSearchRepository {
     lastQuery = query;
     return result;
   }
+
+  Result<List<int>> csvResult = const Success(<int>[]);
+  int csvCallCount = 0;
+  String? lastCsvQuery;
+
+  @override
+  Future<Result<List<int>>> downloadCsvBytes({
+    String query = '',
+    String location = '',
+    String experience = '',
+  }) async {
+    csvCallCount++;
+    lastCsvQuery = query;
+    return csvResult;
+  }
 }
 
 const _oneCandidate = [
@@ -75,6 +92,21 @@ const _oneCandidate = [
     resumeUrl: '/media/resumes/priya.pdf',
   ),
 ];
+
+/// Avoids exercising the real `path_provider`/`url_launcher` plugins (no
+/// platform channel is registered in a widget test).
+class _FakeProtectedMediaDownloadController extends ProtectedMediaDownloadController {
+  _FakeProtectedMediaDownloadController(super.resolvedUrl);
+
+  int callCount = 0;
+  String? lastFilename;
+
+  @override
+  Future<void> downloadAndOpen(String filename) async {
+    callCount++;
+    lastFilename = filename;
+  }
+}
 
 Future<_FakeRepository> _pump(WidgetTester tester, Result<List<EmployerCandidateSearchResult>> result) async {
   tester.view.physicalSize = const Size(400, 2200);
@@ -128,6 +160,59 @@ void main() {
       await _pump(tester, const Failed(ServerFailure()));
 
       expect(find.text('Retry'), findsOneWidget);
+    });
+
+    testWidgets('tapping "View Resume" downloads it through the authenticated controller with a resolved, non-relative URL', (
+      tester,
+    ) async {
+      // Regression guard for the "relative URL passed straight to
+      // launchUrl" bug: `candidate.resumeUrl` is a bare `/media/...` path
+      // (confirmed live — the web only prefixes an absolute URL for its own
+      // CSV export, not the in-page HTML link a browser resolves itself).
+      final resolvedUrl = resolveMediaUrl('/media/resumes/priya.pdf')!;
+      expect(resolvedUrl, isNot('/media/resumes/priya.pdf'));
+      final fakeDownload = _FakeProtectedMediaDownloadController(resolvedUrl);
+
+      tester.view.physicalSize = const Size(400, 2200);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+      final repo = _FakeRepository(const Success(_oneCandidate));
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            authRepositoryProvider.overrideWithValue(_FakeAuthRepository()),
+            employerCandidateSearchRepositoryProvider.overrideWithValue(repo),
+            protectedMediaDownloadControllerProvider(resolvedUrl).overrideWith(() => fakeDownload),
+          ],
+          child: const MaterialApp(home: EmployerCandidateSearchScreen()),
+        ),
+      );
+      await tester.pump();
+
+      await tester.tap(find.text('View Resume'));
+      await tester.pump();
+
+      expect(fakeDownload.callCount, 1);
+      expect(fakeDownload.lastFilename, 'priya.pdf');
+    });
+
+    testWidgets('tapping "Download CSV" requests the CSV with the currently-applied filters', (tester) async {
+      final repo = await _pump(tester, const Success(_oneCandidate));
+
+      await tester.enterText(find.widgetWithText(TextField, 'Skills or Keywords'), 'python');
+      await tester.tap(find.text('Search'));
+      await tester.pump();
+
+      await tester.tap(find.text('Download CSV'));
+      // The real download (bytes -> temp file -> url_launcher) isn't
+      // awaited here — it would hit unregistered plugin channels in a
+      // widget test, same reason `CertificateDownloadController` has no
+      // dedicated test either — but the repository call that constructs
+      // the request IS synchronously reachable and is what this guards.
+      await tester.pump();
+
+      expect(repo.csvCallCount, 1);
+      expect(repo.lastCsvQuery, 'python');
     });
   });
 }

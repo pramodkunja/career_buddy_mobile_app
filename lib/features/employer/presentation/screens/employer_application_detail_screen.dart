@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:url_launcher/url_launcher.dart';
 
-import '../../../../app/config/environment.dart';
 import '../../../../app/theme/app_spacing.dart';
+import '../../../../core/media/media_url_resolver.dart';
+import '../../../../core/media/protected_media_download_controller.dart';
 import '../../../../core/utils/result.dart';
 import '../../../../shared/widgets/app_button.dart';
 import '../../../../shared/widgets/app_card.dart';
@@ -20,12 +20,10 @@ import '../controllers/employer_application_detail_controller.dart';
 /// the same server-rendered HTML the web renders, via
 /// `parseEmployerApplicationDetailHtml`.
 ///
-/// The interview recording is opened externally (`launchUrl`), the same
-/// accepted pattern already used for Resume History's protected-media
-/// links, rather than an in-app authenticated video player — this section
-/// is conditional (only candidates who already passed an AI interview have
-/// one) and secondary to this screen's real purpose, the status-update
-/// workflow.
+/// The resume and interview recording are both downloaded through this
+/// app's own authenticated Dio client and opened locally
+/// (`ProtectedMediaDownloadController`) — not the device's external
+/// browser, which doesn't carry this app's session cookie.
 class EmployerApplicationDetailScreen extends ConsumerWidget {
   const EmployerApplicationDetailScreen({required this.applicationId, super.key});
 
@@ -92,13 +90,6 @@ class _ApplicationDetailBodyState extends ConsumerState<_ApplicationDetailBody> 
     super.dispose();
   }
 
-  void _openExternally(String relativeUrl) {
-    launchUrl(
-      Uri.parse('${EnvironmentConfig.baseUrl}$relativeUrl'),
-      mode: LaunchMode.externalApplication,
-    );
-  }
-
   Future<void> _submit() async {
     setState(() {
       _submitting = true;
@@ -122,6 +113,14 @@ class _ApplicationDetailBodyState extends ConsumerState<_ApplicationDetailBody> 
   @override
   Widget build(BuildContext context) {
     final data = widget.data;
+    final resolvedResumeUrl = resolveMediaUrl(data.resumeUrl);
+    final resumeDownload = resolvedResumeUrl == null
+        ? const ProtectedMediaDownloadIdle()
+        : ref.watch(protectedMediaDownloadControllerProvider(resolvedResumeUrl));
+    final resolvedVideoUrl = resolveMediaUrl(data.interviewVideoUrl);
+    final videoDownload = resolvedVideoUrl == null
+        ? const ProtectedMediaDownloadIdle()
+        : ref.watch(protectedMediaDownloadControllerProvider(resolvedVideoUrl));
     return SingleChildScrollView(
       padding: const EdgeInsets.all(AppSpacing.md),
       child: Column(
@@ -187,13 +186,24 @@ class _ApplicationDetailBodyState extends ConsumerState<_ApplicationDetailBody> 
                     Expanded(child: _infoTile('Expected Salary', data.expectedSalary)),
                   ],
                 ),
-                if (data.resumeUrl != null) ...[
+                if (resolvedResumeUrl != null) ...[
                   const SizedBox(height: AppSpacing.sm),
                   AppButton(
                     label: 'View Resume Document',
                     icon: Icons.picture_as_pdf_outlined,
-                    onPressed: () => _openExternally(data.resumeUrl!),
+                    isLoading: resumeDownload is ProtectedMediaDownloading,
+                    onPressed: () => ref
+                        .read(protectedMediaDownloadControllerProvider(resolvedResumeUrl).notifier)
+                        .downloadAndOpen(protectedMediaFilename(resolvedResumeUrl, '${data.applicantName}_resume.pdf')),
                   ),
+                  if (resumeDownload is ProtectedMediaDownloadFailed)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Text(
+                        resumeDownload.failure.message,
+                        style: const TextStyle(color: Color(0xFFDC2626), fontSize: 12),
+                      ),
+                    ),
                 ],
                 if (data.interviewScore != null) ...[
                   const SizedBox(height: AppSpacing.md),
@@ -218,13 +228,27 @@ class _ApplicationDetailBodyState extends ConsumerState<_ApplicationDetailBody> 
                       padding: const EdgeInsets.only(top: 4),
                       child: Text('Recorded ${data.interviewRecordedAt}', style: const TextStyle(color: Color(0xFF64748B), fontSize: 12)),
                     ),
-                  if (data.interviewVideoUrl != null) ...[
+                  if (resolvedVideoUrl != null) ...[
                     const SizedBox(height: AppSpacing.xs),
                     OutlinedButton.icon(
-                      onPressed: () => _openExternally(data.interviewVideoUrl!),
-                      icon: const Icon(Icons.play_circle_outline, size: 18),
+                      onPressed: videoDownload is ProtectedMediaDownloading
+                          ? null
+                          : () => ref
+                                .read(protectedMediaDownloadControllerProvider(resolvedVideoUrl).notifier)
+                                .downloadAndOpen(protectedMediaFilename(resolvedVideoUrl, '${data.applicantName}_interview.mp4')),
+                      icon: videoDownload is ProtectedMediaDownloading
+                          ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                          : const Icon(Icons.play_circle_outline, size: 18),
                       label: const Text('Open Recording'),
                     ),
+                    if (videoDownload is ProtectedMediaDownloadFailed)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Text(
+                          videoDownload.failure.message,
+                          style: const TextStyle(color: Color(0xFFDC2626), fontSize: 12),
+                        ),
+                      ),
                   ],
                 ],
                 if (data.coverLetter != null && data.coverLetter!.isNotEmpty) ...[

@@ -1,4 +1,5 @@
 import '../../../core/utils/date_format.dart';
+import '../../../core/utils/html_unescape.dart';
 import '../domain/entities/activity_progress.dart';
 import '../domain/entities/dashboard_data.dart';
 import '../domain/entities/dashboard_stats.dart';
@@ -225,9 +226,4 @@ List<PaymentRecord> _parsePaymentHistory(String html) {
   return payments;
 }
 
-String _unescape(String value) => value
-    .replaceAll('&amp;', '&')
-    .replaceAll('&lt;', '<')
-    .replaceAll('&gt;', '>')
-    .replaceAll('&#39;', "'")
-    .replaceAll('&quot;', '"');
+String _unescape(String value) => unescapeHtmlEntities(value);

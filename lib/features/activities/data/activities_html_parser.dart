@@ -1,4 +1,5 @@
 import '../../../core/utils/date_format.dart';
+import '../../../core/utils/html_unescape.dart';
 import '../../ai_listening/domain/services/listening_module_detection.dart';
 import '../../ai_reading/domain/services/reading_module_detection.dart';
 import '../../ai_speaking/domain/services/speaking_module_detection.dart';
@@ -364,9 +365,4 @@ DateTime? _parseLongDate(String text) {
 
 String _stripTags(String html) => _unescape(html.replaceAll(RegExp(r'<[^>]*>'), ' ').replaceAll(RegExp(r'\s+'), ' ').trim());
 
-String _unescape(String value) => value
-    .replaceAll('&amp;', '&')
-    .replaceAll('&lt;', '<')
-    .replaceAll('&gt;', '>')
-    .replaceAll('&#39;', "'")
-    .replaceAll('&quot;', '"');
+String _unescape(String value) => unescapeHtmlEntities(value);

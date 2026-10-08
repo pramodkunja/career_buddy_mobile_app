@@ -4,6 +4,7 @@ import '../../../../core/errors/exceptions.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../../core/network/api_endpoints.dart';
 import '../../../../core/utils/exercise_hero_meta.dart';
+import '../../../../core/utils/html_unescape.dart';
 import '../../domain/entities/mcq_exercise.dart';
 import '../../domain/repositories/mcq_exercise_repository.dart';
 import '../models/mcq_exercise_html_parser.dart';
@@ -107,10 +108,5 @@ class McqExerciseRemoteDataSource {
     }
   }
 
-  String _unescape(String value) => value
-      .replaceAll('&amp;', '&')
-      .replaceAll('&lt;', '<')
-      .replaceAll('&gt;', '>')
-      .replaceAll('&#39;', "'")
-      .replaceAll('&quot;', '"');
+  String _unescape(String value) => unescapeHtmlEntities(value);
 }

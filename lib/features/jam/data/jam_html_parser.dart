@@ -7,6 +7,7 @@
 // `resume_html_parser.dart`; every regex below is anchored to markup read
 // directly from the real templates, not guessed.
 
+import '../../../core/utils/html_unescape.dart';
 import '../domain/entities/jam_assessment.dart';
 import '../domain/entities/jam_history_profile.dart';
 import '../domain/entities/jam_session_result.dart';
@@ -428,9 +429,4 @@ String _htmlToPlainText(String raw) {
   return text;
 }
 
-String _unescape(String value) => value
-    .replaceAll('&amp;', '&')
-    .replaceAll('&lt;', '<')
-    .replaceAll('&gt;', '>')
-    .replaceAll('&#39;', "'")
-    .replaceAll('&quot;', '"');
+String _unescape(String value) => unescapeHtmlEntities(value);

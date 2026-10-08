@@ -7,6 +7,7 @@ import 'package:career_buddy_lms/features/grammar/presentation/widgets/grammar_i
 import 'package:career_buddy_lms/features/grammar/presentation/widgets/grammar_video_player_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:video_player_platform_interface/video_player_platform_interface.dart';
@@ -147,6 +148,29 @@ void main() {
       expect(find.byType(GrammarAudioPlayerSheet), findsOneWidget);
       expect(tts.spokenTexts, isNotEmpty);
       expect(tts.spokenTexts.first, startsWith('Nouns are naming words.'));
+    });
+
+    testWidgets('renders the real illustration SVG next to the first Lesson slide card', (tester) async {
+      final media = FakeGrammarMediaDataSource();
+      await _pump(tester, media: media, tts: FakeGrammarTtsService());
+      await _pumpUntilFound(tester, find.byType(SvgPicture));
+
+      expect(find.byType(SvgPicture), findsWidgets);
+      expect(media.requestedIllustrations, contains((slug: _slug, index: 1)));
+    });
+
+    testWidgets('a failed illustration fetch degrades gracefully: text still renders, no crash, no error UI', (
+      tester,
+    ) async {
+      final media = FakeGrammarMediaDataSource()..illustrationSvg = null;
+      await _pump(tester, media: media, tts: FakeGrammarTtsService());
+      await tester.pump(const Duration(milliseconds: 100));
+
+      // The lesson slide's own text content is unaffected by the
+      // illustration failing to load.
+      expect(find.text('1. Spot the Naming Words'), findsOneWidget);
+      expect(find.byType(SvgPicture), findsNothing);
+      expect(tester.takeException(), isNull);
     });
   });
 }

@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../media/protected_media_remote_datasource.dart';
 import '../network/api_client.dart';
 import '../storage/secure_storage_service.dart';
 
@@ -13,4 +14,8 @@ final apiClientProvider = Provider<ApiClient>((ref) {
 
 final secureStorageProvider = Provider<SecureStorageService>((ref) {
   return SecureStorageService();
+});
+
+final protectedMediaRemoteDataSourceProvider = Provider<ProtectedMediaRemoteDataSource>((ref) {
+  return ProtectedMediaRemoteDataSource(ref.watch(apiClientProvider));
 });

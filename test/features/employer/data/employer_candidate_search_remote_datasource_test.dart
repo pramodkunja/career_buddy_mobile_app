@@ -25,4 +25,27 @@ void main() {
 
     expect(results.single.name, 'Jordan Lee');
   });
+
+  group('downloadCsvBytes', () {
+    test('returns the raw CSV bytes on a successful response', () async {
+      final dio = Dio(BaseOptions(baseUrl: 'https://example.test'))
+        ..httpClientAdapter = FakeHttpClientAdapter(statusCode: 200, body: 'Name,Email\r\nJordan Lee,jordan@example.com\r\n');
+      final datasource = EmployerCandidateSearchRemoteDataSource(ApiClient.forTesting(dio));
+
+      final bytes = await datasource.downloadCsvBytes(query: 'python');
+
+      expect(String.fromCharCodes(bytes), contains('Jordan Lee'));
+    });
+
+    test('sends only the non-empty q/location/experience params, same as search', () async {
+      RequestOptions? captured;
+      final dio = Dio(BaseOptions(baseUrl: 'https://example.test'))
+        ..httpClientAdapter = FakeHttpClientAdapter(statusCode: 200, body: '', onRequest: (o) => captured = o);
+      final datasource = EmployerCandidateSearchRemoteDataSource(ApiClient.forTesting(dio));
+
+      await datasource.downloadCsvBytes(query: 'python', location: '', experience: '3-5');
+
+      expect(captured!.queryParameters, {'q': 'python', 'experience': '3-5'});
+    });
+  });
 }

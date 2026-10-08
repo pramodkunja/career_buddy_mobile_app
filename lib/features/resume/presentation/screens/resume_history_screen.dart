@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:url_launcher/url_launcher.dart';
 
-import '../../../../app/config/environment.dart';
 import '../../../../app/router/route_paths.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_spacing.dart';
 import '../../../../core/errors/failures.dart';
+import '../../../../core/media/media_url_resolver.dart';
+import '../../../../core/media/protected_media_download_controller.dart';
 import '../../../../shared/widgets/app_button.dart';
 import '../../../../shared/widgets/app_error_view.dart';
 import '../../../../shared/widgets/app_footer.dart';
@@ -20,15 +20,12 @@ import '../providers/resume_providers.dart';
 
 /// `career_app.views.resume_history` (`templates/resume_history.html`).
 ///
-/// **Known limitation, not fabricated**: "View File" opens
-/// `resume.file.url` (a session-cookie-protected `/media/resumes/...` path,
-/// `core/media_views.py: serve_protected_media`) in the device's external
-/// browser via `url_launcher` — that browser doesn't share this app's Dio
-/// cookie jar, so it will prompt the user to log in again on the website
-/// rather than showing the file directly, exactly as it would for any
-/// other app opening a session-protected link externally. Reproducing
-/// true single-sign-on into an external browser is out of scope for this
-/// batch.
+/// "View File" downloads `resume.file.url` (a session-cookie-protected
+/// `/media/resumes/...` path, `core/media_views.py:serve_protected_media`)
+/// through this app's own authenticated Dio client and opens the saved
+/// local copy — not the device's external browser, which doesn't carry
+/// this app's session cookie and would otherwise bounce the user to a
+/// login prompt. See `ProtectedMediaDownloadController`'s doc comment.
 class ResumeHistoryScreen extends ConsumerWidget {
   const ResumeHistoryScreen({super.key});
 
@@ -149,6 +146,12 @@ class _HistoryCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final resolvedUrl = resolveMediaUrl(item.fileUrl);
+    final downloadState = resolvedUrl == null
+        ? const ProtectedMediaDownloadIdle()
+        : ref.watch(protectedMediaDownloadControllerProvider(resolvedUrl));
+    final downloading = downloadState is ProtectedMediaDownloading;
+
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
@@ -199,13 +202,20 @@ class _HistoryCard extends ConsumerWidget {
                   spacing: AppSpacing.sm,
                   runSpacing: AppSpacing.xs,
                   children: [
-                    if (item.fileUrl != null)
+                    if (resolvedUrl != null)
                       OutlinedButton.icon(
-                        onPressed: () => launchUrl(
-                          Uri.parse('${EnvironmentConfig.baseUrl}${item.fileUrl}'),
-                          mode: LaunchMode.externalApplication,
-                        ),
-                        icon: const Icon(Icons.visibility_outlined, size: 16),
+                        onPressed: downloading
+                            ? null
+                            : () => ref
+                                  .read(protectedMediaDownloadControllerProvider(resolvedUrl).notifier)
+                                  .downloadAndOpen(protectedMediaFilename(resolvedUrl, item.fileName)),
+                        icon: downloading
+                            ? const SizedBox(
+                                width: 14,
+                                height: 14,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : const Icon(Icons.visibility_outlined, size: 16),
                         label: const Text('View File'),
                         style: OutlinedButton.styleFrom(visualDensity: VisualDensity.compact),
                       ),
@@ -224,6 +234,13 @@ class _HistoryCard extends ConsumerWidget {
                     ),
                   ],
                 ),
+                if (downloadState is ProtectedMediaDownloadFailed) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    downloadState.failure.message,
+                    style: const TextStyle(color: Color(0xFFDC2626), fontSize: 12),
+                  ),
+                ],
               ],
             ),
           ),
