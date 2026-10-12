@@ -175,6 +175,27 @@ void main() {
       expect(job.employmentType, '');
     });
 
+    test(
+      'REGRESSION (Phase 11): openings is null (never a guessed count) when its value is missing or '
+      'unparseable, rather than silently defaulting to 1',
+      () async {
+        final withoutOpeningsValue = fixtureHtml.replaceFirst(
+          '<input type="number" name="openings" value="10" class="form-control" min="0" required id="id_openings">',
+          '<input type="number" name="openings" value="" class="form-control" min="0" required id="id_openings">',
+        );
+        final dio = Dio(BaseOptions(baseUrl: 'https://example.test'))
+          ..httpClientAdapter = FakeHttpClientAdapter(statusCode: 200, body: withoutOpeningsValue);
+        final datasource = JobPostingRemoteDataSource(ApiClient.forTesting(dio));
+
+        final job = await datasource.getJobForEdit(68);
+
+        expect(job.openings, isNull);
+        // Confirms the strip above didn't accidentally break unrelated
+        // parsing from the same response.
+        expect(job.title, 'senior python developer');
+      },
+    );
+
     test('throws ServerException on a non-200 response (e.g. a job not owned by this employer)', () async {
       final dio = Dio(BaseOptions(baseUrl: 'https://example.test'))
         ..httpClientAdapter = FakeHttpClientAdapter(statusCode: 404, body: '');

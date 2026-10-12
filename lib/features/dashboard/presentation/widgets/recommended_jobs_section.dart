@@ -192,7 +192,15 @@ class _JobCard extends StatelessWidget {
           AppButton(
             label: 'View & Apply',
             icon: Icons.send_outlined,
-            onPressed: () => context.push(RoutePaths.jobDetail),
+            // `job.id` is the real `job.pk` scraped from this exact card's
+            // own link (see `RecommendedJob.id`'s doc comment) — reuses
+            // the same, already-built, already-tested public job-detail +
+            // apply screen every other job-listing entry point in this app
+            // uses, rather than a separate implementation. `null` only
+            // when that scrape didn't find a numeric id (never fabricated
+            // or guessed), in which case the button is simply disabled —
+            // never navigate to a made-up or invalid detail URL.
+            onPressed: job.id == null ? null : () => context.push(RoutePaths.publicJobDetail(job.id!)),
           ),
         ],
       ),

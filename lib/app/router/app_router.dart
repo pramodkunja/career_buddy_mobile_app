@@ -72,6 +72,7 @@ import '../../features/skill_up/presentation/screens/skill_up_screen.dart';
 import '../../features/skill_up/presentation/screens/skill_up_lesson_screen.dart';
 import '../../features/skill_up/presentation/skill_up_lesson_route_args.dart';
 import '../../features/splash/presentation/screens/splash_screen.dart';
+import '../../features/subscription/presentation/screens/subscription_screen.dart';
 import '../../shared/widgets/coming_soon_screen.dart';
 import 'route_guards.dart';
 import 'route_paths.dart';
@@ -324,9 +325,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: RoutePaths.profile,
         builder: (context, state) => const ProfileScreen(),
       ),
-      // Linked from the dashboard's "View & Apply" job action; no Job
-      // Detail screen exists yet (and the dashboard API's job objects have
-      // no id to deep-link to regardless — see `route_paths.dart`).
+      // No longer linked from anywhere (Phase 4 of the parity-remediation
+      // work moved the dashboard's "View & Apply" action to
+      // [RoutePaths.publicJobDetail] once a real job id — always present
+      // in the scraped HTML, just never extracted — was wired through).
+      // Left registered, unused, as a harmless no-id fallback — see
+      // `route_paths.dart`'s doc comment on [RoutePaths.jobDetail].
       GoRoute(
         path: RoutePaths.jobDetail,
         builder: (context, state) => const ComingSoonScreen(
@@ -336,16 +340,18 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               'Please view and apply for this job on the Career Buddy website for now.',
         ),
       ),
-      // Linked from the Activities list's Free-Plan banner and
-      // Upgrade-Required dialog; no Pro/Membership screen exists yet.
+      // Phase 3 — Subscription. Linked from the Activities list's Free-Plan
+      // banner, Upgrade-Required dialog, Resume Builder's interview CTA, the
+      // GD/JAM/Roleplay locked views, the nav drawer, and ARIA's own `/pro/`
+      // action chip (`ariaActionFlutterRoute`) — all of these already
+      // `context.push(RoutePaths.pro)`, so replacing this one builder is
+      // the only router change this phase needs. Protected the same as
+      // before (not in `publicRoutes`/`universalRoutes`, matching the real
+      // backend's `@login_required` on `pro_page`/`create_razorpay_order`/
+      // `verify_razorpay_payment`).
       GoRoute(
         path: RoutePaths.pro,
-        builder: (context, state) => const ComingSoonScreen(
-          title: 'Upgrade Plan',
-          message:
-              'Upgrading your plan isn\'t available in the app yet. '
-              'Please visit the Career Buddy website to upgrade for now.',
-        ),
+        builder: (context, state) => const SubscriptionScreen(),
       ),
       GoRoute(
         path: RoutePaths.activities,

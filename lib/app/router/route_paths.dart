@@ -233,12 +233,14 @@ abstract final class RoutePaths {
   /// (`dashboard.html:283-303`, `{% url 'activity_list' %}?category=...`).
   static String activitiesWithCategory(String category) => '/activities?category=$category';
 
-  // Linked from the dashboard's "View & Apply" job action
-  // (`dashboard.html:142`, `{% url 'employer_portal:job_detail' job.pk %}`),
-  // but a Job Detail screen doesn't exist in Flutter yet — and the
-  // dashboard API's job objects carry no id to deep-link to even once one
-  // does (see `docs/BACKEND_CONTRACT_dashboard.md`). Placeholder, same
-  // pattern as `register`/`passwordReset`/`employerLogin`.
+  // No longer used by the dashboard's "View & Apply" job action (Phase 4
+  // of the parity-remediation work) — the scraped recommended-job cards
+  // do carry a real `job.pk` after all (it was always present in
+  // `dashboard.html:142`'s link `href`, just never extracted), so that
+  // action now pushes [publicJobDetail] directly, reusing the real,
+  // already-built job-detail+apply screen. Left defined, unused, as a
+  // harmless placeholder in case a future caller needs a no-id fallback —
+  // not deleted, since removing it was outside that phase's narrow scope.
   static const String jobDetail = '/jobs/detail';
 
   // Linked from the Activities list's Free-Plan banner and Upgrade-Required

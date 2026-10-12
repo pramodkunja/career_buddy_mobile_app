@@ -37,6 +37,10 @@ const _validDashboardHtml = '''
         <span class="badge bg-primary bg-opacity-10 text-primary">Full-time</span>
         <span class="text-muted"><i class="fas fa-briefcase me-1"></i>0-1 years</span>
         <small class="fw-bold text-success"><i class="fas fa-rupee-sign me-1"></i>₹2.5L - ₹3.5L</small>
+        <a href="/employer/jobs/42/"
+            class="btn btn-primary btn-sm w-100 rounded-3 fw-bold" target="_blank">
+            View &amp; Apply
+        </a>
       </div>
     </div>
   </div>
@@ -119,6 +123,10 @@ void main() {
       expect(data.recommendedJobs.single.companyName, 'Acme Corp');
       expect(data.recommendedJobs.single.skills, ['Communication', 'English']);
       expect(data.recommendedJobs.single.salaryDisplay, '₹2.5L - ₹3.5L');
+      // `job.pk` — scraped from the card's own "View & Apply" link
+      // (`dashboard.html:142`, `/employer/jobs/<pk>/`), the real stable id
+      // `employer_portal:job_detail`/`PublicJobDetailScreen` already uses.
+      expect(data.recommendedJobs.single.id, 42);
 
       expect(data.paymentHistory, hasLength(1));
       expect(data.paymentHistory.single.isPlanActive, isTrue);
@@ -132,6 +140,23 @@ void main() {
       expect(data.recentResults.single.maxScore, 10);
       expect(data.recentResults.single.percentage, 80);
     });
+
+    test(
+      'REGRESSION (Phase 4): a recommended-job card whose link markup has drifted still parses every '
+      'other real field, with a null id rather than a crash or a guessed/fabricated one',
+      () async {
+        final withoutJobLink = _validDashboardHtml.replaceAll(
+          RegExp(r'<a href="/employer/jobs/42/"[\s\S]*?</a>'),
+          '',
+        );
+        final client = _clientReturning(statusCode: 200, body: withoutJobLink, headers: _htmlHeaders);
+        final data = await DashboardRemoteDataSource(client).getDashboard();
+
+        expect(data.recommendedJobs, hasLength(1));
+        expect(data.recommendedJobs.single.title, 'Customer Support Executive');
+        expect(data.recommendedJobs.single.id, isNull);
+      },
+    );
 
     test('a page missing recommended_jobs/payment_history sections (the real {% if %} being false) parses as empty, not an error', () async {
       final sparse = _validDashboardHtml

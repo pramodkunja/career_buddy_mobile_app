@@ -48,11 +48,34 @@ import 'jam_recording_screen.dart';
 /// `ApiEndpoints.jamProfile`'s doc comment — surfaced here since the task
 /// explicitly asked for a JAM Profile screen and the page genuinely
 /// exists and works, not fabricated).
-class JamTopicsScreen extends ConsumerWidget {
+class JamTopicsScreen extends ConsumerStatefulWidget {
   const JamTopicsScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<JamTopicsScreen> createState() => _JamTopicsScreenState();
+}
+
+class _JamTopicsScreenState extends ConsumerState<JamTopicsScreen> {
+  // Mirrors `jam/dashboard.html`'s own `includes/language_dropdown.html`
+  // (the same shared template GD and Roleplay's web pages use — confirmed
+  // identical 4-option list and `'english'` default). Local widget state,
+  // not read back from [JamSessionController]: the same pattern already
+  // used by `RoleplayPracticeScreen`'s own picker.
+  //
+  // Set here, on the pre-session topics screen, immediately on selection —
+  // `JamSessionController` is a plain (non-`.family`) provider, so this
+  // same controller instance is still live once `JamRecordingScreen` is
+  // pushed, and `_uploadAndAdvance` reads `_language` fresh at the moment
+  // each recording is uploaded (`jam_session_controller.dart:240`),
+  // matching the real `save_audio` view's own behavior exactly
+  // (`jam_app/views.py:211`, whose own comment confirms the language is
+  // read from "the header dropdown" at save time, not fixed once at
+  // session start — unlike GD). Re-confirmed directly from both files
+  // this phase, not assumed from a prior audit.
+  String _language = 'english';
+
+  @override
+  Widget build(BuildContext context) {
     final state = ref.watch(jamTopicsControllerProvider);
 
     return Scaffold(
@@ -60,6 +83,13 @@ class JamTopicsScreen extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('JAM — Just A Minute'),
         actions: [
+          _LanguageSelector(
+            language: _language,
+            onChanged: (value) {
+              setState(() => _language = value);
+              ref.read(jamSessionControllerProvider.notifier).setLanguage(value);
+            },
+          ),
           IconButton(
             tooltip: 'Practice History',
             icon: const Icon(Icons.history),
@@ -348,6 +378,43 @@ class _LevelChip extends StatelessWidget {
           const SizedBox(width: 6),
           Text(label, style: TextStyle(color: done ? AppColors.success : Colors.white70, fontWeight: FontWeight.w700, fontSize: 12)),
         ],
+      ),
+    );
+  }
+}
+
+/// The 4 languages `includes/language_dropdown.html` offers, verbatim
+/// (value, display label) — shared by GD, JAM, and Roleplay's real web
+/// pages; English is that template's own default. Deliberately not
+/// extracted into a single cross-feature shared widget — see
+/// `GdTopicScreen`'s identical `_LanguageSelector` for why this follows
+/// the established per-screen-duplication convention instead.
+class _LanguageSelector extends StatelessWidget {
+  const _LanguageSelector({required this.language, required this.onChanged});
+
+  final String language;
+  final ValueChanged<String> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      label: 'Practice language, currently $language',
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
+        child: Center(
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<String>(
+              value: language,
+              items: const [
+                DropdownMenuItem(value: 'english', child: Text('English')),
+                DropdownMenuItem(value: 'vietnam', child: Text('Vietnamese')),
+                DropdownMenuItem(value: 'arabic', child: Text('Arabic')),
+                DropdownMenuItem(value: 'russian', child: Text('Russian')),
+              ],
+              onChanged: (value) => value == null ? null : onChanged(value),
+            ),
+          ),
+        ),
       ),
     );
   }

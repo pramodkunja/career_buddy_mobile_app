@@ -12,6 +12,7 @@ import 'package:career_buddy_lms/features/jam/domain/entities/jam_session_start.
 import 'package:career_buddy_lms/features/jam/domain/entities/jam_topic.dart';
 import 'package:career_buddy_lms/features/jam/domain/repositories/jam_assessment_repository.dart';
 import 'package:career_buddy_lms/features/jam/domain/repositories/jam_repository.dart';
+import 'package:career_buddy_lms/features/jam/presentation/controllers/jam_session_controller.dart';
 import 'package:career_buddy_lms/features/jam/presentation/controllers/jam_topics_controller.dart';
 import 'package:career_buddy_lms/features/jam/presentation/providers/jam_providers.dart';
 import 'package:career_buddy_lms/features/jam/presentation/screens/jam_recording_screen.dart';
@@ -89,6 +90,24 @@ class _EligibleJamAssessmentRepository implements JamAssessmentRepository {
 
   @override
   Future<Result<JamAssessmentStageOutcome>> completeAssessmentStage(int sessionId) => throw UnimplementedError();
+}
+
+/// Records every `setLanguage` call while still behaving exactly like the
+/// real [JamSessionController] otherwise — proves the screen's dropdown
+/// genuinely calls through to the shared controller (rather than, say,
+/// only updating local widget state), without needing to drive this
+/// screen's `Random Topic`/topic-card navigation all the way through
+/// `JamRecordingScreen`'s own recording/upload flow (already covered,
+/// independently, by `jam_session_controller_test.dart`'s own
+/// "setLanguage changes the language sent on the next upload" test).
+class _SpyJamSessionController extends JamSessionController {
+  final List<String> setLanguageCalls = [];
+
+  @override
+  void setLanguage(String language) {
+    setLanguageCalls.add(language);
+    super.setLanguage(language);
+  }
 }
 
 class _FixedTopicsController extends JamTopicsController {
@@ -195,6 +214,49 @@ void main() {
       }
 
       expect(find.byType(JamRecordingScreen), findsOneWidget);
+    });
+
+    group('REGRESSION (Phase 7) — language selector', () {
+      testWidgets('exposes exactly the 4 languages the real web page offers, defaulting to English', (
+        tester,
+      ) async {
+        const state = JamTopicsState(easy: [], medium: [], hard: []);
+        await _pump(tester, const AsyncValue.data(state));
+
+        final dropdown = tester.widget<DropdownButton<String>>(find.byType(DropdownButton<String>));
+        expect(dropdown.value, 'english');
+        final values = dropdown.items!.map((item) => item.value).toList();
+        expect(values, ['english', 'vietnam', 'arabic', 'russian']);
+      });
+
+      testWidgets(
+        'selecting a language updates the displayed selection and calls through to the shared '
+        'JamSessionController — the same instance JamRecordingScreen reads from when it later uploads',
+        (tester) async {
+          const state = JamTopicsState(easy: [], medium: [], hard: []);
+          final spy = _SpyJamSessionController();
+          await tester.pumpWidget(
+            ProviderScope(
+              overrides: [
+                authRepositoryProvider.overrideWithValue(_FakeAuthRepository()),
+                jamTopicsControllerProvider.overrideWith(() => _FixedTopicsController(const AsyncValue.data(state))),
+                jamSessionControllerProvider.overrideWith(() => spy),
+              ],
+              child: const MaterialApp(home: JamTopicsScreen()),
+            ),
+          );
+          await tester.pump();
+          await tester.pump();
+
+          await tester.tap(find.byType(DropdownButton<String>));
+          await tester.pump(const Duration(milliseconds: 300));
+          await tester.tap(find.text('Arabic').last);
+          await tester.pump(const Duration(milliseconds: 300));
+
+          expect(tester.widget<DropdownButton<String>>(find.byType(DropdownButton<String>)).value, 'arabic');
+          expect(spy.setLanguageCalls, ['arabic']);
+        },
+      );
     });
   });
 

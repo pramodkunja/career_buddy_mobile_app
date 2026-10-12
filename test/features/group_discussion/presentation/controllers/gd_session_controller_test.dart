@@ -187,6 +187,29 @@ void main() {
       ]);
     });
 
+    test(
+      'REGRESSION (Phase 7): setLanguage before starting changes the language actually sent with '
+      "`start` — confirming the picker's selection genuinely reaches the real request, matching "
+      "GD_app/consumers.py's own `self.language = data.get('language')` read on that action",
+      () async {
+        repo.createResult = Success(const GdStartedSession(sessionId: 7, topic: 'Climate change'));
+        final notifier = container.read(gdSessionControllerProvider.notifier);
+
+        notifier.setLanguage('vietnam');
+        final future = notifier.startDiscussion('Climate change');
+        await _flush();
+        realtime.statusController.add(GdConnectionStatus.connecting);
+        await _flush();
+        realtime.statusController.add(GdConnectionStatus.connected);
+        await future;
+        await _flush();
+
+        expect(realtime.sentActions, [
+          {'action': 'start', 'language': 'vietnam'},
+        ]);
+      },
+    );
+
     test('startDiscussion moves to GdCreateFailed on a failed create_session (e.g. locked)', () async {
       repo.createResult = const Failed(ForbiddenFailure());
       final notifier = container.read(gdSessionControllerProvider.notifier);

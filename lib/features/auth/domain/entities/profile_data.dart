@@ -37,7 +37,17 @@ class ProfileOverview {
   /// any Edit tab control, but required server-side (see
   /// [ProfileEditData.englishLevel]'s doc comment), so [getProfile] scrapes
   /// the server's own current selection to round-trip it on save.
-  final String englishLevel;
+  ///
+  /// `null` only when the `<select name="english_level">` block or its
+  /// `selected` option couldn't be found — **never fabricated** (previously
+  /// defaulted to `'intermediate'`, a plausible-looking value that would
+  /// have been silently resubmitted as the user's real English level on
+  /// every subsequent save; fixed per the Phase 11 audit's finding). This
+  /// field is invisible in every Flutter UI, so a guessed value here could
+  /// never have been noticed or corrected by the user — see
+  /// [ProfileEditData.englishLevel]'s doc comment for how `updateProfile`
+  /// now refuses to save at all rather than ever sending a guess.
+  final String? englishLevel;
 
   /// `ProfileUpdateForm.Meta.fields`'s `bio` — same round-trip-only
   /// reasoning as [englishLevel].
@@ -213,7 +223,13 @@ class ProfileEditData {
   /// UI to edit this, so callers MUST pass through the exact value
   /// [ProfileOverview.englishLevel] scraped from the last `getProfile()`,
   /// never a hardcoded default, or every save will fail `form.is_valid()`.
-  final String englishLevel;
+  ///
+  /// `null` when that scrape couldn't determine the real value (see
+  /// [ProfileOverview.englishLevel]'s doc comment) — `updateProfile`
+  /// refuses to perform the save at all in that case (never substitutes a
+  /// guess), since this field has no UI of its own for the user to notice
+  /// or correct a wrong value with.
+  final String? englishLevel;
 
   /// Optional server-side, but sent with nothing omitted-means-unchanged
   /// behavior (unlike [aadharNumber] et al.) — an absent/blank POST value

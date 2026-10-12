@@ -136,7 +136,15 @@ class JobPostingSubmission {
   final String salaryMin;
   final String salaryMax;
 
-  final int openings;
+  /// `null` only when [JobPostingRemoteDataSource.getJobForEdit]'s scrape
+  /// couldn't parse the real value (previously defaulted to `1`, a
+  /// plausible-looking count that would have been silently resubmitted as
+  /// the job's real opening count on save; fixed per the Phase 11 audit's
+  /// finding) — never fabricated. `post_new_job_screen.dart` seeds the
+  /// Edit form's text field blank in that case, which the screen's own
+  /// existing "Please enter a valid numeric value" validator already
+  /// blocks saving on until the employer supplies a real number.
+  final int? openings;
 
   /// `perks` — zero or more of `kPerksOptions`' values.
   final List<String> perks;

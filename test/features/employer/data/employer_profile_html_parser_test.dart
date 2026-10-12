@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 /// `templates/employer/profile_form.html` as rendered server-side (verified
 /// live against a real, complete employer profile) — not a guessed shape.
 const _fixtureHtmlComplete = '''
+<button type="button" id="toggleEditBtn" class="btn btn-outline-primary">Edit Profile</button>
 <input type="text" name="company_name" value="Acme Talent Solutions" class="form-control" placeholder="Company Name" autofocus="autofocus" maxlength="200" required id="id_company_name">
 <input type="url" name="company_website" value="https://acme.example.com" class="form-control" placeholder="https://example.com" maxlength="200" id="id_company_website">
 <input type="file" name="company_logo" class="form-control" accept="image/*" id="id_company_logo">
@@ -33,6 +34,7 @@ const _fixtureHtmlComplete = '''
 ''';
 
 const _fixtureHtmlFreshProfile = '''
+<button type="button" id="toggleEditBtn" class="btn btn-outline-primary">Edit Profile</button>
 <input type="text" name="company_name" value="New Co" class="form-control" placeholder="Company Name" autofocus="autofocus" maxlength="200" required id="id_company_name">
 <input type="url" name="company_website" class="form-control" placeholder="https://example.com" maxlength="200" id="id_company_website">
 <input type="file" name="company_logo" class="form-control" accept="image/*" id="id_company_logo">
@@ -84,5 +86,18 @@ void main() {
       // a non-"+" value as a local number under the default country.
       expect(data.hrContactE164, '9876500000');
     });
+
+    test(
+      'REGRESSION (the confirmed Phase 2 defect): throws rather than returning a blank form when handed '
+      'a login-redirect page instead of the real profile form',
+      () {
+        expect(
+          () => parseEmployerProfileFormHtml(
+            '<form id="login-form"><input name="username"><input name="password"></form>',
+          ),
+          throwsA(isA<FormatException>()),
+        );
+      },
+    );
   });
 }

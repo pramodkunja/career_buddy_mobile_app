@@ -31,6 +31,12 @@ class EmployerProfileRemoteDataSource {
       return parseEmployerProfileFormHtml(response.data ?? '');
     } on DioException catch (e) {
       throw e.error is AppException ? e.error as AppException : const UnexpectedResponseException();
+    } on FormatException {
+      // Most commonly: an expired session's redirect-to-login landed here
+      // instead (still a 200) — `isEmployerProfileFormHtml` found none of
+      // the real form's markup, surfaced honestly rather than a blank
+      // form with no error, same reasoning as the student profile fix.
+      throw const UnauthorizedException();
     }
   }
 
@@ -65,9 +71,25 @@ class EmployerProfileRemoteDataSource {
         ),
       );
 
-      if (response.statusCode == 302) return;
+      if (response.statusCode == 302) {
+        // Both `employer_profile_create` and `employer_profile_edit` only
+        // ever redirect to `employer_portal:dashboard` on a real save
+        // (`form.is_valid()` ran and `form.save()` happened) — but both
+        // are also `@login_required(login_url='employer_portal:
+        // employer_login')`, so an already-expired session 302s to the
+        // employer login page instead, *before* the view body (and so the
+        // save) ever runs. A bare 302 can't be trusted as success alone.
+        final location = response.headers.value('location') ?? '';
+        if (location.contains(ApiEndpoints.employerLogin)) {
+          throw const UnauthorizedException();
+        }
+        return;
+      }
       if (response.statusCode == 200) {
         final String body = response.data ?? '';
+        if (!isEmployerProfileFormHtml(body)) {
+          throw const UnauthorizedException();
+        }
         final message = _fieldErrorPattern.firstMatch(body)?.group(1)?.trim() ??
             'Could not save your company profile — please check your details and try again.';
         throw ValidationException({'form': [message]}, message);

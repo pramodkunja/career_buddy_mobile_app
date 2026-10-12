@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../../../app/router/route_paths.dart';
+import '../../../dashboard/domain/entities/recommended_job.dart';
 import '../../domain/entities/interview_analytics.dart';
 
 /// Mirrors `resume_analytics.html`'s summary + per-question breakdown —
@@ -50,7 +53,173 @@ class MockInterviewResultsView extends StatelessWidget {
         Text('Question Breakdown', style: theme.textTheme.titleMedium),
         const SizedBox(height: 8),
         for (final q in analytics.questionResults) _QuestionResultTile(result: q),
+        if (analytics.suitableJobs.isNotEmpty) ...[
+          const SizedBox(height: 20),
+          _SuitableJobsSection(jobs: analytics.suitableJobs, yearsExperience: analytics.yearsExperience),
+        ],
       ],
+    );
+  }
+}
+
+/// Mirrors `resume_analytics.html:350-409`'s "Recommended Job Opportunities"
+/// card. The web only renders this at all when `is_passed and suitable_jobs`
+/// (`resume_analytics.html:350`) — this widget is only ever built from the
+/// results view above when [InterviewAnalyticsResult.suitableJobs] is
+/// non-empty, which (per [parseInterviewAnalyticsHtml]) can only be true
+/// when the web itself rendered the section, so "not passed" and "passed
+/// with zero matches" both correctly fall through to no section at all,
+/// same as the web.
+///
+/// A small, Mock-Interview-scoped widget rather than a reuse of
+/// `recommended_jobs_section.dart`'s card — that file's `_JobCard` etc. are
+/// private to Dashboard, and this codebase's own convention (e.g. the GD/JAM
+/// language pickers) is to duplicate a small per-feature widget rather than
+/// make another feature's private widgets public.
+class _SuitableJobsSection extends StatelessWidget {
+  const _SuitableJobsSection({required this.jobs, required this.yearsExperience});
+
+  final List<RecommendedJob> jobs;
+  final double yearsExperience;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Recommended Job Opportunities', style: theme.textTheme.titleMedium),
+                      Text(
+                        'Matched for candidate experience (${yearsExperience.toStringAsFixed(1)} years) '
+                        '& verified skills.',
+                        style: theme.textTheme.bodySmall,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.green.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Text(
+                    '${jobs.length} Matched Job${jobs.length == 1 ? '' : 's'}',
+                    style: theme.textTheme.labelSmall?.copyWith(color: Colors.green.shade800),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            for (final job in jobs) ...[_SuitableJobCard(job: job), const SizedBox(height: 10)],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SuitableJobCard extends StatelessWidget {
+  const _SuitableJobCard({required this.job});
+
+  final RecommendedJob job;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    // `resume_analytics.html:357`: only shows the first 3 skills
+    // (`{{ job.get_skills_list|slice:":3" }}`), same as the dashboard card.
+    final visibleSkills = job.skills.take(3);
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        border: Border.all(color: Colors.grey.shade300),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(Icons.apartment_outlined, size: 18),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(job.title, style: theme.textTheme.titleSmall),
+                    Text(job.companyName, style: theme.textTheme.bodySmall),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              for (final skill in visibleSkills)
+                Chip(
+                  label: Text(skill, style: theme.textTheme.labelSmall),
+                  visualDensity: VisualDensity.compact,
+                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              Icon(Icons.location_on_outlined, size: 14, color: theme.hintColor),
+              const SizedBox(width: 2),
+              Expanded(child: Text(job.location, style: theme.textTheme.bodySmall)),
+              Text(job.jobType, style: theme.textTheme.labelSmall),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Row(
+            children: [
+              Icon(Icons.timeline_outlined, size: 14, color: theme.hintColor),
+              const SizedBox(width: 2),
+              Text(job.experienceLevel, style: theme.textTheme.bodySmall),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            job.salaryDisplay,
+            style: theme.textTheme.titleSmall?.copyWith(color: Colors.green.shade800, fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              // `job.id` is the real `job.pk` scraped from this exact card's
+              // own link (see `RecommendedJob.id`'s doc comment), reusing
+              // the same public job-detail screen Phase 4 already wired for
+              // Dashboard's recommended jobs — never a fabricated or
+              // guessed destination. `null` only disables the button,
+              // it never navigates anywhere.
+              onPressed: job.id == null ? null : () => context.push(RoutePaths.publicJobDetail(job.id!)),
+              icon: const Icon(Icons.send_outlined, size: 16),
+              label: const Text('View & Apply'),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

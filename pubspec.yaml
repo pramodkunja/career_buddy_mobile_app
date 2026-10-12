@@ -116,6 +116,18 @@ dependencies:
   # Batch 9 — Group Discussion's live AI-agent conversation is a real
   # Django Channels WebSocket (`ws/GD_app/<session_id>/`), not HTTP.
   web_socket_channel: ^3.0.3
+  # Phase 3 — Subscription checkout. The real web page
+  # (`templates/pro.html`) drives Razorpay's own Standard Checkout JS widget
+  # (`new Razorpay(options); .open()`) with `key_id`/`order_id`/`amount`/
+  # `prefill`/a success callback — all fields the server already returns
+  # from `create_razorpay_order`. This is the official package (published
+  # by Team Razorpay) wrapping the same native Android/iOS Checkout SDKs
+  # behind that identical options shape — see
+  # `docs/PHASE_3_SUBSCRIPTION_DISCOVERY.md` §5 for the alternatives
+  # considered and why this was chosen. It only ever relays the
+  # server-returned order details and echoes back Razorpay's own callback
+  # for server verification — never given an amount/plan to compute itself.
+  razorpay_flutter: ^1.4.7
 
 dev_dependencies:
   flutter_test:

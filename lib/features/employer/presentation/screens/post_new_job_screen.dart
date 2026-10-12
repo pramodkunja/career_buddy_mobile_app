@@ -188,7 +188,12 @@ class _PostNewJobScreenState extends ConsumerState<PostNewJobScreen> {
     _salaryFormat = data.salaryFormat.isEmpty ? _salaryFormat : data.salaryFormat;
     _salaryMin.text = data.salaryMin;
     _salaryMax.text = data.salaryMax;
-    _openings.text = data.openings.toString();
+    // `null` means the scrape couldn't determine the job's real opening
+    // count (see `JobPostingSubmission.openings`'s doc comment) — leave the
+    // field blank rather than show a guessed number as if it were real;
+    // the existing "Please enter a valid numeric value" validator below
+    // already blocks Save until the employer supplies the real count.
+    _openings.text = data.openings?.toString() ?? '';
     _perks
       ..clear()
       ..addAll(data.perks);

@@ -7,6 +7,9 @@ import '../domain/entities/employer_profile_form.dart';
 /// stable `id_<field_name>` id, exactly as verified against the real
 /// rendered page.
 EmployerProfileFormData parseEmployerProfileFormHtml(String html) {
+  if (!isEmployerProfileFormHtml(html)) {
+    throw const FormatException('Not the employer profile form page');
+  }
   return EmployerProfileFormData(
     companyName: _attrValue(html, 'company_name'),
     companyWebsite: _attrValue(html, 'company_website'),
@@ -21,6 +24,14 @@ EmployerProfileFormData parseEmployerProfileFormHtml(String html) {
     hrMail: _attrValue(html, 'hr_mail'),
   );
 }
+
+/// `templates/employer/profile_form.html:103` — present only on the real,
+/// rendered Company Profile form (both the create and edit variants share
+/// this one template), confirmed absent from
+/// `templates/employer_login/{login,signup}.html` and `base.html` — so
+/// this is this file's success/failure signal, same role as
+/// `isDashboardHtml`/`isProfileHtml` elsewhere in this app.
+bool isEmployerProfileFormHtml(String html) => html.contains('id="toggleEditBtn"');
 
 final _maskedPanPattern = RegExp(r'mask-reveal-masked[^>]*>([^<]*)<');
 

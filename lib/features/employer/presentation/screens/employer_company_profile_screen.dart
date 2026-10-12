@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../app/router/route_paths.dart';
 import '../../../../app/theme/app_spacing.dart';
+import '../../../../core/errors/failures.dart';
 import '../../../../core/utils/result.dart';
 import '../../../../core/validators/validators.dart';
 import '../../../../shared/widgets/app_button.dart';
@@ -15,6 +16,7 @@ import '../../../../shared/widgets/app_nav_drawer.dart';
 import '../../../../shared/widgets/app_text_field.dart';
 import '../../../../shared/widgets/buddy_chatbot_overlay.dart';
 import '../../../../shared/widgets/drawer_aware_back_leading.dart';
+import '../../../auth/presentation/controllers/auth_controller.dart';
 import '../../../auth/presentation/widgets/employer_phone_input_field.dart';
 import '../../domain/entities/employer_profile_form.dart';
 import '../controllers/employer_profile_controller.dart';
@@ -38,6 +40,15 @@ class EmployerCompanyProfileScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(employerProfileControllerProvider(isCreate));
 
+    // Same pattern as `EmployerDashboardScreen`: an expired session should
+    // force a real logout/redirect-to-login, not a blank or stale-looking
+    // form with a generic "could not load" error.
+    ref.listen<AsyncValue<EmployerProfileFormData>>(employerProfileControllerProvider(isCreate), (previous, next) {
+      if (next.error is UnauthorizedFailure) {
+        ref.read(authControllerProvider.notifier).logout();
+      }
+    });
+
     return Scaffold(
       appBar: AppBar(
         title: Text(isCreate ? 'Complete Company Profile' : 'Company Profile'),
@@ -48,7 +59,7 @@ class EmployerCompanyProfileScreen extends ConsumerWidget {
         children: [
           switch (state) {
             AsyncData(value: final data) => _ProfileForm(isCreate: isCreate, data: data),
-            AsyncError() => AppErrorView(
+            AsyncError(:final error) when error is! UnauthorizedFailure => AppErrorView(
               message: 'Could not load your company profile.',
               onRetry: () => ref.read(employerProfileControllerProvider(isCreate).notifier).retry(),
             ),
@@ -161,6 +172,13 @@ class _ProfileFormState extends ConsumerState<_ProfileForm> {
         if (widget.isCreate) context.go(RoutePaths.employerDashboard);
       case Failed(failure: final failure):
         setState(() => _submitError = failure.message);
+        // A save that failed because the session had already expired is
+        // not a validation error the user can fix by editing the form
+        // again — force the same logout/redirect-to-login outcome as the
+        // load-side listener in `build()`.
+        if (failure is UnauthorizedFailure) {
+          ref.read(authControllerProvider.notifier).logout();
+        }
     }
   }
 

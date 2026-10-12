@@ -28,6 +28,16 @@ String? computeRedirect({
       return goingToSplash ? null : RoutePaths.splash;
     case AuthUnauthenticated():
       if (goingToPublicRoute || goingToUniversalRoute) return null;
+      // Matches the real web's own `/` (`activities/views.py:76 home()`),
+      // which serves the same combined Employer/Job Seeker landing page to
+      // every logged-out visitor rather than bouncing them straight to a
+      // login form — see `Mobile_app/docs/WEB_MOBILE_GAP_ANALYSIS.md` §3/§7.
+      // [splash] itself can't just be added to [RoutePaths.universalRoutes]
+      // (that set means "render this route's own screen for both auth
+      // states", but [splash] renders [SplashScreen], not [RoutePaths.home]
+      // — an unauthenticated hit here needs an actual redirect to the Home
+      // screen, not permission to stay on the splash screen).
+      if (goingToSplash) return RoutePaths.home;
       // Mirrors each employer-only view's own `login_url=
       // 'employer_portal:employer_login'` — bounces to the employer login
       // screen instead of the student one, same as the real backend does.

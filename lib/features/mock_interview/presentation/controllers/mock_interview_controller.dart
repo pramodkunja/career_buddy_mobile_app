@@ -19,24 +19,37 @@ import '../providers/mock_interview_providers.dart';
 /// (`templates/resume_interview.html`) drives them. Nothing here is
 /// simulated or locally-scored.
 ///
-/// **Scope note — face detection is intentionally not implemented.** The
-/// real web page additionally runs `face-api.js` against the camera feed
-/// to detect an absent/multiple face and reports that as a
-/// `FACE_NOT_DETECTED`/`MULTIPLE_FACES` violation
-/// (`templates/resume_interview.html:1768-1826`). That is a genuinely
-/// separate, substantial capability (real-time on-device ML inference
-/// against a live camera feed) — not a simple API-consumption task like
-/// every other part of this feature — and is out of scope here. What this
-/// controller *does* implement, honestly and for real, is the mobile
-/// equivalent of the web's other anti-malpractice signals: app-lifecycle-
-/// based tab-switch/backgrounding detection via `WidgetsBindingObserver`
-/// (`MockInterviewScreen`), reported to the same real
-/// `resume_record_violation` endpoint the web uses — see
+/// **Scope note — face detection is deferred, not implemented.** What this
+/// feature *does* implement, for real: the mandatory camera gate, continuous
+/// video recording + upload (kept server-side only on a pass, see
+/// `uploadRecordedVideo`), and the mobile equivalent of the web's
+/// app-lifecycle-based anti-malpractice signals — tab-switch/backgrounding
+/// detection via `WidgetsBindingObserver` (`MockInterviewScreen`), reported
+/// to the same real `resume_record_violation` endpoint the web uses (see
 /// `ViolationType`'s doc comment for exactly which event types this client
-/// reports and why. `resume_record_violation` already accepts
-/// `face_not_detected`/`multiple_faces` event types unchanged — the backend
-/// side of this gap is not a blocker, only a missing on-device ML
-/// dependency in this codebase today.
+/// actively reports).
+///
+/// What it does **not** implement: the real web page additionally runs
+/// `face-api.js` against the live camera feed every ~1.5s to detect an
+/// absent/multiple face, reporting that as a `FACE_NOT_DETECTED`/
+/// `MULTIPLE_FACES` violation (`templates/resume_interview.html:1768-1826`).
+/// This mobile client has **no periodic face-presence or multiple-face
+/// detection of any kind** — that is a genuinely separate, substantial
+/// capability (real-time on-device ML inference against a live camera feed),
+/// not a simple API-consumption task like every other part of this feature.
+/// `ViolationType.faceNotDetected`/`.multipleFaces` are modeled below only
+/// because `resume_record_violation` already accepts those event types
+/// unchanged (the backend side of this gap is not a blocker) — **their mere
+/// presence in that enum must never be read as proof this client detects or
+/// reports either condition; neither is ever actively triggered.**
+///
+/// This is a deferred product/engineering decision
+/// (`docs/PHASE_9_MOCK_INTERVIEW_PROCTORING_DECISION_AUDIT.md`, approved
+/// Phase 10), not an oversight. Building it in a future phase would need its
+/// own assessment of on-device processing, dependency/platform compatibility,
+/// real-device validation, privacy, and appropriate user disclosure before
+/// any implementation — see that report's Sections 7-9 for the full
+/// analysis; it is intentionally not repeated here.
 sealed class MockInterviewState {
   const MockInterviewState();
 }

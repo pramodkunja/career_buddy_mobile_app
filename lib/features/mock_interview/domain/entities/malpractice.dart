@@ -35,10 +35,16 @@ extension ViolationActionApi on ViolationAction {
 /// This mobile client only ever actively reports [tabSwitch]/[windowBlur]
 /// (via `WidgetsBindingObserver.didChangeAppLifecycleState` — the real,
 /// native equivalent of the web's `document.visibilitychange`/`window.blur`
-/// listeners) and [cameraInterrupted] (if the live camera preview drops
-/// mid-interview). [faceNotDetected]/[multipleFaces] are **not** reported by
-/// this client — see the mock_interview feature's top-level doc comment for
-/// why live face detection is explicitly out of scope for this batch.
+/// listeners). [cameraInterrupted] is modeled (the server already accepts
+/// it) but **no call site in this codebase currently reports it** — unlike
+/// the web, which continuously re-verifies the live camera track for the
+/// whole interview and reports a drop as this violation
+/// (`templates/resume_interview.html:817-842`), this client only checks
+/// camera liveness once, at the camera gate (`InterviewCameraService.start`)
+/// — there is no ongoing mid-interview camera-liveness monitor here today.
+/// [faceNotDetected]/[multipleFaces] are likewise **not** reported by this
+/// client — see the mock_interview feature's top-level doc comment for why
+/// live face detection is deferred.
 /// [fullscreenExit]/[copyPaste]/[screenshotAttempt] are browser-only concepts
 /// with no meaningful native equivalent on a mobile app and are likewise
 /// never actively reported — all eight are still modeled here (rather than

@@ -36,6 +36,25 @@ class GdTopicScreen extends ConsumerStatefulWidget {
 class _GdTopicScreenState extends ConsumerState<GdTopicScreen> {
   final _controller = TextEditingController();
 
+  // Mirrors `GD_app/home.html`'s own `includes/language_dropdown.html`
+  // (confirmed identical 4-option list and `'english'` default directly
+  // from that shared Django template — also used, unmodified, by JAM and
+  // Roleplay's web pages). Local widget state, not read back from
+  // [GdSessionController]: the same pattern already used by
+  // `RoleplayPracticeScreen`'s own picker, since the controller only ever
+  // needs to receive a value via `setLanguage`, never report one back.
+  //
+  // Placed only on this pre-session screen, not the live discussion room:
+  // `GD_app/consumers.py:62` reads `language` once, only on the `'start'`
+  // action, and caches it as `self.language` for the rest of that session
+  // (used for every agent reply and the final report) — re-confirmed
+  // directly from the real consumer this phase. Changing this dropdown
+  // mid-discussion would therefore have no visible effect on the session
+  // already in progress (only a later Resume/restart would pick it up),
+  // which is exactly the "decorative selector" this phase was told to
+  // avoid — so it is deliberately not duplicated onto `GdDiscussionScreen`.
+  String _language = 'english';
+
   static const _suggestedTopics = [
     'Social media is damaging society',
     'AI will replace human jobs',
@@ -73,6 +92,14 @@ class _GdTopicScreenState extends ConsumerState<GdTopicScreen> {
       appBar: AppBar(
         title: const Text('Group Discussion'),
         actions: [
+          _LanguageSelector(
+            language: _language,
+            enabled: !isBusy,
+            onChanged: (value) {
+              setState(() => _language = value);
+              ref.read(gdSessionControllerProvider.notifier).setLanguage(value);
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.history),
             tooltip: 'Past Discussions',
@@ -201,6 +228,47 @@ class _SuggestedTopicCard extends StatelessWidget {
               Expanded(child: Text(topic, style: const TextStyle(fontWeight: FontWeight.w600))),
               const Icon(Icons.chevron_right, color: AppColors.textMuted),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The 4 languages `includes/language_dropdown.html` offers, verbatim
+/// (value, display label) — shared by GD, JAM, and Roleplay's real web
+/// pages; English is that template's own default. Deliberately not
+/// extracted into a single cross-feature shared widget: every other
+/// language picker already in this app (Roleplay, all 4 AI modules)
+/// independently duplicates this same small widget rather than sharing
+/// one, so this follows that same established, already-reviewed
+/// convention instead of unifying them as part of this narrowly-scoped
+/// phase.
+class _LanguageSelector extends StatelessWidget {
+  const _LanguageSelector({required this.language, required this.enabled, required this.onChanged});
+
+  final String language;
+  final bool enabled;
+  final ValueChanged<String> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      label: 'Discussion language, currently $language',
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
+        child: Center(
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<String>(
+              value: language,
+              items: const [
+                DropdownMenuItem(value: 'english', child: Text('English')),
+                DropdownMenuItem(value: 'vietnam', child: Text('Vietnamese')),
+                DropdownMenuItem(value: 'arabic', child: Text('Arabic')),
+                DropdownMenuItem(value: 'russian', child: Text('Russian')),
+              ],
+              onChanged: enabled ? (value) => value == null ? null : onChanged(value) : null,
+            ),
           ),
         ),
       ),

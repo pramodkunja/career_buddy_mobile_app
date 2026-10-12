@@ -25,6 +25,15 @@ import '../../domain/entities/profile_data.dart';
 /// save would otherwise fail validation; `bio`/`additional_educations_json`
 /// have no "absent means unchanged" handling server-side, so omitting them
 /// would otherwise silently wipe them on every successful save.
+/// `templates/users/profile.html:226` — present only on the real,
+/// rendered profile page (not on a login-redirect landing on this same
+/// URL, e.g. after the session has expired), so this is this file's
+/// success/failure signal — same role, same pattern, as
+/// `isDashboardHtml`/`isResumeMatchResultHtml` elsewhere in this app.
+/// Confirmed absent from `templates/users/login.html` directly, not
+/// assumed.
+bool isProfileHtml(String html) => html.contains('class="profile-stat-value');
+
 class ProfileRemoteDataSource {
   ProfileRemoteDataSource(this._apiClient);
 
@@ -119,10 +128,15 @@ class ProfileRemoteDataSource {
       .replaceAll('&#x27;', "'")
       .replaceAll('&#39;', "'");
 
-  String _extractEnglishLevel(String html) {
+  /// `null` on any parse miss — **never a guessed/fabricated level**
+  /// (previously defaulted to `'intermediate'`, silently resubmitted as the
+  /// user's real value on every save with no edit UI to ever reveal or let
+  /// the user correct the guess; fixed per the Phase 11 audit's finding).
+  /// See [ProfileOverview.englishLevel]'s doc comment.
+  String? _extractEnglishLevel(String html) {
     final block = _englishLevelSelectPattern.firstMatch(html)?.group(1);
-    if (block == null) return 'intermediate';
-    return _selectedOptionValuePattern.firstMatch(block)?.group(1) ?? 'intermediate';
+    if (block == null) return null;
+    return _selectedOptionValuePattern.firstMatch(block)?.group(1);
   }
 
   String _extractBio(String html) {
@@ -163,6 +177,9 @@ class ProfileRemoteDataSource {
       );
       if (response.statusCode != 200) throw ServerException(response.statusCode);
       final html = response.data ?? '';
+      if (!isProfileHtml(html)) {
+        throw const FormatException('Not the profile page');
+      }
 
       final fields = <String, String>{};
       for (final m in _infoItemPattern.allMatches(html)) {
@@ -206,6 +223,12 @@ class ProfileRemoteDataSource {
       );
     } on DioException catch (e) {
       throw e.error is AppException ? e.error as AppException : const UnexpectedResponseException();
+    } on FormatException {
+      // Most commonly: an expired session's redirect-to-login landed here
+      // instead (still a 200) — `isProfileHtml` found none of the real
+      // page's markup, surfaced honestly rather than as a blank, all-zero
+      // profile with no error, same reasoning as `DashboardRemoteDataSource`.
+      throw const UnauthorizedException();
     }
   }
 
@@ -213,6 +236,24 @@ class ProfileRemoteDataSource {
   /// [getProfile], `multipart/form-data` (resume replace), 302-success/
   /// 200-failure convention as [login]/[register].
   Future<void> updateProfile(ProfileEditData data) async {
+    // `english_level` is required server-side with no Flutter UI to supply
+    // or correct it (see `ProfileEditData.englishLevel`'s doc comment) — if
+    // the last `getProfile()` couldn't determine the real value, refuse the
+    // save entirely rather than ever sending a guess that would silently
+    // overwrite the user's real English level with no error shown anywhere.
+    final englishLevel = data.englishLevel;
+    if (englishLevel == null) {
+      throw const ValidationException(
+        {
+          'english_level': [
+            'We couldn\'t verify a required profile setting before saving. '
+                'Please reload your profile and try again.',
+          ],
+        },
+        'We couldn\'t verify a required profile setting before saving. Please reload your profile and try again.',
+      );
+    }
+
     try {
       final csrfToken = await _apiClient.readCookie('csrftoken');
 
@@ -259,7 +300,7 @@ class ProfileRemoteDataSource {
         // doesn't fail `form.is_valid()` (`english_level`) or silently wipe
         // existing data (`bio`, `additional_educations_json`) — see
         // `ProfileEditData`'s doc comments on these 3 fields.
-        'english_level': data.englishLevel,
+        'english_level': englishLevel,
         'bio': data.bio,
         'additional_educations_json': data.additionalEducationsJson,
         'csrfmiddlewaretoken': csrfToken ?? '',
@@ -278,9 +319,29 @@ class ProfileRemoteDataSource {
         ),
       );
 
-      if (response.statusCode == 302) return;
+      if (response.statusCode == 302) {
+        // `profile_view` only ever redirects to two places: back to
+        // itself (`redirect('profile')`) on a real save, or — since this
+        // view is `@login_required` — to `LOGIN_URL` if the session had
+        // already expired *before* the POST was even processed, in which
+        // case the save never happened at all. A bare 302 can't be
+        // trusted as success on its own; only a 302 that is NOT a login
+        // redirect means `form.is_valid()` actually ran and saved.
+        final location = response.headers.value('location') ?? '';
+        if (location.contains(ApiEndpoints.login)) {
+          throw const UnauthorizedException();
+        }
+        return;
+      }
       if (response.statusCode == 200) {
         final String body = response.data ?? '';
+        if (!isProfileHtml(body)) {
+          // A 200 that isn't the re-rendered Edit form with field errors
+          // either (e.g. some other page entirely) is not a validation
+          // failure we can show the user — treat it the same honest way
+          // as an expired-session GET, rather than guessing at a message.
+          throw const UnauthorizedException();
+        }
         final message = _fieldErrorPattern.firstMatch(body)?.group(1)?.trim() ??
             'Could not update your profile — please check your details and try again.';
         throw ValidationException({'form': [message]}, message);

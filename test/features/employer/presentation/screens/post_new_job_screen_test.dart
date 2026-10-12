@@ -348,5 +348,71 @@ void main() {
       expect(find.text('Retry'), findsOneWidget);
       expect(repo.editCallCount, 0);
     });
+
+    testWidgets(
+      'REGRESSION (Phase 11): a job whose real opening count couldn\'t be scraped (openings: null) shows the '
+      'Openings field blank, not a guessed "1" — and Save is blocked by the existing field validator until a '
+      'real number is entered',
+      (tester) async {
+        const jobWithUnknownOpenings = JobPostingSubmission(
+          jobCategory: 'it',
+          jobClassification: '',
+          department: '',
+          departmentFunction: '',
+          designation: '',
+          industrySector: '',
+          title: 'Senior Backend Engineer',
+          jobType: 'full_time',
+          contractDurationMonths: '',
+          employmentType: '',
+          experiencePreset: '5-8',
+          experienceYears: '',
+          experiencePlus: false,
+          experienceYearsMax: '',
+          location: 'Pune',
+          educationPreset: '',
+          educationOther: '',
+          functionalSkills: '',
+          industryExperience: '',
+          workingHours: '',
+          salaryFormat: 'monthly',
+          salaryMin: '40000',
+          salaryMax: '60000',
+          openings: null,
+          perks: ['laptop'],
+          description: 'Own the payments service end to end.',
+          requirements: '',
+          responsibilities: '',
+          certifications: '',
+          softwareSkills: '',
+          languageRequirements: '',
+          keywords: '',
+          applicationContact: '',
+          skills: ['python', 'django'],
+          mandatorySkills: ['python'],
+          deadline: '',
+          status: 'active',
+          workEnvironment: 'wfo',
+          interviewMode: 'virtual',
+          interviewModeOther: '',
+          workMode: '',
+          joiningRequirement: '',
+          noticePeriod: 'immediate',
+          noticePeriodOther: '',
+          genderPreference: 'both',
+          ageLimit: '',
+        );
+        final repo = await pumpEdit(tester, jobForEdit: const Success(jobWithUnknownOpenings));
+
+        final openingsField = tester.widget<TextFormField>(find.widgetWithText(TextFormField, 'Total Openings'));
+        expect(openingsField.controller!.text, isEmpty);
+
+        await tester.tap(find.text('Save Job Posting'));
+        await _settle(tester);
+
+        expect(find.text('Please enter a valid numeric value.'), findsOneWidget);
+        expect(repo.editCallCount, 0);
+      },
+    );
   });
 }

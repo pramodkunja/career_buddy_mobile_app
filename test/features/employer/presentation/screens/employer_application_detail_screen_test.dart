@@ -40,6 +40,9 @@ class _FakeRepository implements EmployerApplicationDetailRepository {
   _FakeRepository(this.result);
 
   Result<EmployerApplicationDetail> result;
+  int updateStatusCallCount = 0;
+  String? lastSubmittedStatus;
+  String? lastSubmittedNotes;
 
   @override
   Future<Result<EmployerApplicationDetail>> getApplicationDetail(int applicationId) async => result;
@@ -49,7 +52,12 @@ class _FakeRepository implements EmployerApplicationDetailRepository {
     required int applicationId,
     required String status,
     required String employerNotes,
-  }) async => const Success(null);
+  }) async {
+    updateStatusCallCount++;
+    lastSubmittedStatus = status;
+    lastSubmittedNotes = employerNotes;
+    return const Success(null);
+  }
 }
 
 /// Avoids exercising the real `path_provider`/`url_launcher` plugins (no
@@ -158,6 +166,112 @@ void main() {
       await tester.pump();
 
       expect(find.text('Could not load this application.'), findsOneWidget);
+    });
+
+    testWidgets(
+      'REGRESSION (Phase 6): an unknown status (null) shows a clear notice instead of the dropdown, '
+      'and no save is possible — the repository is never called',
+      (tester) async {
+        const unknownStatusDetail = EmployerApplicationDetail(
+          applicantName: 'Priya Sharma',
+          jobTitle: 'Senior Flutter Developer',
+          applicantEmail: 'priya@example.com',
+          applicantPhone: '+919876543210',
+          yearsExperience: 5,
+          currentCompany: 'Acme Corp',
+          currentSalary: '₹45000.00 LPA',
+          expectedSalary: '₹60000.00 LPA',
+          resumeUrl: null,
+          coverLetter: null,
+          interviewScore: null,
+          interviewVideoUrl: null,
+          interviewRecordedAt: null,
+          status: null,
+          employerNotes: '',
+          appliedAt: '01 Sep 2026',
+        );
+        final fakeRepository = _FakeRepository(const Success(unknownStatusDetail));
+
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              authRepositoryProvider.overrideWithValue(_FakeAuthRepository()),
+              employerApplicationDetailRepositoryProvider.overrideWithValue(fakeRepository),
+            ],
+            child: const MaterialApp(home: EmployerApplicationDetailScreen(applicationId: 1)),
+          ),
+        );
+        await tester.pump();
+        await tester.pump();
+
+        expect(find.text("Couldn't read this application's current status"), findsOneWidget);
+        expect(find.byType(DropdownButtonFormField<String>), findsNothing);
+        expect(find.text('Update Status'), findsNothing);
+        expect(fakeRepository.updateStatusCallCount, 0);
+      },
+    );
+
+    testWidgets(
+      'REGRESSION (Phase 6): editing only notes, with the status successfully parsed, submits that real '
+      'status unchanged — never a different or fabricated one',
+      (tester) async {
+        tester.view.physicalSize = const Size(900, 2800);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+        final fakeRepository = _FakeRepository(const Success(_detail)); // real status: 'applied'
+
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              authRepositoryProvider.overrideWithValue(_FakeAuthRepository()),
+              employerApplicationDetailRepositoryProvider.overrideWithValue(fakeRepository),
+            ],
+            child: const MaterialApp(home: EmployerApplicationDetailScreen(applicationId: 1)),
+          ),
+        );
+        await tester.pump();
+        await tester.pump();
+
+        await tester.enterText(find.byType(TextField), 'Following up next week.');
+        await tester.tap(find.text('Update Status'));
+        await tester.pump();
+
+        expect(fakeRepository.updateStatusCallCount, 1);
+        expect(fakeRepository.lastSubmittedStatus, 'applied');
+        expect(fakeRepository.lastSubmittedNotes, 'Following up next week.');
+      },
+    );
+
+    testWidgets('a deliberate status change submits the newly selected valid status correctly', (tester) async {
+      tester.view.physicalSize = const Size(900, 2800);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final fakeRepository = _FakeRepository(const Success(_detail)); // real status: 'applied'
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            authRepositoryProvider.overrideWithValue(_FakeAuthRepository()),
+            employerApplicationDetailRepositoryProvider.overrideWithValue(fakeRepository),
+          ],
+          child: const MaterialApp(home: EmployerApplicationDetailScreen(applicationId: 1)),
+        ),
+      );
+      await tester.pump();
+      await tester.pump();
+
+      await tester.tap(find.byType(DropdownButtonFormField<String>));
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.tap(find.text('Shortlisted').last);
+      await tester.pump(const Duration(milliseconds: 300));
+
+      await tester.tap(find.text('Update Status'));
+      await tester.pump();
+
+      expect(fakeRepository.updateStatusCallCount, 1);
+      expect(fakeRepository.lastSubmittedStatus, 'shortlisted');
     });
   });
 }

@@ -182,9 +182,21 @@ List<RecommendedJob> _parseRecommendedJobs(String html) {
     final salaryMatch = RegExp(
       r'<small class="fw-bold text-success"><i class="fas fa-rupee-sign me-1"></i>([^<]*)</small>',
     ).firstMatch(item);
+    // `dashboard.html:142-144`: `<a href="{% url 'employer_portal:job_detail'
+    // job.pk %}" class="btn btn-primary btn-sm w-100 rounded-3 fw-bold"
+    // target="_blank">` — same technique as `_parseActivities`'s own
+    // href/id extraction above: find the card's own link, then the first
+    // numeric id inside it, rather than assuming a fixed URL shape.
+    final jobHrefMatch = RegExp(
+      r'<a href="([^"]*)"\s*class="btn btn-primary btn-sm w-100 rounded-3 fw-bold"',
+    ).firstMatch(item);
+    final jobId = jobHrefMatch == null
+        ? null
+        : int.tryParse(RegExp(r'(\d+)').firstMatch(jobHrefMatch.group(1)!)?.group(1) ?? '');
 
     jobs.add(
       RecommendedJob(
+        id: jobId,
         title: _unescape(titleMatch.group(1)!.trim()),
         companyName: _unescape(companyMatch?.group(1)?.trim() ?? ''),
         skills: skills,

@@ -17,6 +17,27 @@ void main() {
       );
     });
 
+    // Phase 3 — Subscription. `RoutePaths.pro` is deliberately not in
+    // `publicRoutes`/`universalRoutes`/`employerProtectedRoutes` — matches
+    // the real backend's `@login_required` on `pro_page`/
+    // `create_razorpay_order`/`verify_razorpay_payment` (confirmed in
+    // `docs/PHASE_3_SUBSCRIPTION_DISCOVERY.md` §1). Explicit test (not just
+    // relying on the generic "any non-public location" case below) since
+    // this route newly carries real payment functionality.
+    test('an unauthenticated hit on the Subscription screen bounces to the student login', () {
+      expect(
+        computeRedirect(authState: const AuthUnauthenticated(), matchedLocation: RoutePaths.pro),
+        RoutePaths.login,
+      );
+    });
+
+    test('an authenticated user (either role) reaches the Subscription screen without any redirect', () {
+      const student = AuthAuthenticated(AuthUser(username: 'jane'));
+      const employer = AuthAuthenticated(AuthUser(username: 'acme', isEmployer: true));
+      expect(computeRedirect(authState: student, matchedLocation: RoutePaths.pro), isNull);
+      expect(computeRedirect(authState: employer, matchedLocation: RoutePaths.pro), isNull);
+    });
+
     test('AuthUnauthenticated sends any non-public location to login', () {
       expect(
         computeRedirect(authState: const AuthUnauthenticated(), matchedLocation: RoutePaths.dashboard),
@@ -26,6 +47,29 @@ void main() {
         computeRedirect(authState: const AuthUnauthenticated(), matchedLocation: RoutePaths.login),
         isNull,
       );
+    });
+
+    // Phase 2 — Home entry routing. Matches the real web's own `/`
+    // (`activities/views.py:76 home()`), which serves the same combined
+    // Employer/Job Seeker landing page to every logged-out visitor instead
+    // of bouncing them straight to a login form. Before this fix, splash
+    // fell through to the generic "any non-public location" branch above
+    // and redirected to [RoutePaths.login] like any other unlisted route.
+    test('AuthUnauthenticated at splash is redirected to Home, not login', () {
+      expect(
+        computeRedirect(authState: const AuthUnauthenticated(), matchedLocation: RoutePaths.splash),
+        RoutePaths.home,
+      );
+    });
+
+    test('AuthUnauthenticated redirected from splash to Home does not then bounce back off Home', () {
+      // The router re-runs `computeRedirect` for the new location after a
+      // redirect; confirms no redirect loop between splash and Home for an
+      // unauthenticated session (Home is a universal route — see the
+      // existing 'Home (a universal route) is reachable while
+      // unauthenticated' test below for the direct version of this check).
+      final redirected = computeRedirect(authState: const AuthUnauthenticated(), matchedLocation: RoutePaths.splash);
+      expect(computeRedirect(authState: const AuthUnauthenticated(), matchedLocation: redirected!), isNull);
     });
 
     test(

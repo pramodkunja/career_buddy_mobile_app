@@ -208,11 +208,25 @@ abstract final class ApiEndpoints {
   static const String passwordReset = '/users/password-reset/';
 
   /// `PasswordResetConfirmView` (`users/urls.py:'reset/<uidb64>/<token>/'`)
-  /// — reached from the emailed reset link. No JSON sibling exists; GET
-  /// renders either the new-password form (valid link) or an "invalid/
-  /// expired" message, and POST re-renders the same template with field
-  /// errors on failure or 302s to [passwordResetComplete] on success.
+  /// — reached from the emailed reset link. Confirmed by reading Django's
+  /// own `PasswordResetConfirmView.dispatch` (`contrib/auth/views.py:
+  /// 256-298` in this project's venv) directly: a request to **this**
+  /// URL — any HTTP method — only ever checks the token. A valid, unused
+  /// token stores it in the *session* and 302-redirects to
+  /// [passwordResetSetPassword]; an invalid/expired/already-used one
+  /// instead re-renders this same page (200) with no password fields.
+  /// **The new-password form itself is never processed here, regardless
+  /// of method** — posting `new_password1`/`new_password2` straight to
+  /// this URL is silently dropped before Django's form is ever looked at.
   static String passwordResetConfirm(String uidb64, String token) => '/users/reset/$uidb64/$token/';
+
+  /// The session-dependent second half of the same Django view
+  /// (`reset_url_token = 'set-password'`, same `views.py:260,279-284`) —
+  /// the *only* URL where the new-password form is actually served (GET)
+  /// and actually processed (POST). Reaching it legitimately requires a
+  /// prior request to [passwordResetConfirm] with the real token, in the
+  /// same session, so Django's session carries the token it checks here.
+  static String passwordResetSetPassword(String uidb64) => '/users/reset/$uidb64/set-password/';
 
   /// `activities.views.dashboard_api` — see
   /// `docs/BACKEND_CONTRACT_dashboard.md` for the response contract this
@@ -998,4 +1012,17 @@ abstract final class ApiEndpoints {
   static const String resumeViolationState = '/resume-builder/violation-state/';
   static const String resumeUploadInterviewVideo = '/resume-builder/upload-interview-video/';
   static const String resumeAnalytics = '/resume-builder/analytics/';
+
+  /// Phase 3 — Subscription checkout (`career_app.views.create_razorpay_order`/
+  /// `verify_razorpay_payment`, `business_english_lms/urls.py:57-58`). Both
+  /// `@login_required @require_POST`, no `@csrf_exempt` — same session-cookie
+  /// + `X-CSRFToken` shape as every other POST here, but **form-urlencoded**
+  /// (`request.POST.get(...)` server-side), not JSON — see
+  /// `docs/PHASE_3_SUBSCRIPTION_DISCOVERY.md` §1 for the full verified
+  /// request/response contract of both. There is deliberately no constant
+  /// here for `pro_page` (`/pro/`, HTML only, no JSON variant exists — same
+  /// doc, §2) or `razorpay_webhook`/`payment_invoice` (server-to-server and
+  /// HTML-invoice respectively, neither relevant to this client).
+  static const String createRazorpayOrder = '/pro/create-order/';
+  static const String verifyRazorpayPayment = '/pro/verify-payment/';
 }

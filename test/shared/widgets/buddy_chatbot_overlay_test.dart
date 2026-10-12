@@ -376,6 +376,101 @@ void main() {
       expect(find.text('NAVIGATED'), findsOneWidget);
     });
 
+    // Phase 4 — confirms ARIA's `/pro/` action (`ariaActionFlutterRoute`'s
+    // own mapping, re-verified against `riya_bot/riya_assistant.py`'s
+    // `ACTION_DEFINITIONS` in `docs/PHASE_3_SUBSCRIPTION_DISCOVERY.md`) still
+    // reaches `RoutePaths.pro` now that Phase 3 replaced that route's real
+    // `app_router.dart` builder with `SubscriptionScreen` — this test (same
+    // marker-screen pattern as its neighbors, deliberately not the real
+    // heavyweight screen, which `subscription_screen_test.dart` already
+    // covers on its own) verifies the *routing path* a tapped chip takes
+    // end to end; the screen it lands on is verified separately.
+    testWidgets('an action chip pointing at /pro/ navigates to the Subscription route', (tester) async {
+      final dataSource = _FakeAriaRemoteDataSource();
+      await _pumpWithRouter(tester, _container(dataSource: dataSource), RoutePaths.pro);
+
+      await tester.tap(find.byKey(const Key('buddyChatbotLauncher')));
+      await tester.pump(const Duration(milliseconds: 200));
+      await tester.enterText(find.byType(TextField), 'upgrade my plan');
+      await tester.tap(find.byIcon(Icons.send_rounded));
+      await tester.pump();
+
+      dataSource.resolvePending(
+        'Please upgrade to avail this Feature',
+        actions: const [AriaChatAction(key: 'pro', label: 'Membership', route: '/pro/')],
+        source: 'intent',
+      );
+      await tester.pump();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 250));
+
+      await tester.tap(find.widgetWithText(ActionChip, 'Membership'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 600));
+
+      expect(find.text('NAVIGATED'), findsOneWidget);
+    });
+
+    testWidgets(
+      'a reply with multiple actions renders one chip per action and each navigates to its own route independently '
+      '(never auto-navigates — only a single-action intent/skillup reply does, see the controller-level tests for '
+      'that eligibility rule)',
+      (tester) async {
+        final dataSource = _FakeAriaRemoteDataSource();
+        final router = GoRouter(
+          initialLocation: '/',
+          routes: [
+            GoRoute(path: '/', builder: (context, state) => const Scaffold(body: Stack(children: [BuddyChatbotOverlay()]))),
+            GoRoute(path: RoutePaths.activities, builder: (context, state) => const Scaffold(body: Text('ACTIVITIES'))),
+            GoRoute(path: RoutePaths.dashboard, builder: (context, state) => const Scaffold(body: Text('DASHBOARD'))),
+          ],
+        );
+        addTearDown(router.dispose);
+        await tester.pumpWidget(
+          UncontrolledProviderScope(
+            container: _container(dataSource: dataSource),
+            child: MaterialApp.router(routerConfig: router),
+          ),
+        );
+        await tester.pump();
+
+        await tester.tap(find.byKey(const Key('buddyChatbotLauncher')));
+        await tester.pump(const Duration(milliseconds: 200));
+        await tester.enterText(find.byType(TextField), 'help');
+        await tester.tap(find.byIcon(Icons.send_rounded));
+        await tester.pump();
+
+        dataSource.resolvePending(
+          'Here are a couple of options.',
+          actions: const [
+            AriaChatAction(key: 'lessons', label: 'Go to Activities', route: '/activities/'),
+            AriaChatAction(key: 'dash', label: 'View Dashboard', route: '/dashboard/'),
+          ],
+          source: 'intent',
+        );
+        await tester.pump();
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 250));
+
+        // Both chips render — not just the first.
+        expect(find.widgetWithText(ActionChip, 'Go to Activities'), findsOneWidget);
+        expect(find.widgetWithText(ActionChip, 'View Dashboard'), findsOneWidget);
+        // Multiple actions on an "intent" reply never auto-navigate on their
+        // own (the eligibility rule is `actions.length == 1`) — confirms the
+        // widget layer doesn't navigate anywhere just because speech
+        // finished, mirroring the controller-level
+        // "a reply with more than one action never auto-navigates" test.
+        expect(find.text('ACTIVITIES'), findsNothing);
+        expect(find.text('DASHBOARD'), findsNothing);
+
+        await tester.tap(find.widgetWithText(ActionChip, 'Go to Activities'));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 600));
+
+        expect(find.text('ACTIVITIES'), findsOneWidget);
+      },
+    );
+
     testWidgets('a single-action intent reply auto-navigates once speech finishes, not before', (tester) async {
       final dataSource = _FakeAriaRemoteDataSource();
       final playback = _CompletableAriaVoicePlaybackService();

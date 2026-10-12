@@ -1,3 +1,5 @@
+import '../../../dashboard/domain/entities/recommended_job.dart';
+
 /// One row of `resume_analytics`'s embedded `analytics-data` JSON blob
 /// (`career_app/views.py:1529-1555`, `json.dumps(results)` — see
 /// `templates/resume_analytics.html:524`): `topic`, `difficulty`, `question`
@@ -27,9 +29,12 @@ class InterviewQuestionResult {
 /// question total), `is_passed` (`total_integer_score >= 70`), `avg_score`
 /// (raw 0-5 average, unscaled), `answered_count`/`total_questions`,
 /// `years_exp` (from the résumé, unrelated to the interview itself but
-/// rendered on the same page). `suitable_jobs` (job recommendations shown
-/// only when passed) is deliberately not modeled here — see
-/// `mock_interview_html_parser.dart`'s doc comment for why.
+/// rendered on the same page). `suitable_jobs` (`career_app/views.py`'s
+/// `_get_matched_jobs`, only populated when `is_passed`) reuses the
+/// dashboard's own [RecommendedJob] entity rather than a duplicate model —
+/// confirmed the same `JobPosting` query and the same per-job template
+/// fields back both `resume_analytics.html:350-409` and
+/// `dashboard.html:96-151`.
 class InterviewAnalyticsResult {
   const InterviewAnalyticsResult({
     required this.totalScore,
@@ -39,6 +44,7 @@ class InterviewAnalyticsResult {
     required this.totalQuestions,
     required this.yearsExperience,
     required this.questionResults,
+    this.suitableJobs = const [],
   });
 
   final int totalScore;
@@ -48,4 +54,9 @@ class InterviewAnalyticsResult {
   final int totalQuestions;
   final double yearsExperience;
   final List<InterviewQuestionResult> questionResults;
+
+  /// Only ever non-empty when [isPassed] — mirrors the web's own
+  /// `{% if is_passed and suitable_jobs %}` gate exactly (see
+  /// `mock_interview_html_parser.dart`'s parser doc comment).
+  final List<RecommendedJob> suitableJobs;
 }

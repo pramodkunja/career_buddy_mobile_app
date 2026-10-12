@@ -111,5 +111,55 @@ void main() {
       expect(detail.status, 'applied');
       expect(detail.employerNotes, isEmpty);
     });
+
+    test(
+      'REGRESSION (Phase 6): a status select with no "selected" option parses as null, never a '
+      'fabricated "applied"',
+      () {
+        final withoutSelection = _fixtureHtmlMinimal.replaceFirst(
+          '<option value="applied" selected>Applied</option>',
+          '<option value="applied">Applied</option>',
+        );
+
+        final detail = parseEmployerApplicationDetailHtml(withoutSelection);
+
+        expect(detail.status, isNull);
+        // Every other real field still parses — losing the status must not
+        // mean losing the rest of the application's real data.
+        expect(detail.applicantName, 'Alex Kumar');
+        expect(detail.employerNotes, isEmpty);
+      },
+    );
+
+    test(
+      'REGRESSION (Phase 6): a selected value outside the known 6 STATUS_CHOICES parses as null, '
+      'never trusted as-is',
+      () {
+        final unknownStatus = _fixtureHtmlMinimal.replaceFirst(
+          '<option value="applied" selected>Applied</option>',
+          '<option value="applied">Applied</option>\n<option value="archived" selected>Archived</option>',
+        );
+
+        final detail = parseEmployerApplicationDetailHtml(unknownStatus);
+
+        expect(detail.status, isNull);
+      },
+    );
+
+    test(
+      'REGRESSION (Phase 6): the status select is matched by name, not just the first "selected" '
+      'option anywhere on the page',
+      () {
+        // An unrelated select elsewhere on the page (e.g. a filter control)
+        // with its own `selected` option must never be mistaken for the
+        // real application status.
+        final withUnrelatedSelect =
+            '<select name="unrelated_filter"><option value="x" selected>X</option></select>\n$_fixtureHtmlMinimal';
+
+        final detail = parseEmployerApplicationDetailHtml(withUnrelatedSelect);
+
+        expect(detail.status, 'applied');
+      },
+    );
   });
 }

@@ -75,7 +75,14 @@ class JobPostingRemoteDataSource {
           'salary_format': data.salaryFormat,
           'salary_min': data.salaryMin,
           'salary_max': data.salaryMax,
-          'openings': data.openings.toString(),
+          // `data.openings` is guaranteed non-null by the time anything
+          // actually reaches this POST (`post_new_job_screen.dart`'s own
+          // validator blocks Save until the text field parses as a real
+          // int) — `?? ''` is a last-resort safety net, never an expected
+          // path: an empty string is still an honest "missing" signal the
+          // server's own `err_openings` validation would correctly reject,
+          // rather than ever guessing a count on this layer's behalf.
+          'openings': data.openings?.toString() ?? '',
           'perks': data.perks,
           'description': data.description,
           'requirements': data.requirements,
@@ -253,7 +260,7 @@ class JobPostingRemoteDataSource {
       salaryFormat: _selectValue(html, 'salary_format'),
       salaryMin: _textValue(html, 'salary_min'),
       salaryMax: _textValue(html, 'salary_max'),
-      openings: int.tryParse(_textValue(html, 'openings')) ?? 1,
+      openings: int.tryParse(_textValue(html, 'openings')),
       perks: _checkedCheckboxValues(html, 'perks'),
       description: _textareaValue(html, 'description'),
       requirements: _textareaValue(html, 'requirements'),

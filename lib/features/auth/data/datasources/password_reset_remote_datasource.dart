@@ -7,13 +7,18 @@ import '../../../../core/network/api_endpoints.dart';
 /// Django's email-based password reset (`users/urls.py`, Django's built-in
 /// `PasswordResetView`/`PasswordResetConfirmView` with project-styled
 /// templates — see `ApiEndpoints.passwordReset`'s doc comment). There is no
-/// JSON API anywhere in this flow; every method here follows the same
+/// JSON API anywhere in this flow. `requestReset` follows the same
 /// GET-primes-CSRF, POST-with-followRedirects-false, 302-means-success
-/// convention as `AuthRemoteDataSource.login`, and scrapes field errors out
-/// of the re-rendered HTML on a 200 (matching the same HTML-scrape pattern
-/// already used for resume history/JAM/GD parsing elsewhere in this app —
-/// there is no more structured contract available for a plain Django auth
-/// view).
+/// convention as `AuthRemoteDataSource.login`. `checkResetLink` and
+/// `confirmReset` are *not* a single GET/POST to one URL — Django's own
+/// `PasswordResetConfirmView` splits token-checking and form-processing
+/// across two different URLs reached via a session-carried redirect (see
+/// `ApiEndpoints.passwordResetConfirm`'s doc comment for the exact
+/// mechanism, confirmed by reading Django's source directly) — so both
+/// methods make the same real-token-then-set-password request sequence.
+/// Every 200 response is scraped for field errors the same way
+/// resume history/JAM/GD parsing does elsewhere in this app — there is no
+/// more structured contract available for a plain Django auth view.
 class PasswordResetRemoteDataSource {
   PasswordResetRemoteDataSource(this._apiClient);
 
@@ -55,29 +60,51 @@ class PasswordResetRemoteDataSource {
     }
   }
 
-  /// `PasswordResetConfirmView`'s GET — the same URL renders either the
-  /// new-password form (valid, unused link) or an "invalid/expired" message
-  /// (already-used, malformed, or expired link) depending server-side on
-  /// `token_generator.check_token`. Detected here by the presence of the
-  /// `new_password1` field name, which only the valid-link branch of
-  /// `password_reset_confirm.html` renders.
+  /// Mirrors the real two-step mechanism exactly (see
+  /// `ApiEndpoints.passwordResetConfirm`'s doc comment for the Django
+  /// source citation): GET the real-token URL first — a 200 here means
+  /// Django rejected the token outright (invalid/expired/already-used),
+  /// no form was ever rendered. A 302 means the token was valid *and*
+  /// Django has now stored it in the session; only then do we load the
+  /// actual form at [ApiEndpoints.passwordResetSetPassword] and confirm it
+  /// really rendered (handles the case where the session cookie set by
+  /// the first response didn't make it onto the second request — a known
+  /// Dio+cookie-manager risk across an internally-followed redirect, which
+  /// is exactly why `followRedirects: false` plus a deliberate second
+  /// request is used here instead of letting Dio auto-follow).
   Future<bool> checkResetLink(String uidb64, String token) async {
     try {
-      final response = await _apiClient.dio.get(
+      final tokenResponse = await _apiClient.dio.get<String>(
         ApiEndpoints.passwordResetConfirm(uidb64, token),
+        options: Options(followRedirects: false, validateStatus: (_) => true, responseType: ResponseType.plain),
+      );
+      if (tokenResponse.statusCode == 200) return false;
+      if (tokenResponse.statusCode != 302) throw ServerException(tokenResponse.statusCode);
+
+      final formResponse = await _apiClient.dio.get<String>(
+        ApiEndpoints.passwordResetSetPassword(uidb64),
         options: Options(validateStatus: (_) => true, responseType: ResponseType.plain),
       );
-      if (response.statusCode != 200) throw ServerException(response.statusCode);
-      final String body = response.data ?? '';
-      return body.contains('new_password1');
+      if (formResponse.statusCode != 200) throw ServerException(formResponse.statusCode);
+      return (formResponse.data ?? '').contains('new_password1');
     } on DioException catch (e) {
       throw e.error is AppException ? e.error as AppException : const UnexpectedResponseException();
     }
   }
 
-  /// `PasswordResetConfirmView`'s POST — 302 to `password_reset_complete`
-  /// on success; a 200 re-renders the same form with field errors (password
-  /// mismatch, fails `PasswordComplexityValidator`, etc.).
+  /// Submits the new password to the one URL that actually processes it
+  /// (see `ApiEndpoints.passwordResetConfirm`'s doc comment — posting to
+  /// the real-token URL, this method's previous behavior, was silently
+  /// ignored by Django before any form was ever looked at, so a 302 there
+  /// never meant the password had changed). This re-validates the token
+  /// itself first rather than assuming a prior [checkResetLink] call in
+  /// the same process already did so and the session still reflects it —
+  /// the same real-token-GET-then-set-password-GET sequence as
+  /// [checkResetLink], so this method is safe to call on its own. Only a
+  /// 302 from the final POST means Django's `form_valid` actually ran
+  /// (`PasswordResetConfirmView.form_valid` only redirects to
+  /// `success_url` after `form.save()`), which is the one and only
+  /// condition under which this reports success.
   Future<void> confirmReset({
     required String uidb64,
     required String token,
@@ -85,9 +112,27 @@ class PasswordResetRemoteDataSource {
     required String password2,
   }) async {
     try {
-      final csrfToken = await _apiClient.readCookie('csrftoken');
-      final response = await _apiClient.dio.post(
+      final tokenResponse = await _apiClient.dio.get<String>(
         ApiEndpoints.passwordResetConfirm(uidb64, token),
+        options: Options(followRedirects: false, validateStatus: (_) => true, responseType: ResponseType.plain),
+      );
+      if (tokenResponse.statusCode == 200) {
+        throw const ValidationException({}, 'This password reset link is no longer valid. Please request a new one.');
+      }
+      if (tokenResponse.statusCode != 302) throw ServerException(tokenResponse.statusCode);
+
+      final formResponse = await _apiClient.dio.get<String>(
+        ApiEndpoints.passwordResetSetPassword(uidb64),
+        options: Options(validateStatus: (_) => true, responseType: ResponseType.plain),
+      );
+      if (formResponse.statusCode == 200 && !(formResponse.data ?? '').contains('new_password1')) {
+        throw const ValidationException({}, 'This password reset link is no longer valid. Please request a new one.');
+      }
+      if (formResponse.statusCode != 200) throw ServerException(formResponse.statusCode);
+
+      final csrfToken = await _apiClient.readCookie('csrftoken');
+      final response = await _apiClient.dio.post<String>(
+        ApiEndpoints.passwordResetSetPassword(uidb64),
         data: {
           'new_password1': password1,
           'new_password2': password2,

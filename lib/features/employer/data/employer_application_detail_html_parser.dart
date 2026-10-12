@@ -17,7 +17,7 @@ EmployerApplicationDetail parseEmployerApplicationDetailHtml(String html) {
   final interviewVideoMatch = _interviewVideoPattern.firstMatch(html);
   final interviewDateMatch = _interviewDatePattern.firstMatch(html);
   final coverLetterMatch = _coverLetterPattern.firstMatch(html);
-  final statusMatch = _selectedStatusPattern.firstMatch(html);
+  final status = _parseSelectedStatus(html);
   final notesMatch = _employerNotesPattern.firstMatch(html);
   final appliedAtMatch = _appliedAtPattern.firstMatch(html);
   final nameMatch = _applicantNamePattern.firstMatch(html);
@@ -39,7 +39,7 @@ EmployerApplicationDetail parseEmployerApplicationDetailHtml(String html) {
     interviewScore: interviewScoreMatch == null ? null : int.tryParse(interviewScoreMatch.group(1)!),
     interviewVideoUrl: interviewVideoMatch?.group(1),
     interviewRecordedAt: interviewDateMatch?.group(1)?.trim(),
-    status: statusMatch?.group(1) ?? 'applied',
+    status: status,
     employerNotes: notesMatch == null ? '' : _stripHtml(notesMatch.group(1)!).trim(),
     appliedAt: appliedAtMatch?.group(1)?.trim() ?? '',
   );
@@ -64,10 +64,32 @@ final _interviewDatePattern = RegExp(r'Recorded\s+([^<]*)</div>');
 final _coverLetterPattern = RegExp(
   r'text-slate-700 small" style="line-height: 1\.7;">\s*([\s\S]*?)\s*</div>',
 );
+// `{{ form.status }}` (`application_detail.html:210`) renders Django's
+// default `Select` widget: `<select name="status" ...>` wrapping one
+// `<option>` per `STATUS_CHOICES`. Scoped to this specific `<select>` first
+// (not `.firstMatch` against the whole page) so an unrelated `selected`
+// option elsewhere could never be mistaken for the real status.
+final _statusSelectPattern = RegExp(r'<select[^>]*\bname="status"[^>]*>([\s\S]*?)</select>');
 // Django's `Select` widget marks only the current value's `<option>` with a
 // bare `selected` attribute (no `="selected"`); every other option has none.
 // `[^>]*\bselected\b` tolerates either attribute order or an explicit
 // `selected=""`, rather than assuming one exact Django rendering.
-final _selectedStatusPattern = RegExp(r'<option value="([a-z_]+)"[^>]*\bselected\b');
+final _selectedOptionValuePattern = RegExp(r'<option\s+value="([^"]*)"[^>]*\bselected\b');
+
+/// Returns `null` — never a guessed value — whenever the real, currently
+/// selected status can't be established with confidence: the `<select
+/// name="status">` block itself wasn't found, it had no `selected` option,
+/// or the value it did select isn't one of `kApplicationStatusOptions`'
+/// known 6 (a markup change could otherwise select some unrelated, now
+/// wrongly-"current" value). See `EmployerApplicationDetail.status`'s doc
+/// comment for why a fabricated fallback here is unsafe.
+String? _parseSelectedStatus(String html) {
+  final statusBlock = _statusSelectPattern.firstMatch(html)?.group(1);
+  if (statusBlock == null) return null;
+  final rawValue = _selectedOptionValuePattern.firstMatch(statusBlock)?.group(1);
+  if (rawValue == null) return null;
+  final isKnownValue = kApplicationStatusOptions.any((option) => option.value == rawValue);
+  return isKnownValue ? rawValue : null;
+}
 final _employerNotesPattern = RegExp(r'name="employer_notes"[^>]*>([\s\S]*?)</textarea>');
 final _appliedAtPattern = RegExp(r'Applied on\s+([^<]*)</small>');

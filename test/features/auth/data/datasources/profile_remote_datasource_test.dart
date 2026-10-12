@@ -125,17 +125,47 @@ void main() {
       expect(profile.additionalEducationsJson, '[{"degree": "B.Tech", "year": "2019"}]');
     });
 
-    test('defaults englishLevel/bio/additionalEducationsJson safely when the Edit tab markup is absent', () async {
-      final dio = Dio(BaseOptions(baseUrl: 'https://example.test'))
-        ..httpClientAdapter = FakeHttpClientAdapter(statusCode: 200, body: _fixtureHtml);
-      final datasource = ProfileRemoteDataSource(ApiClient.forTesting(dio));
+    test(
+      'REGRESSION (Phase 11): englishLevel is null (never a guessed value) when the Edit tab markup is '
+      'absent entirely, while bio/additionalEducationsJson still default safely to empty',
+      () async {
+        final dio = Dio(BaseOptions(baseUrl: 'https://example.test'))
+          ..httpClientAdapter = FakeHttpClientAdapter(statusCode: 200, body: _fixtureHtml);
+        final datasource = ProfileRemoteDataSource(ApiClient.forTesting(dio));
 
-      final profile = await datasource.getProfile();
+        final profile = await datasource.getProfile();
 
-      expect(profile.englishLevel, 'intermediate');
-      expect(profile.bio, '');
-      expect(profile.additionalEducationsJson, '[]');
-    });
+        // Previously silently defaulted to 'intermediate' — a value
+        // indistinguishable from a real answer, invisible in every Flutter
+        // UI, and unconditionally resubmitted on the next save. `null` here
+        // is the honest "couldn't determine this" signal instead.
+        expect(profile.englishLevel, isNull);
+        expect(profile.bio, '');
+        expect(profile.additionalEducationsJson, '[]');
+      },
+    );
+
+    test(
+      'REGRESSION (Phase 11): englishLevel is null, not a guessed value, when the <select> exists but has no '
+      'selected option (a markup variant the regex can\'t match, not an absent field)',
+      () async {
+        final noSelectedOption = _fixtureHtmlWithEditForm.replaceFirst(
+          '<option value="intermediate" selected>Intermediate</option>',
+          '<option value="intermediate">Intermediate</option>',
+        );
+        final dio = Dio(BaseOptions(baseUrl: 'https://example.test'))
+          ..httpClientAdapter = FakeHttpClientAdapter(statusCode: 200, body: noSelectedOption);
+        final datasource = ProfileRemoteDataSource(ApiClient.forTesting(dio));
+
+        final profile = await datasource.getProfile();
+
+        expect(profile.englishLevel, isNull);
+        // Confirms the strip above didn't accidentally break unrelated
+        // parsing — bio/additionalEducationsJson, scraped from the same
+        // response, are unaffected.
+        expect(profile.bio, 'Loves & enjoys teaching.');
+      },
+    );
 
     test('extracts contactPersonRole/Mobile/Email from the Edit tab markup when populated', () async {
       final dio = Dio(BaseOptions(baseUrl: 'https://example.test'))
@@ -168,6 +198,21 @@ void main() {
 
       await expectLater(datasource.getProfile(), throwsA(isA<ServerException>()));
     });
+
+    test(
+      'REGRESSION (the confirmed Phase 2 defect): an expired session\'s login-page HTML (still a 200, '
+      "since Dio follows the redirect) must NOT be parsed as a blank, all-zero profile — it must throw",
+      () async {
+        final dio = Dio(BaseOptions(baseUrl: 'https://example.test'))
+          ..httpClientAdapter = FakeHttpClientAdapter(
+            statusCode: 200,
+            body: '<form id="login-form"><input name="username"><input name="password"></form>',
+          );
+        final datasource = ProfileRemoteDataSource(ApiClient.forTesting(dio));
+
+        await expectLater(datasource.getProfile(), throwsA(isA<UnauthorizedException>()));
+      },
+    );
   });
 
   group('updateProfile', () {
@@ -187,6 +232,32 @@ void main() {
 
       await expectLater(datasource.updateProfile(data), completes);
     });
+
+    test(
+      'REGRESSION (Phase 11): refuses to save at all — never sends a request — when englishLevel is null, '
+      'rather than silently resubmitting a guessed value',
+      () async {
+        var requestMade = false;
+        final dio = Dio(BaseOptions(baseUrl: 'https://example.test'))
+          ..httpClientAdapter = FakeHttpClientAdapter(
+            statusCode: 302,
+            body: '',
+            onRequest: (_) => requestMade = true,
+          );
+        final datasource = ProfileRemoteDataSource(ApiClient.forTesting(dio));
+        const incomplete = ProfileEditData(
+          firstName: 'Venkat',
+          lastName: 'Sai',
+          email: 'nvenkatsai@example.com',
+          englishLevel: null,
+          bio: '',
+          additionalEducationsJson: '[]',
+        );
+
+        await expectLater(datasource.updateProfile(incomplete), throwsA(isA<ValidationException>()));
+        expect(requestMade, isFalse);
+      },
+    );
 
     test('always posts englishLevel/bio/additionalEducationsJson verbatim, even though no UI edits them', () async {
       RequestOptions? captured;
@@ -276,11 +347,17 @@ void main() {
       expect(fieldValue('has_abroad_experience'), 'False');
     });
 
-    test('throws ValidationException with the scraped field error on a 200', () async {
+    test('throws ValidationException with the scraped field error on a 200 (real page, re-rendered with an error)', () async {
+      // A validation-failure 200 re-renders the SAME `profile.html` template
+      // (confirmed — `profile_view` has no separate error template), just
+      // with the Edit tab active and a field error injected — so a
+      // realistic fixture still contains the Overview tab's own markup,
+      // unlike an expired-session's login-page redirect (see the test
+      // below), which is the distinction `isProfileHtml` now exists to draw.
       final dio = Dio(BaseOptions(baseUrl: 'https://example.test'))
         ..httpClientAdapter = FakeHttpClientAdapter(
           statusCode: 200,
-          body: '<div class="invalid-feedback d-block">This field is required.</div>',
+          body: '$_fixtureHtml<div class="invalid-feedback d-block">This field is required.</div>',
         );
       final datasource = ProfileRemoteDataSource(ApiClient.forTesting(dio));
 
@@ -289,5 +366,35 @@ void main() {
         throwsA(isA<ValidationException>().having((e) => e.message, 'message', 'This field is required.')),
       );
     });
+
+    test(
+      'REGRESSION (the confirmed Phase 2 defect): a 302 redirect to the login page must NOT be reported as '
+      'success — the edit was never saved, the session had simply already expired',
+      () async {
+        final dio = Dio(BaseOptions(baseUrl: 'https://example.test'))
+          ..httpClientAdapter = FakeHttpClientAdapter(
+            statusCode: 302,
+            body: '',
+            headers: {
+              'location': ['/users/login/?next=/users/profile/'],
+            },
+          );
+        final datasource = ProfileRemoteDataSource(ApiClient.forTesting(dio));
+
+        await expectLater(datasource.updateProfile(data), throwsA(isA<UnauthorizedException>()));
+      },
+    );
+
+    test(
+      'REGRESSION: a 200 that is not the real profile page at all (not even a validation-error '
+      're-render) is treated as an expired/unexpected session, not guessed at as a validation message',
+      () async {
+        final dio = Dio(BaseOptions(baseUrl: 'https://example.test'))
+          ..httpClientAdapter = FakeHttpClientAdapter(statusCode: 200, body: '<h1>Something else entirely</h1>');
+        final datasource = ProfileRemoteDataSource(ApiClient.forTesting(dio));
+
+        await expectLater(datasource.updateProfile(data), throwsA(isA<UnauthorizedException>()));
+      },
+    );
   });
 }

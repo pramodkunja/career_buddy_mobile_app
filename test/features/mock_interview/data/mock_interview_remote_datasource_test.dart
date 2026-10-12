@@ -61,6 +61,27 @@ const _analyticsHtml = '''
 <span class="muted">Overall Score</span>
 <span class="fw-bold" style="color:#0ea5e9;">3.6/5</span>
 <script id="analytics-data" type="application/json">[{"topic": "Python", "difficulty": "Easy", "question": "What is a list?", "answer": "An ordered collection.", "score": 4, "feedback": "Good answer."}]</script>
+<div class="card border-0 rounded-4 shadow-sm p-4 mb-4 bg-white">
+  <small class="text-muted">Matched for candidate experience (2.5 years) &amp; verified skills.</small>
+  <div class="row g-3">
+    <div class="col-md-4">
+      <div class="job-card border rounded-3 p-3 h-100">
+        <h6 class="fw-bold mb-0 text-truncate" title="Backend Developer">Backend Developer</h6>
+        <small class="text-muted">Globex Inc</small>
+        <span class="badge bg-light text-dark border">Python</span>
+        <span class="badge bg-light text-dark border">Django</span>
+        <span class="text-muted"><i class="fas fa-map-marker-alt me-1"></i>Bengaluru</span>
+        <span class="badge bg-primary bg-opacity-10 text-primary">Full-time</span>
+        <span class="text-muted"><i class="fas fa-briefcase me-1"></i>1-2 years</span>
+        <small class="fw-bold text-success"><i class="fas fa-rupee-sign me-1"></i>₹6L - ₹9L</small>
+        <a href="/employer/jobs/77/"
+            class="btn btn-primary btn-sm w-100 rounded-3 fw-bold" target="_blank">
+            View &amp; Apply
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
 </body></html>
 ''';
 
@@ -340,11 +361,92 @@ void main() {
       expect(analytics.questionResults, hasLength(1));
       expect(analytics.questionResults.single.topic, 'Python');
       expect(analytics.questionResults.single.score, 4);
+
+      // REGRESSION (Phase 8): `suitable_jobs` — same `_get_matched_jobs`
+      // source and per-job fields as the dashboard's recommended jobs,
+      // reusing the same `RecommendedJob` entity.
+      expect(analytics.suitableJobs, hasLength(1));
+      expect(analytics.suitableJobs.single.title, 'Backend Developer');
+      expect(analytics.suitableJobs.single.companyName, 'Globex Inc');
+      expect(analytics.suitableJobs.single.skills, ['Python', 'Django']);
+      expect(analytics.suitableJobs.single.location, 'Bengaluru');
+      expect(analytics.suitableJobs.single.jobType, 'Full-time');
+      expect(analytics.suitableJobs.single.experienceLevel, '1-2 years');
+      expect(analytics.suitableJobs.single.salaryDisplay, '₹6L - ₹9L');
+      // `job.pk` — scraped from the card's own "View & Apply" link
+      // (`resume_analytics.html:406`), the same stable id
+      // `employer_portal:job_detail`/`PublicJobDetailScreen` already uses.
+      expect(analytics.suitableJobs.single.id, 77);
     });
 
     test('throws NotFoundException when no completed session exists', () async {
       final ds = _dataSource(statusCode: 200, body: '<html><body>No analysis available.</body></html>', headers: _htmlHeaders);
       await expectLater(ds.getAnalytics(), throwsA(isA<NotFoundException>()));
+    });
+
+    group('REGRESSION (Phase 8) — suitable_jobs', () {
+      test('a response missing the suitable_jobs card entirely (web\'s own {% if %} being false) parses as empty, not an error', () async {
+        final withoutJobsSection = _analyticsHtml.replaceAll(
+          RegExp(r'<div class="card border-0 rounded-4 shadow-sm p-4 mb-4 bg-white">[\s\S]*?</div>\s*</div>\s*</div>'),
+          '',
+        );
+        final ds = _dataSource(statusCode: 200, body: withoutJobsSection, headers: _htmlHeaders);
+        final analytics = await ds.getAnalytics();
+
+        expect(analytics.suitableJobs, isEmpty);
+        // Confirms the strip above didn't accidentally eat the still-expected
+        // summary/question-breakdown sections too.
+        expect(analytics.totalScore, 72);
+        expect(analytics.questionResults, hasLength(1));
+      });
+
+      test('a job card whose link markup has drifted still parses every other real field, with a null id rather than a crash or a fabricated one', () async {
+        final withoutJobLink = _analyticsHtml.replaceAll(RegExp(r'<a href="/employer/jobs/77/"[\s\S]*?</a>'), '');
+        final ds = _dataSource(statusCode: 200, body: withoutJobLink, headers: _htmlHeaders);
+        final analytics = await ds.getAnalytics();
+
+        expect(analytics.suitableJobs, hasLength(1));
+        expect(analytics.suitableJobs.single.title, 'Backend Developer');
+        expect(analytics.suitableJobs.single.id, isNull);
+      });
+
+      test('multiple suitable jobs all parse, in document order', () async {
+        // Appended after the first card rather than re-nested inside
+        // `row g-3`'s own closing tag: the parser splits on the `job-card`
+        // marker and never relies on true DOM nesting, so document order is
+        // the only thing this test needs to control.
+        const secondCard = '''
+<div class="job-card border rounded-3 p-3 h-100">
+  <h6 class="fw-bold mb-0 text-truncate" title="QA Engineer">QA Engineer</h6>
+  <small class="text-muted">Initech</small>
+  <span class="badge bg-light text-dark border">Selenium</span>
+  <span class="text-muted"><i class="fas fa-map-marker-alt me-1"></i>Pune</span>
+  <span class="badge bg-primary bg-opacity-10 text-primary">Full-time</span>
+  <span class="text-muted"><i class="fas fa-briefcase me-1"></i>0-1 years</span>
+  <small class="fw-bold text-success"><i class="fas fa-rupee-sign me-1"></i>₹4L - ₹5L</small>
+  <a href="/employer/jobs/88/" class="btn btn-primary btn-sm w-100 rounded-3 fw-bold" target="_blank">View &amp; Apply</a>
+</div>
+''';
+        final twoJobs = _analyticsHtml.replaceFirst('</body></html>', '$secondCard</body></html>');
+        final ds = _dataSource(statusCode: 200, body: twoJobs, headers: _htmlHeaders);
+        final analytics = await ds.getAnalytics();
+
+        expect(analytics.suitableJobs, hasLength(2));
+        expect(analytics.suitableJobs[0].title, 'Backend Developer');
+        expect(analytics.suitableJobs[1].title, 'QA Engineer');
+        expect(analytics.suitableJobs[1].id, 88);
+      });
+
+      test('malformed/unrecognized job-card markup produces no fabricated job', () async {
+        final malformed = _analyticsHtml.replaceAll(
+          '<h6 class="fw-bold mb-0 text-truncate" title="Backend Developer">Backend Developer</h6>',
+          '<h6 class="some-other-class">Backend Developer</h6>',
+        );
+        final ds = _dataSource(statusCode: 200, body: malformed, headers: _htmlHeaders);
+        final analytics = await ds.getAnalytics();
+
+        expect(analytics.suitableJobs, isEmpty);
+      });
     });
   });
 }

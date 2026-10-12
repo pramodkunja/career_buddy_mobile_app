@@ -274,6 +274,31 @@ void main() {
       });
     });
 
+    test(
+      'REGRESSION (Phase 10): a manual submit() with a short typed answer succeeds — '
+      'no client-side minimum-word restriction exists (approved Phase 9/10 decision: '
+      'do not introduce one)',
+      () async {
+        final repo = _FakeMockInterviewRepository()
+          ..nextQuestionQueue.addAll([
+            Success(NextQuestionReady(_question(id: 1))),
+            const Success(InterviewCompleted()),
+          ]);
+        final container = _buildContainer(repo);
+        addTearDown(container.dispose);
+        final notifier = container.read(mockInterviewControllerProvider.notifier);
+
+        await notifier.start();
+        await notifier.confirmCameraLive();
+        notifier.updateAnswerText('Yes.');
+        await notifier.submitAnswer();
+
+        expect(repo.submitCallCount, 1);
+        expect(repo.lastSubmittedAnswerText, 'Yes.');
+        expect(container.read(mockInterviewControllerProvider), isA<MockInterviewResults>());
+      },
+    );
+
     test('reportViolation is a no-op when no question is active (mirrors interviewIsActive() on the web)', () async {
       final repo = _FakeMockInterviewRepository();
       final container = _buildContainer(repo);

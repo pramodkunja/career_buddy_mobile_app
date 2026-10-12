@@ -9,7 +9,8 @@ import 'package:go_router/go_router.dart';
 void main() {
   Widget wrap(Widget child) => MaterialApp(home: Scaffold(body: child));
 
-  RecommendedJob job({List<String> skills = const ['A', 'B', 'C', 'D', 'E']}) => RecommendedJob(
+  RecommendedJob job({List<String> skills = const ['A', 'B', 'C', 'D', 'E'], int? id}) => RecommendedJob(
+    id: id,
     title: 'Customer Support Executive',
     companyName: 'Acme Corp',
     skills: skills,
@@ -49,24 +50,64 @@ void main() {
     expect(find.text('E'), findsNothing);
   });
 
-  testWidgets('View & Apply navigates to the Job Details placeholder', (tester) async {
-    final router = GoRouter(
-      initialLocation: '/',
-      routes: [
-        GoRoute(path: '/', builder: (context, state) => Scaffold(body: RecommendedJobsSection(jobs: [job()]))),
-        GoRoute(
-          path: RoutePaths.jobDetail,
-          builder: (context, state) => const ComingSoonScreen(title: 'Job Details', message: 'not built yet'),
-        ),
-      ],
-    );
-    await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+  testWidgets(
+    'View & Apply navigates to the real PublicJobDetailScreen route using the scraped job.pk — '
+    'not the unused ComingSoon placeholder',
+    (tester) async {
+      final router = GoRouter(
+        initialLocation: '/',
+        routes: [
+          GoRoute(
+            path: '/',
+            builder: (context, state) => Scaffold(body: RecommendedJobsSection(jobs: [job(id: 42)])),
+          ),
+          GoRoute(
+            path: RoutePaths.publicJobDetailPattern,
+            builder: (context, state) => Scaffold(body: Text('Job #${state.pathParameters['id']}')),
+          ),
+        ],
+      );
+      await tester.pumpWidget(MaterialApp.router(routerConfig: router));
 
-    await tester.tap(find.text('View & Apply'));
-    await tester.pumpAndSettle();
+      await tester.tap(find.text('View & Apply'));
+      await tester.pumpAndSettle();
 
-    expect(find.text('Job Details'), findsOneWidget);
-  });
+      expect(find.text('Job #42'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'REGRESSION (Phase 4): View & Apply is disabled, not a dead/invalid navigation, when no job id was scraped',
+    (tester) async {
+      final router = GoRouter(
+        initialLocation: '/',
+        routes: [
+          GoRoute(path: '/', builder: (context, state) => Scaffold(body: RecommendedJobsSection(jobs: [job()]))),
+          GoRoute(
+            path: RoutePaths.publicJobDetailPattern,
+            builder: (context, state) => const Scaffold(body: Text('should never be reached')),
+          ),
+          GoRoute(
+            path: RoutePaths.jobDetail,
+            builder: (context, state) => const ComingSoonScreen(title: 'Job Details', message: 'unused fallback'),
+          ),
+        ],
+      );
+      await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+
+      final button = tester.widget<ElevatedButton>(
+        find.ancestor(of: find.text('View & Apply'), matching: find.byType(ElevatedButton)),
+      );
+      expect(button.onPressed, isNull);
+
+      await tester.tap(find.text('View & Apply'), warnIfMissed: false);
+      await tester.pumpAndSettle();
+
+      expect(find.text('should never be reached'), findsNothing);
+      expect(find.text('unused fallback'), findsNothing);
+      expect(find.text('View & Apply'), findsOneWidget);
+    },
+  );
 
   testWidgets('wraps the whole section in one outer white radius-16 card, matching .card.rounded-4', (tester) async {
     await tester.pumpWidget(wrap(RecommendedJobsSection(jobs: [job()])));

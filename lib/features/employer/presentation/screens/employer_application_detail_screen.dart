@@ -63,7 +63,13 @@ class _ApplicationDetailBody extends ConsumerStatefulWidget {
 }
 
 class _ApplicationDetailBodyState extends ConsumerState<_ApplicationDetailBody> {
-  late String _status;
+  // `null` means the real, currently-selected status could not be reliably
+  // read from the server's HTML — see `EmployerApplicationDetail.status`'s
+  // doc comment. This is never defaulted to a guessed value such as
+  // `'applied'`: doing so previously let a notes-only edit silently resend
+  // a fabricated status, which the server would treat as a real status
+  // change and use to (wrongly) notify the candidate by email.
+  late String? _status;
   late final TextEditingController _notes;
   bool _submitting = false;
   String? _submitError;
@@ -91,13 +97,24 @@ class _ApplicationDetailBodyState extends ConsumerState<_ApplicationDetailBody> 
   }
 
   Future<void> _submit() async {
+    final status = _status;
+    if (status == null) {
+      // Defense in depth: the build() method below already hides this
+      // button behind the "status unknown" error card, so this should be
+      // unreachable — but `updateStatus` must never be called without a
+      // real, verified status regardless of how this method is reached.
+      setState(() {
+        _submitError = "Can't save — this application's current status couldn't be read. Try reloading the page.";
+      });
+      return;
+    }
     setState(() {
       _submitting = true;
       _submitError = null;
     });
     final result = await ref
         .read(employerApplicationDetailControllerProvider(widget.applicationId).notifier)
-        .updateStatus(status: _status, employerNotes: _notes.text.trim());
+        .updateStatus(status: status, employerNotes: _notes.text.trim());
     if (!mounted) return;
     setState(() => _submitting = false);
     switch (result) {
@@ -276,31 +293,38 @@ class _ApplicationDetailBodyState extends ConsumerState<_ApplicationDetailBody> 
               children: [
                 const Text('Recruitment Decision', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
                 const SizedBox(height: AppSpacing.sm),
-                const Text('Current Stage', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-                const SizedBox(height: 4),
-                DropdownButtonFormField<String>(
-                  initialValue: _status,
-                  decoration: const InputDecoration(isDense: true),
-                  items: [
-                    for (final o in kApplicationStatusOptions) DropdownMenuItem(value: o.value, child: Text(o.label)),
+                if (_status == null)
+                  _UnknownStatusNotice(
+                    onReload: () =>
+                        ref.read(employerApplicationDetailControllerProvider(widget.applicationId).notifier).retry(),
+                  )
+                else ...[
+                  const Text('Current Stage', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                  const SizedBox(height: 4),
+                  DropdownButtonFormField<String>(
+                    initialValue: _status,
+                    decoration: const InputDecoration(isDense: true),
+                    items: [
+                      for (final o in kApplicationStatusOptions) DropdownMenuItem(value: o.value, child: Text(o.label)),
+                    ],
+                    onChanged: _submitting ? null : (v) => setState(() => _status = v ?? _status),
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  const Text('Internal Notes', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                  const SizedBox(height: 4),
+                  TextField(
+                    controller: _notes,
+                    maxLines: 3,
+                    enabled: !_submitting,
+                    decoration: const InputDecoration(isDense: true),
+                  ),
+                  if (_submitError != null) ...[
+                    const SizedBox(height: AppSpacing.xs),
+                    Text(_submitError!, style: const TextStyle(color: Color(0xFFDC2626), fontSize: 13)),
                   ],
-                  onChanged: _submitting ? null : (v) => setState(() => _status = v ?? _status),
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                const Text('Internal Notes', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-                const SizedBox(height: 4),
-                TextField(
-                  controller: _notes,
-                  maxLines: 3,
-                  enabled: !_submitting,
-                  decoration: const InputDecoration(isDense: true),
-                ),
-                if (_submitError != null) ...[
-                  const SizedBox(height: AppSpacing.xs),
-                  Text(_submitError!, style: const TextStyle(color: Color(0xFFDC2626), fontSize: 13)),
+                  const SizedBox(height: AppSpacing.sm),
+                  AppButton(label: 'Update Status', icon: Icons.save_outlined, isLoading: _submitting, onPressed: _submit),
                 ],
-                const SizedBox(height: AppSpacing.sm),
-                AppButton(label: 'Update Status', icon: Icons.save_outlined, isLoading: _submitting, onPressed: _submit),
               ],
             ),
           ),
@@ -321,6 +345,55 @@ class _ApplicationDetailBodyState extends ConsumerState<_ApplicationDetailBody> 
         children: [
           Text(label.toUpperCase(), style: const TextStyle(color: Color(0xFF64748B), fontSize: 11, fontWeight: FontWeight.w700)),
           Text(value, style: const TextStyle(fontWeight: FontWeight.w600)),
+        ],
+      ),
+    );
+  }
+}
+
+/// Shown instead of the status dropdown and notes field whenever
+/// `EmployerApplicationDetail.status` is `null` — see that field's doc
+/// comment. Deliberately offers no way to save anything here: `status` is
+/// a required field on every real save (even a notes-only one), so with no
+/// trustworthy value for it there is nothing safe this screen can submit.
+class _UnknownStatusNotice extends StatelessWidget {
+  const _UnknownStatusNotice({required this.onReload});
+
+  final VoidCallback onReload;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(AppSpacing.sm),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFEF2F2),
+        border: Border.all(color: const Color(0xFFFCA5A5)),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.warning_amber_rounded, color: Color(0xFFDC2626), size: 18),
+              SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  "Couldn't read this application's current status",
+                  style: TextStyle(fontWeight: FontWeight.w700, color: Color(0xFFB91C1C), fontSize: 13),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            "To avoid accidentally changing it, status updates and notes can't be saved from here right now. "
+            'Try reloading, or manage this application from the Career Buddy website.',
+            style: TextStyle(color: Color(0xFF7F1D1D), fontSize: 12),
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          AppButton(label: 'Reload', icon: Icons.refresh, variant: AppButtonVariant.outlined, onPressed: onReload),
         ],
       ),
     );

@@ -58,8 +58,19 @@ class EmployerApplicationDetail {
   final String? interviewVideoUrl;
   final String? interviewRecordedAt;
 
-  /// One of `JobApplication.STATUS_CHOICES`' 6 values.
-  final String status;
+  /// One of `JobApplication.STATUS_CHOICES`' 6 values (`kApplicationStatusOptions`,
+  /// verified verbatim against `jobs_app/models.py:243-247`) — or `null` when
+  /// the real, currently-selected status couldn't be reliably scraped (the
+  /// select markup didn't match, or matched a value outside that known set).
+  /// **Never defaulted to a guessed value**: `ApplicationStatusForm`
+  /// (`jobs_app/forms.py:225-232`) requires `status` on every save — even a
+  /// notes-only one — and the server only emails the candidate when the
+  /// *submitted* status differs from whatever was already stored
+  /// (`jobs_app/views.py:692-703`), so silently submitting a fabricated
+  /// status (e.g. always `'applied'`) risks a real, incorrect status change
+  /// and a wrong candidate notification. See
+  /// `EmployerApplicationDetailScreen`'s handling of a `null` status.
+  final String? status;
   final String employerNotes;
   final String appliedAt;
 }

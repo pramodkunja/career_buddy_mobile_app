@@ -415,6 +415,14 @@ class _EditTabState extends ConsumerState<_EditTab> {
           _submitting = false;
           _submitError = failure.message;
         });
+        // Same reasoning as the load-side listener in `build()`: a save
+        // that failed because the session had already expired is not a
+        // validation error the user can fix by editing the form again —
+        // force the same logout/redirect-to-login outcome, rather than
+        // leaving them stuck on a form that will never successfully save.
+        if (failure is UnauthorizedFailure) {
+          ref.read(authControllerProvider.notifier).logout();
+        }
     }
   }
 

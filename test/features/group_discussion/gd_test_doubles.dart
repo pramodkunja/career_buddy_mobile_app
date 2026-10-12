@@ -33,14 +33,14 @@ class FakeGdRealtimeService implements GdRealtimeService {
   }
 
   @override
-  void sendStart({String language = 'english'}) => sentActions.add({'action': 'start'});
+  void sendStart({String language = 'english'}) => sentActions.add({'action': 'start', 'language': language});
 
   @override
   void sendUserSpeaking() => sentActions.add({'action': 'user_speaking'});
 
   @override
   void sendUserMessage(String content, {String language = 'english'}) =>
-      sentActions.add({'action': 'user_message', 'content': content});
+      sentActions.add({'action': 'user_message', 'content': content, 'language': language});
 
   @override
   void sendEnd() => sentActions.add({'action': 'end'});

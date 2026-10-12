@@ -11,6 +11,7 @@
 import 'dart:convert';
 
 import '../../../../core/utils/html_unescape.dart';
+import '../../../dashboard/domain/entities/recommended_job.dart';
 import '../../domain/entities/interview_analytics.dart';
 
 /// True when a GET to `resume_start_interview` (default `followRedirects:
@@ -46,14 +47,15 @@ bool isInterviewAnalyticsHtml(String html) => html.contains('id="analytics-data"
 /// [isInterviewAnalyticsHtml] first — this does not itself validate the
 /// error branch.
 ///
-/// `suitable_jobs` (job recommendations, only rendered when passed) is
-/// deliberately not parsed here: unlike every other field on this page, its
-/// markup carries no stable per-job id to act on (`{% url
-/// 'employer_portal:job_detail' job.pk %}` is the only identifier, and this
-/// app has no Job Detail screen to route it to yet — see
-/// `RoutePaths.jobDetail`'s own doc comment), so there'd be nothing a mobile
-/// results screen could actually do with a parsed job beyond re-displaying
-/// text already summarized by [InterviewAnalyticsResult.isPassed].
+/// `suitable_jobs` (job recommendations, only rendered when `is_passed and
+/// suitable_jobs` — `resume_analytics.html:350`) is parsed by
+/// [_parseSuitableJobs] below, reusing the dashboard's own [RecommendedJob]
+/// entity: `career_app/views.py`'s `_get_matched_jobs` is the exact same
+/// `JobPosting` query `activities/views.py`'s dashboard recommendations use,
+/// and the per-job id comes from the same stable
+/// `{% url 'employer_portal:job_detail' job.pk %}` link
+/// `RoutePaths.publicJobDetail`/`PublicJobDetailScreen` already serve (wired
+/// in Phase 4 — see `recommended_jobs_section.dart`'s `_JobCard`).
 InterviewAnalyticsResult parseInterviewAnalyticsHtml(String html) {
   final totalScoreMatch = RegExp(
     r'<div class="stat-value"[^>]*>\s*(\d+)\s*</div>\s*<div class="stat-label">Total Score / 100</div>',
@@ -107,7 +109,81 @@ InterviewAnalyticsResult parseInterviewAnalyticsHtml(String html) {
     totalQuestions: totalQuestions,
     yearsExperience: yearsExperience,
     questionResults: questionResults,
+    suitableJobs: _parseSuitableJobs(html),
   );
+}
+
+/// Splits a section of [html] into one slice per occurrence of [marker] —
+/// same "card-start-marker splitting" technique as
+/// `dashboard_html_parser.dart`'s `_splitByMarker`, duplicated locally
+/// rather than shared across features (this codebase's established
+/// per-feature convention; see e.g. the GD/JAM language-picker widgets).
+List<String> _splitByMarker(String html, String marker, {int maxLength = 3000}) {
+  final starts = <int>[];
+  var searchFrom = 0;
+  while (true) {
+    final index = html.indexOf(marker, searchFrom);
+    if (index == -1) break;
+    starts.add(index);
+    searchFrom = index + marker.length;
+  }
+  return [
+    for (var i = 0; i < starts.length; i++)
+      html.substring(starts[i], i + 1 < starts.length ? starts[i + 1] : (starts[i] + maxLength).clamp(0, html.length)),
+  ];
+}
+
+/// `resume_analytics.html:356-408`'s job cards — near-identical markup to
+/// `dashboard.html`'s own recommended-job cards (same `_get_matched_jobs`
+/// source), with two confirmed differences this parser must account for
+/// rather than reuse `dashboard_html_parser.dart`'s regexes verbatim: the
+/// outer card div omits `overflow-hidden`, and the skill badge omits
+/// `text-truncate`.
+List<RecommendedJob> _parseSuitableJobs(String html) {
+  final jobs = <RecommendedJob>[];
+  for (final item in _splitByMarker(html, 'class="job-card border rounded-3 p-3 h-100"')) {
+    final titleMatch = RegExp(r'<h6 class="fw-bold mb-0 text-truncate"[^>]*>([^<]*)</h6>').firstMatch(item);
+    if (titleMatch == null) continue;
+    final companyMatch = RegExp(r'<small class="text-muted">([^<]*)</small>').firstMatch(item);
+    final skills = RegExp(
+      r'<span class="badge bg-light text-dark border">([^<]*)</span>',
+    ).allMatches(item).map((m) => _unescape(m.group(1)!.trim())).toList();
+    final locationMatch = RegExp(
+      r'<span class="text-muted"><i class="fas fa-map-marker-alt me-1"></i>([^<]*)</span>',
+    ).firstMatch(item);
+    final jobTypeMatch = RegExp(r'<span class="badge bg-primary bg-opacity-10 text-primary">([^<]*)</span>').firstMatch(item);
+    final experienceMatch = RegExp(
+      r'<span class="text-muted"><i class="fas fa-briefcase me-1"></i>([^<]*)</span>',
+    ).firstMatch(item);
+    final salaryMatch = RegExp(
+      r'<small class="fw-bold text-success"><i class="fas fa-rupee-sign me-1"></i>([^<]*)</small>',
+    ).firstMatch(item);
+    // `resume_analytics.html:406`: `<a href="{% url 'employer_portal:job_detail'
+    // job.pk %}" class="btn btn-primary btn-sm w-100 rounded-3 fw-bold"
+    // target="_blank">` — byte-for-byte the same link markup
+    // `dashboard_html_parser.dart`'s `_parseRecommendedJobs` already extracts
+    // `job.pk` from; same technique reused here, not assumed.
+    final jobHrefMatch = RegExp(
+      r'<a href="([^"]*)"\s*class="btn btn-primary btn-sm w-100 rounded-3 fw-bold"',
+    ).firstMatch(item);
+    final jobId = jobHrefMatch == null
+        ? null
+        : int.tryParse(RegExp(r'(\d+)').firstMatch(jobHrefMatch.group(1)!)?.group(1) ?? '');
+
+    jobs.add(
+      RecommendedJob(
+        id: jobId,
+        title: _unescape(titleMatch.group(1)!.trim()),
+        companyName: _unescape(companyMatch?.group(1)?.trim() ?? ''),
+        skills: skills,
+        location: _unescape(locationMatch?.group(1)?.trim() ?? ''),
+        jobType: _unescape(jobTypeMatch?.group(1)?.trim() ?? ''),
+        experienceLevel: _unescape(experienceMatch?.group(1)?.trim() ?? ''),
+        salaryDisplay: _unescape(salaryMatch?.group(1)?.trim() ?? ''),
+      ),
+    );
+  }
+  return jobs;
 }
 
 String _unescape(String value) => unescapeHtmlEntities(value);

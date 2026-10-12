@@ -26,6 +26,7 @@ import 'package:career_buddy_lms/features/dashboard/domain/repositories/dashboar
 import 'package:career_buddy_lms/features/dashboard/presentation/providers/dashboard_providers.dart';
 import 'package:career_buddy_lms/features/dashboard/presentation/screens/dashboard_screen.dart';
 import 'package:career_buddy_lms/features/grammar/presentation/screens/grammar_index_screen.dart';
+import 'package:career_buddy_lms/features/home/presentation/screens/home_screen.dart';
 import 'package:career_buddy_lms/features/group_discussion/presentation/providers/gd_providers.dart';
 import 'package:career_buddy_lms/features/group_discussion/presentation/screens/gd_topic_screen.dart';
 import 'package:career_buddy_lms/features/jam/domain/entities/jam_assessment.dart';
@@ -44,6 +45,7 @@ import 'package:career_buddy_lms/features/resume/presentation/providers/resume_p
 import 'package:career_buddy_lms/features/resume/presentation/screens/resume_builder_screen.dart';
 import 'package:career_buddy_lms/features/roleplay/presentation/screens/roleplay_home_screen.dart';
 import 'package:career_buddy_lms/features/skill_up/presentation/screens/skill_up_screen.dart';
+import 'package:career_buddy_lms/features/subscription/presentation/screens/subscription_screen.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -290,7 +292,18 @@ Future<void> _pumpLoggedInApp(WidgetTester tester, {Size size = const Size(800, 
   );
   await _settle(tester);
 
-  // ── Launch -> Login ────────────────────────────────────────────────
+  // ── Launch -> Home -> Login ──────────────────────────────────────────
+  // Phase 2 — Home entry routing: unauthenticated boot now genuinely lands
+  // on the real combined Home screen first (matching the real web's own
+  // `/`, see `route_guards.dart`'s `goingToSplash` branch), not directly on
+  // LoginScreen. Tapping the Job Seeker portal card's own "Login" action
+  // (the first of the two "Login" buttons — Job Seeker card renders before
+  // the Employer card, see `PublicHomeBody`) reaches the real LoginScreen
+  // from there, same as a real user would.
+  expect(find.byType(HomeScreen), findsOneWidget, reason: 'unauthenticated boot must land on the real Home screen');
+  await tester.tap(find.text('Login').first);
+  await _settle(tester);
+
   // Unauthenticated boot genuinely lands on the real LoginScreen (the
   // route guard's redirect, not a bypassed state).
   expect(find.text('Sign In to Dashboard'), findsOneWidget);
@@ -431,6 +444,26 @@ void main() {
       await tester.tap(find.text('Resume Parsing'));
       await _settle(tester);
       expect(find.byType(ResumeBuilderScreen), findsOneWidget);
+      expect(tester.takeException(), isNull);
+
+      await _systemBack(tester);
+      await _settle(tester);
+      expect(find.byType(DashboardScreen), findsOneWidget);
+
+      // ── Dashboard -> drawer -> Pro -> Back ───────────────────────────────
+      // Phase 5 — cross-feature regression: confirms the real
+      // `appRouterProvider`/`app_router.dart` wiring (not an isolated test
+      // router mirroring it, as `subscription_screen_test.dart` and
+      // `buddy_chatbot_overlay_test.dart` each use on their own) actually
+      // reaches the real `SubscriptionScreen` from a genuine in-app entry
+      // point, now that Phase 3 replaced its `ComingSoonScreen` mapping.
+      await tester.tap(find.byIcon(Icons.menu));
+      await _settle(tester, times: 2);
+      await tester.tap(find.text('Pro'));
+      await _settle(tester);
+      expect(find.byType(SubscriptionScreen), findsOneWidget, reason: 'Pro must open the real Subscription screen, not ComingSoon');
+      expect(find.text('Normal User'), findsOneWidget);
+      expect(find.text('Pro User'), findsOneWidget);
       expect(tester.takeException(), isNull);
 
       await _systemBack(tester);

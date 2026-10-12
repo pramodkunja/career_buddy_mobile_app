@@ -10,6 +10,20 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
+# Refuse to produce a "production" artifact silently signed with the Android
+# debug key — android/app/build.gradle.kts falls back to debug signing
+# whenever android/key.properties is absent, which is the correct behavior
+# for ad hoc/local release-mode testing but must never be mistaken for a
+# real, distributable build. See docs/ANDROID_RELEASE_SIGNING.md.
+if [[ ! -f android/key.properties ]]; then
+  echo "ERROR: android/key.properties not found." >&2
+  echo "This script produces the real, client-facing release APK and refuses to" >&2
+  echo "silently fall back to debug signing for that artifact." >&2
+  echo "See docs/ANDROID_RELEASE_SIGNING.md for how to generate and configure" >&2
+  echo "the production upload keystore before running this script." >&2
+  exit 1
+fi
+
 flutter build apk --release --dart-define=ENV=production
 echo
 echo "Built: build/app/outputs/flutter-apk/app-release.apk"
