@@ -91,6 +91,7 @@ class _FakeMcqExerciseRepository implements McqExerciseRepository {
     int exerciseId, {
     required int score,
     required int maxScore,
+    required List<int> questionOrder,
     required Map<int, String> answers,
   }) async => throw UnimplementedError();
 }

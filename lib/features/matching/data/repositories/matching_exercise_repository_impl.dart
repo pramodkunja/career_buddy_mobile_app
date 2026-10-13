@@ -31,15 +31,25 @@ class MatchingExerciseRepositoryImpl implements MatchingExerciseRepository {
     try {
       final answers = <String, Map<String, String>>{};
       for (final position in matches.keys) {
-        // Mirrors `exercises.js`'s own `answers[id] = {result: 'correct'}`
-        // / `{result: 'wrong', paired}` shape (`static/js/exercises.js:399,
-        // 405`) — persisted verbatim into `UserExerciseResult.answers_json`,
-        // not read back by this app, but kept faithful to what the web
-        // itself would have sent for the same matches.
+        // **Phase 16 correction**: `activities/grading.py`'s `matching`
+        // branch (confirmed by direct source read) now re-grades every
+        // submission server-side, checking
+        // `_answer(answers, i).get('paired') == str(i)` — it reads
+        // `paired` for EVERY pair, correct or wrong, never `result` (that
+        // key is accepted but ignored by grading; kept here only because
+        // the real web page still sends it too). The previous code below
+        // omitted `paired` entirely on a correct match (relying on a
+        // stale belief that only the wrong case needed it) — re-verified
+        // directly against the current `exercises.js` (lines ~401/407):
+        // both branches build `{result, paired}`, including when correct,
+        // where `paired` just happens to equal `position` itself. Omitting
+        // it meant the server's `_answer()` always saw a dict without a
+        // `paired` key for every CORRECT match, scoring it as wrong.
         final paired = matches[position]!;
-        answers[position.toString()] = paired == position
-            ? const {'result': 'correct'}
-            : {'result': 'wrong', 'paired': paired.toString()};
+        answers[position.toString()] = {
+          'result': paired == position ? 'correct' : 'wrong',
+          'paired': paired.toString(),
+        };
       }
       final data = await _remote.submit(exerciseId, score: score, maxScore: maxScore, answers: answers);
       return Success(data);

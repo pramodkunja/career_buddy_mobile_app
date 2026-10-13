@@ -12,7 +12,7 @@ abstract final class ExceptionMapper {
         UnauthorizedException() => const UnauthorizedFailure(),
         ForbiddenException(message: final msg) => ForbiddenFailure(msg),
         NotFoundException() => const NotFoundFailure(),
-        RateLimitException() => const RateLimitFailure(),
+        RateLimitException(message: final msg) => RateLimitFailure(msg),
         ValidationException(fieldErrors: final errors, message: final msg) => ValidationFailure(errors, msg),
         ServerException() => const ServerFailure(),
         UnexpectedResponseException() => const UnexpectedFailure(),

@@ -91,6 +91,70 @@ void main() {
       await expectLater(datasource.register(buildData()), throwsA(isA<ValidationException>()));
     });
 
+    group('REGRESSION (Phase 14) — register() surfaces the real Django field errors', () {
+      test('scrapes the duplicate-email message from its field-error block', () async {
+        const html = '''
+<div class="mb-3">
+  <input type="email" name="email" class="form-control" value="test@example.com">
+  <div class="invalid-feedback d-block">This email ID is already in use.</div>
+</div>
+''';
+        final dio = Dio(BaseOptions(baseUrl: 'https://example.test'))
+          ..httpClientAdapter = FakeHttpClientAdapter(statusCode: 200, body: html);
+        final datasource = AuthRemoteDataSource(ApiClient.forTesting(dio));
+
+        await expectLater(
+          datasource.register(buildData()),
+          throwsA(
+            isA<ValidationException>().having(
+              (e) => e.message,
+              'message',
+              'This email ID is already in use.',
+            ),
+          ),
+        );
+      });
+
+      test('joins multiple simultaneous field errors, one per line, rather than showing only the first', () async {
+        const html = '''
+<div class="invalid-feedback d-block">A user with that username already exists.</div>
+<div class="invalid-feedback d-block">This password is too common.</div>
+''';
+        final dio = Dio(BaseOptions(baseUrl: 'https://example.test'))
+          ..httpClientAdapter = FakeHttpClientAdapter(statusCode: 200, body: html);
+        final datasource = AuthRemoteDataSource(ApiClient.forTesting(dio));
+
+        await expectLater(
+          datasource.register(buildData()),
+          throwsA(
+            isA<ValidationException>().having(
+              (e) => e.message,
+              'message',
+              'A user with that username already exists.\nThis password is too common.',
+            ),
+          ),
+        );
+      });
+
+      test('falls back to the generic message when no recognizable field error is present (never a guess)', () async {
+        final dio = Dio(BaseOptions(baseUrl: 'https://example.test'))
+          ..httpClientAdapter = FakeHttpClientAdapter(statusCode: 200, body: '<html><body>Something else</body></html>');
+        final datasource = AuthRemoteDataSource(ApiClient.forTesting(dio));
+
+        await expectLater(
+          datasource.register(buildData()),
+          throwsA(
+            isA<ValidationException>().having(
+              (e) => e.message,
+              'message',
+              'Registration failed — please check your details (including your email OTP '
+                  'verification) and try again.',
+            ),
+          ),
+        );
+      });
+    });
+
     // Phase 1 Critical Fixes — `has_experience`/`has_abroad_experience` are
     // real Django `TypedChoiceField`s whose only valid `<option>` values are
     // `"True"`/`"False"` (capitalized, Python's `str(bool)` convention,

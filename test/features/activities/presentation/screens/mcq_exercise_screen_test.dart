@@ -49,10 +49,13 @@ class _FakeMcqExerciseRepository implements McqExerciseRepository {
     int exerciseId, {
     required int score,
     required int maxScore,
+    required List<int> questionOrder,
     required Map<int, String> answers,
   }) async {
-    // Mirrors the real `submit_exercise` endpoint for MCQ: it doesn't
-    // grade, it just echoes back whatever the client sent.
+    // This fake just echoes back whatever the client sent — the real
+    // `submit_exercise` endpoint now re-grades MCQ server-side (Phase 16),
+    // but this screen-level test only needs *a* response shape, not real
+    // grading, so a plain echo is still sufficient here.
     final percentage = maxScore > 0 ? (score / maxScore * 100).round() : 0;
     return Success((score: score, maxScore: maxScore, percentage: percentage, attemptNumber: 1));
   }

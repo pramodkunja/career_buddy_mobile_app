@@ -36,7 +36,13 @@ void main() {
     // it's given back, exactly like the real `submit_exercise` endpoint
     // does for MCQ.
     test('echoes back the given score/maxScore and computes the percentage', () async {
-      final result = await repo.submitMcqExercise(9205, score: 3, maxScore: 4, answers: {1: 'b', 2: 'b', 3: 'a', 4: 'c'});
+      final result = await repo.submitMcqExercise(
+        9205,
+        score: 3,
+        maxScore: 4,
+        questionOrder: const [1, 2, 3, 4],
+        answers: {1: 'b', 2: 'b', 3: 'a', 4: 'c'},
+      );
       final echo = (result as Success<McqSubmitEcho>).value;
 
       expect(echo.score, 3);
@@ -45,22 +51,28 @@ void main() {
     });
 
     test('records a demo attempt and marks the sub-activity complete', () async {
-      await repo.submitMcqExercise(9205, score: 4, maxScore: 4, answers: {1: 'b', 2: 'b', 3: 'a', 4: 'b'});
+      await repo.submitMcqExercise(
+        9205,
+        score: 4,
+        maxScore: 4,
+        questionOrder: const [1, 2, 3, 4],
+        answers: {1: 'b', 2: 'b', 3: 'a', 4: 'b'},
+      );
 
       expect(DemoProgressStore.instance.lastAttemptFor(9205), isNotNull);
       expect(DemoProgressStore.instance.isSubActivityComplete(9108), isTrue);
     });
 
     test('attemptNumber increments across repeated submissions', () async {
-      await repo.submitMcqExercise(9205, score: 1, maxScore: 4, answers: {1: 'b'});
-      final second = await repo.submitMcqExercise(9205, score: 1, maxScore: 4, answers: {1: 'b'});
+      await repo.submitMcqExercise(9205, score: 1, maxScore: 4, questionOrder: const [1], answers: {1: 'b'});
+      final second = await repo.submitMcqExercise(9205, score: 1, maxScore: 4, questionOrder: const [1], answers: {1: 'b'});
       final echo = (second as Success<McqSubmitEcho>).value;
 
       expect(echo.attemptNumber, 2);
     });
 
     test('an unknown id returns a NotFoundFailure', () async {
-      final result = await repo.submitMcqExercise(1, score: 0, maxScore: 0, answers: {});
+      final result = await repo.submitMcqExercise(1, score: 0, maxScore: 0, questionOrder: const [], answers: {});
       expect(result, isA<Failed<McqSubmitEcho>>());
     });
   });

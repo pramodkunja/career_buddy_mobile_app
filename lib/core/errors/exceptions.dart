@@ -40,7 +40,15 @@ final class NotFoundException extends AppException {
 }
 
 final class RateLimitException extends AppException {
-  const RateLimitException([super.message = 'Too many requests.']);
+  // Same default wording `RateLimitFailure` always showed before
+  // `ExceptionMapper` started passing this message through verbatim (Phase
+  // 14) — kept identical so every *other* bare `RateLimitException()` call
+  // site (the generic `ApiExceptionsInterceptor`, Mock Interview's own 429
+  // handling) shows exactly the same text as before; only a caller that
+  // supplies its own, more specific message (e.g. the auth OTP endpoints'
+  // real server-provided text) now actually reaches the user instead of
+  // being silently discarded.
+  const RateLimitException([super.message = 'Too many attempts. Please wait a moment and try again.']);
 }
 
 final class UnexpectedResponseException extends AppException {

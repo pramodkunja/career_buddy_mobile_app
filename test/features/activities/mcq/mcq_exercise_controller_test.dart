@@ -30,6 +30,7 @@ class _FakeMcqExerciseRepository implements McqExerciseRepository {
   Result<McqSubmitEcho>? submitResult;
   int submitCallCount = 0;
   Map<int, String>? lastSubmittedAnswers;
+  List<int>? lastSubmittedQuestionOrder;
   int? lastSubmittedScore;
   int? lastSubmittedMaxScore;
 
@@ -41,10 +42,12 @@ class _FakeMcqExerciseRepository implements McqExerciseRepository {
     int exerciseId, {
     required int score,
     required int maxScore,
+    required List<int> questionOrder,
     required Map<int, String> answers,
   }) async {
     submitCallCount++;
     lastSubmittedAnswers = answers;
+    lastSubmittedQuestionOrder = questionOrder;
     lastSubmittedScore = score;
     lastSubmittedMaxScore = maxScore;
     return submitResult!;
@@ -123,6 +126,12 @@ void main() {
         expect(repo.lastSubmittedScore, 1);
         expect(repo.lastSubmittedMaxScore, 2);
         expect(repo.lastSubmittedAnswers, {100: 'a', 101: 'b'});
+        // REGRESSION (Phase 16): the repository needs the exercise's own
+        // question order (database ids, in the exact order the server
+        // originally listed them) to build the server's real, position-keyed
+        // submission contract — never re-derived by sorting the ids, since
+        // id order and `order`-field order are not guaranteed to match.
+        expect(repo.lastSubmittedQuestionOrder, [100, 101]);
       },
     );
 

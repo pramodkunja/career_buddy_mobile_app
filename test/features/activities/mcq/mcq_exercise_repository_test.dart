@@ -88,7 +88,7 @@ void main() {
         headers: _jsonHeaders,
       );
 
-      final result = await repo.submitMcqExercise(56, score: 1, maxScore: 1, answers: {123: 'b'});
+      final result = await repo.submitMcqExercise(56, score: 1, maxScore: 1, questionOrder: const [123], answers: {123: 'b'});
 
       expect(result, isA<Success>());
       expect((result as Success).value.score, 1);
@@ -96,8 +96,72 @@ void main() {
 
     test('returns Failed with ForbiddenFailure for an unauthorized activity', () async {
       final repo = _repoReturning(statusCode: 403, body: '', headers: _htmlHeaders);
-      final result = await repo.submitMcqExercise(56, score: 0, maxScore: 1, answers: const {});
+      final result = await repo.submitMcqExercise(56, score: 0, maxScore: 1, questionOrder: const [], answers: const {});
       expect((result as Failed).failure, isA<ForbiddenFailure>());
+    });
+
+    group('REGRESSION (Phase 16)', () {
+      test(
+        'keys the outgoing "answers" by 1-based question position (never the database id), each value a '
+        '{"chosen": letter} map — matching activities/grading.py\'s mcq branch exactly',
+        () async {
+          RequestOptions? captured;
+          final dio = Dio(BaseOptions(baseUrl: 'http://test'))
+            ..httpClientAdapter = FakeHttpClientAdapter(
+              statusCode: 200,
+              body: jsonEncode({'status': 'ok', 'score': 2, 'max_score': 3, 'percentage': 67, 'attempt': 1}),
+              headers: _jsonHeaders,
+              onRequest: (o) => captured = o,
+            )
+            ..interceptors.add(ApiExceptionsInterceptor());
+          final repo = McqExerciseRepositoryImpl(McqExerciseRemoteDataSource(ApiClient.forTesting(dio)));
+
+          // Deliberately non-sequential, out-of-order database ids — the
+          // 3rd question in the exercise's real order has the *smallest*
+          // id, proving the fix keys by position-in-questionOrder, not by
+          // sorting or otherwise guessing from the id values themselves.
+          await repo.submitMcqExercise(
+            56,
+            score: 2,
+            maxScore: 3,
+            questionOrder: const [740, 12, 305],
+            answers: const {740: 'b', 12: 'a', 305: 'd'},
+          );
+
+          final sentAnswers = (captured!.data as Map<String, dynamic>)['answers'] as Map<String, dynamic>;
+          expect(sentAnswers, {
+            '1': {'chosen': 'b'},
+            '2': {'chosen': 'a'},
+            '3': {'chosen': 'd'},
+          });
+        },
+      );
+
+      test('omits a position entirely when that question was never answered, rather than sending a null/empty guess', () async {
+        RequestOptions? captured;
+        final dio = Dio(BaseOptions(baseUrl: 'http://test'))
+          ..httpClientAdapter = FakeHttpClientAdapter(
+            statusCode: 200,
+            body: jsonEncode({'status': 'ok', 'score': 1, 'max_score': 2, 'percentage': 50, 'attempt': 1}),
+            headers: _jsonHeaders,
+            onRequest: (o) => captured = o,
+          )
+          ..interceptors.add(ApiExceptionsInterceptor());
+        final repo = McqExerciseRepositoryImpl(McqExerciseRemoteDataSource(ApiClient.forTesting(dio)));
+
+        await repo.submitMcqExercise(
+          56,
+          score: 1,
+          maxScore: 2,
+          questionOrder: const [11, 22],
+          answers: const {11: 'c'}, // question 22 (position 2) was never answered
+        );
+
+        final sentAnswers = (captured!.data as Map<String, dynamic>)['answers'] as Map<String, dynamic>;
+        expect(sentAnswers, {
+          '1': {'chosen': 'c'},
+        });
+      });
     });
   });
 }

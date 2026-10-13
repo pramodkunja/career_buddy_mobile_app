@@ -4,6 +4,7 @@ import '../../../../core/errors/exceptions.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../../core/network/api_endpoints.dart';
 import '../../../../core/utils/django_bool.dart';
+import '../../../../core/utils/html_unescape.dart';
 import '../../domain/entities/student_registration_data.dart';
 
 /// Talks to the Django session-auth login view directly (there is no JSON
@@ -18,15 +19,72 @@ import '../../domain/entities/student_registration_data.dart';
 ///   a 302; a failed one re-renders the same form with a 200. Auto-follow
 ///   would turn both into a 200 on the destination page, making them
 ///   indistinguishable.
-/// - The backend renders one generic error for both "wrong credentials"
-///   and "employer account used on the student portal" — the JSON contract
-///   doesn't expose which, so this reports one generic
-///   [ValidationException] rather than scraping the rendered HTML for the
-///   exact message.
+/// - **Phase 14**: a failed login's 200 response actually renders a real,
+///   specific, safe-to-show error — `login()` now scrapes it instead of
+///   reporting one hardcoded generic string for every failure. Two real,
+///   distinct cases exist (`users/views.py:222-244`, re-read this phase):
+///   (1) `LoginForm.clean()` (`users/forms.py:575-583`) raises
+///   "Employer accounts cannot log in through the student portal." when the
+///   submitted credentials belong to an employer account — rendered inside
+///   `login.html:49-65`'s own `.alert.alert-danger` block, found by
+///   [_parseFormErrorAlert]. (2) A 5-failed-attempts/15-minute lockout
+///   (`LOGIN_FAILURE_LIMIT`/`LOGIN_LOCKOUT_SECONDS`, `users/views.py:195-
+///   196`, checked *before* form validation, so it never populates
+///   `form.errors` at all) instead flashes "Too many failed login attempts.
+///   Please try again in a few minutes." via Django's `messages` framework
+///   — the same shared `.messages-container` (`base.html:224-235`) every
+///   other flashed error in this app already uses, found by
+///   [_parseFlashedMessage]. Both are checked, in that priority order
+///   (form-level first, since it's the more specific signal when present);
+///   if neither matches, [_genericLoginFailureMessage] is used — never a
+///   guess, and never anything that would reveal whether a given username
+///   exists (Django's own default "wrong credentials" wording, which this
+///   client only ever surfaces verbatim via [_parseFormErrorAlert], never
+///   paraphrases or infers from the status code alone).
 class AuthRemoteDataSource {
   AuthRemoteDataSource(this._apiClient);
 
   final ApiClient _apiClient;
+
+  static const _genericLoginFailureMessage =
+      'Invalid username or password, or this account cannot sign in here.';
+
+  /// `login.html:49-65`'s own `<div class="alert alert-danger py-2
+  /// rounded-3 small mb-4" ...>` — every `form.errors` entry Django
+  /// rendered (the login form's `clean()` raises at most one, so a single
+  /// match is expected, but this still scans every error this exact block
+  /// contains rather than assuming there's only one). The web page's own
+  /// `me-1` icon margin on this specific block (vs. `base.html`'s flashed
+  /// messages, which use `me-2`) is incidental, but happens to keep the two
+  /// patterns from ever cross-matching the wrong block even without
+  /// scoping to the outer div first.
+  static final _loginFormErrorPattern = RegExp(
+    r'<i class="fas fa-exclamation-circle me-1"></i>\s*([\s\S]*?)\s*</div>',
+  );
+
+  /// `base.html:224-235`'s shared flashed-message container — the same
+  /// `role="alert"` signal already established elsewhere in this app (e.g.
+  /// `resume_html_parser.dart`'s `parseFlashedErrorMessage`) as this
+  /// codebase's generic "a Django `messages.error(...)` was flashed" scrape.
+  /// Re-declared here (not imported) per this codebase's own convention of
+  /// keeping each feature's regexes file-local rather than sharing them
+  /// across unrelated features.
+  static final _flashedMessagePattern = RegExp(
+    r'class="alert alert-[a-z]+[^"]*"[^>]*role="alert">\s*(?:<i[^>]*></i>\s*)?([^<]*)',
+  );
+
+  static String _unescape(String value) => unescapeHtmlEntities(value);
+
+  /// Returns the real error Django rendered for a failed login, or `null`
+  /// if neither known pattern matched (never a guess — callers fall back to
+  /// [_genericLoginFailureMessage]).
+  static String? _parseLoginFailureMessage(String html) {
+    final formError = _loginFormErrorPattern.firstMatch(html)?.group(1)?.trim();
+    if (formError != null && formError.isNotEmpty) return _unescape(formError);
+    final flashed = _flashedMessagePattern.firstMatch(html)?.group(1)?.trim();
+    if (flashed != null && flashed.isNotEmpty) return _unescape(flashed);
+    return null;
+  }
 
   Future<String> login({
     required String usernameOrEmail,
@@ -47,6 +105,7 @@ class AuthRemoteDataSource {
           contentType: Headers.formUrlEncodedContentType,
           followRedirects: false,
           validateStatus: (_) => true,
+          responseType: ResponseType.plain,
           headers: {'X-CSRFToken': csrfToken ?? ''},
         ),
       );
@@ -55,8 +114,9 @@ class AuthRemoteDataSource {
         return usernameOrEmail;
       }
       if (response.statusCode == 200) {
-        const message = 'Invalid username or password, or this account cannot sign in here.';
-        throw const ValidationException({'form': [message]}, message);
+        final html = (response.data as String?) ?? '';
+        final message = _parseLoginFailureMessage(html) ?? _genericLoginFailureMessage;
+        throw ValidationException({'form': [message]}, message);
       }
       throw ServerException(response.statusCode);
     } on DioException catch (e) {
@@ -150,6 +210,48 @@ class AuthRemoteDataSource {
     }
   }
 
+  static const _genericRegisterFailureMessage =
+      'Registration failed — please check your details (including your email OTP '
+      'verification) and try again.';
+
+  /// `register.html`'s per-field error blocks — `{% if form.X.errors %}
+  /// <div class="invalid-feedback d-block">{{ form.X.errors.0 }}</div>
+  /// {% endif %}`, confirmed present for every field this form has (e.g.
+  /// `register.html:189` for `email`, covering both the "this email ID is
+  /// already in use" and "verify this email address" branches
+  /// `users/views.py:161-171` adds via `form.add_error('email', ...)`, not
+  /// just ordinary field-validation failures). Exactly the same markup
+  /// convention `ProfileRemoteDataSource`'s own `_fieldErrorPattern` already
+  /// scrapes — re-declared here per this codebase's file-local-regex
+  /// convention, not shared, since Django renders no field name alongside
+  /// each error (only inside the stripped `{% if %}` tag itself), so
+  /// (consistent with that existing precedent) only the message text is
+  /// recoverable, never which field it belongs to.
+  static final _registerFieldErrorPattern = RegExp(r'invalid-feedback d-block">([^<]+)<');
+
+  /// `register.html:520-528`'s whole-form error block — `{% for error in
+  /// form.non_field_errors %}<i class="fas fa-exclamation-circle
+  /// me-1"></i>{{ error }}<br>{% endfor %}`. `RegisterForm` itself never
+  /// raises a non-field `ValidationError` today (confirmed: no `clean()`
+  /// override exists on it), so this is expected to never actually match in
+  /// practice — scanned anyway so a future server-side change that does add
+  /// one is not silently dropped.
+  static final _registerNonFieldErrorPattern = RegExp(
+    r'<i class="fas fa-exclamation-circle me-1"></i>([^<]*)<br>',
+  );
+
+  /// Every real, specific error Django rendered for a failed registration
+  /// (field errors, then any whole-form error), joined one per line — or
+  /// `null` if nothing recognizable was found (never a guess; callers fall
+  /// back to [_genericRegisterFailureMessage]).
+  static String? _parseRegisterFailureMessage(String html) {
+    final messages = [
+      for (final m in _registerFieldErrorPattern.allMatches(html)) m.group(1)!.trim(),
+      for (final m in _registerNonFieldErrorPattern.allMatches(html)) m.group(1)!.trim(),
+    ].where((m) => m.isNotEmpty).map(_unescape).toSet().toList();
+    return messages.isEmpty ? null : messages.join('\n');
+  }
+
   /// `users/views.py:register_view` — `multipart/form-data` (the resume
   /// upload requires it), same 302-success/200-failure convention as
   /// [login]. The server independently re-checks the email against the
@@ -215,6 +317,7 @@ class AuthRemoteDataSource {
         options: Options(
           followRedirects: false,
           validateStatus: (_) => true,
+          responseType: ResponseType.plain,
           headers: {'X-CSRFToken': csrfToken ?? ''},
         ),
       );
@@ -223,10 +326,9 @@ class AuthRemoteDataSource {
         return data.username;
       }
       if (response.statusCode == 200) {
-        const message =
-            'Registration failed — please check your details (including your email OTP '
-            'verification) and try again.';
-        throw const ValidationException({'form': [message]}, message);
+        final html = (response.data as String?) ?? '';
+        final message = _parseRegisterFailureMessage(html) ?? _genericRegisterFailureMessage;
+        throw ValidationException({'form': [message]}, message);
       }
       throw ServerException(response.statusCode);
     } on DioException catch (e) {

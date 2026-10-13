@@ -71,6 +71,7 @@ class DemoMcqExerciseRepository implements McqExerciseRepository {
     int exerciseId, {
     required int score,
     required int maxScore,
+    required List<int> questionOrder,
     required Map<int, String> answers,
   }) async {
     await Future<void>.delayed(_networkDelay);

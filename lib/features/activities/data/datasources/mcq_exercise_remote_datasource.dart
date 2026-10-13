@@ -66,10 +66,27 @@ class McqExerciseRemoteDataSource {
     }
   }
 
+  /// **Phase 16**: `activities/grading.py`'s `mcq` branch (confirmed by
+  /// direct source read) now re-grades every submission server-side —
+  /// `submit_exercise` no longer trusts the client's `score` at all for
+  /// this exercise type. It requires `answers` keyed `"1"`, `"2"`, ... —
+  /// the question's **1-based position** in `exercise.questions.all()`
+  /// (`Question.Meta.ordering = ['order']`, confirmed) — each value a dict
+  /// `{"chosen": "<letter>"}`; any non-dict entry (e.g. a flat string) is
+  /// silently treated as empty (`_answer()`'s `isinstance(..., dict)`
+  /// check), so a wrongly-shaped submission doesn't error, it just scores
+  /// 0 regardless of correctness. Critically, `questions_json`'s own `id`
+  /// field (which [McqQuestion.id] comes from) is the database primary
+  /// key, confirmed **not** the same as this position — [questionOrder]
+  /// must be the ids in the exact order the page originally listed them
+  /// (i.e. `exercise.questions`'s own list order, never re-sorted), so
+  /// this method can derive each one's real 1-based position itself
+  /// rather than the caller guessing it.
   Future<McqSubmitEcho> submitMcqExercise(
     int exerciseId, {
     required int score,
     required int maxScore,
+    required List<int> questionOrder,
     required Map<int, String> answers,
   }) async {
     try {
@@ -77,12 +94,16 @@ class McqExerciseRemoteDataSource {
       // screen (established at login) — no extra GET needed first, same
       // reasoning as `MatchingExerciseRemoteDataSource.submit`.
       final csrfToken = await _apiClient.readCookie('csrftoken');
+      final positionedAnswers = <String, Map<String, String>>{
+        for (var i = 0; i < questionOrder.length; i++)
+          if (answers[questionOrder[i]] != null) '${i + 1}': {'chosen': answers[questionOrder[i]]!},
+      };
       final response = await _apiClient.dio.post(
         ApiEndpoints.submitExercise(exerciseId),
         data: {
           'score': score,
           'max_score': maxScore,
-          'answers': answers.map((questionId, letter) => MapEntry(questionId.toString(), letter)),
+          'answers': positionedAnswers,
         },
         options: Options(headers: {'X-CSRFToken': csrfToken ?? ''}),
       );

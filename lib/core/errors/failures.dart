@@ -36,7 +36,7 @@ final class NotFoundFailure extends Failure {
 }
 
 final class RateLimitFailure extends Failure {
-  const RateLimitFailure() : super('Too many attempts. Please wait a moment and try again.');
+  const RateLimitFailure([super.message = 'Too many attempts. Please wait a moment and try again.']);
 }
 
 final class UnexpectedFailure extends Failure {

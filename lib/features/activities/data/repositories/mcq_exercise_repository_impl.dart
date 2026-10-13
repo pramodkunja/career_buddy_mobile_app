@@ -25,10 +25,17 @@ class McqExerciseRepositoryImpl implements McqExerciseRepository {
     int exerciseId, {
     required int score,
     required int maxScore,
+    required List<int> questionOrder,
     required Map<int, String> answers,
   }) async {
     try {
-      final data = await _remote.submitMcqExercise(exerciseId, score: score, maxScore: maxScore, answers: answers);
+      final data = await _remote.submitMcqExercise(
+        exerciseId,
+        score: score,
+        maxScore: maxScore,
+        questionOrder: questionOrder,
+        answers: answers,
+      );
       return Success(data);
     } on AppException catch (e) {
       return Failed(ExceptionMapper.map(e));

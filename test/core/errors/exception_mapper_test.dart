@@ -28,5 +28,24 @@ void main() {
     test('maps an unrecognized error to UnexpectedFailure', () {
       expect(ExceptionMapper.map(Exception('boom')), isA<UnexpectedFailure>());
     });
+
+    test(
+      'REGRESSION (Phase 14): a RateLimitException\'s own server-provided message is no longer '
+      'discarded in favor of a hardcoded one (e.g. the auth OTP endpoints\' real 429 body text)',
+      () {
+        final failure = ExceptionMapper.map(
+          const RateLimitException('Too many verification requests. Please try again later.'),
+        );
+
+        expect(failure, isA<RateLimitFailure>());
+        expect(failure.message, 'Too many verification requests. Please try again later.');
+      },
+    );
+
+    test('a bare RateLimitException() (no custom message) still shows the same generic wording as before', () {
+      final failure = ExceptionMapper.map(const RateLimitException());
+
+      expect(failure.message, 'Too many attempts. Please wait a moment and try again.');
+    });
   });
 }

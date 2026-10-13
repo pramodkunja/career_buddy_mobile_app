@@ -101,6 +101,14 @@ class _MockInterviewQuestionViewState extends ConsumerState<MockInterviewQuestio
     final warning = widget.state.activeWarning;
     if (warning == null || identical(warning, _shownWarning)) return;
     _shownWarning = warning;
+    // The denominator is `resume_violation_state`'s own `terminate_threshold`
+    // (see `MockInterviewQuestionActive.terminateThreshold`'s doc comment) —
+    // never a hardcoded "3": that number only happens to be the updated
+    // backend's current config and is not guaranteed to stay that way. When
+    // it hasn't loaded yet (or the fetch failed), the count is shown with no
+    // denominator at all, rather than guessing one.
+    final threshold = widget.state.terminateThreshold;
+    final warningText = threshold != null ? 'Warning ${warning.count}/$threshold' : 'Warning ${warning.count}';
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       showDialog<void>(
@@ -114,7 +122,7 @@ class _MockInterviewQuestionViewState extends ConsumerState<MockInterviewQuestio
           ),
           content: Text(
             'Leaving the interview screen or losing focus is not permitted during the interview.\n\n'
-            'Warning ${warning.count}/3',
+            '$warningText',
           ),
           actions: [
             TextButton(

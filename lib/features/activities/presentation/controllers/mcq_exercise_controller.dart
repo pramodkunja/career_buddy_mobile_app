@@ -118,7 +118,13 @@ class McqExerciseController extends Notifier<McqExerciseState> {
 
     final result = await ref
         .read(mcqExerciseRepositoryProvider)
-        .submitMcqExercise(exercise.id, score: score, maxScore: maxScore, answers: selected);
+        .submitMcqExercise(
+          exercise.id,
+          score: score,
+          maxScore: maxScore,
+          questionOrder: [for (final q in exercise.questions) q.id],
+          answers: selected,
+        );
 
     state = switch (result) {
       Success(value: final echo) => McqExerciseSubmitted(

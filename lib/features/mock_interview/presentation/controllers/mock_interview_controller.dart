@@ -108,6 +108,7 @@ final class MockInterviewQuestionActive extends MockInterviewState {
     this.violationCount = 0,
     this.violationStatus = MalpracticeStatus.clean,
     this.activeWarning,
+    this.terminateThreshold,
   });
 
   final InterviewQuestion question;
@@ -122,6 +123,15 @@ final class MockInterviewQuestionActive extends MockInterviewState {
   /// 1614-1638`). Cleared by [MockInterviewController.acknowledgeWarning].
   final ViolationRecordResult? activeWarning;
 
+  /// `resume_violation_state`'s `terminate_threshold`
+  /// (`MALPRACTICE_TERMINATE_THRESHOLD`, `career_app/views.py:1213`) —
+  /// fetched once, best-effort, the first time a question loads (see
+  /// [MockInterviewController]'s `_terminateThreshold` field). `null` only
+  /// when that fetch hasn't completed yet or failed; the warning dialog
+  /// must never substitute a hardcoded number when this is `null` — it
+  /// should simply omit the denominator rather than guess.
+  final int? terminateThreshold;
+
   MockInterviewQuestionActive copyWith({
     InterviewQuestion? question,
     int? secondsRemaining,
@@ -131,6 +141,7 @@ final class MockInterviewQuestionActive extends MockInterviewState {
     MalpracticeStatus? violationStatus,
     ViolationRecordResult? activeWarning,
     bool clearActiveWarning = false,
+    int? terminateThreshold,
   }) {
     return MockInterviewQuestionActive(
       question: question ?? this.question,
@@ -140,13 +151,15 @@ final class MockInterviewQuestionActive extends MockInterviewState {
       violationCount: violationCount ?? this.violationCount,
       violationStatus: violationStatus ?? this.violationStatus,
       activeWarning: clearActiveWarning ? null : (activeWarning ?? this.activeWarning),
+      terminateThreshold: terminateThreshold ?? this.terminateThreshold,
     );
   }
 }
 
 /// The interview ended because of repeated malpractice violations
-/// (`MALPRACTICE_TERMINATE_THRESHOLD`, `career_app/views.py:1042`) — the
-/// server already scored whatever was answered so far
+/// (`MALPRACTICE_TERMINATE_THRESHOLD`, `career_app/views.py:1213`, verified
+/// = 3 in the updated backend) — the server already scored whatever was
+/// answered so far
 /// (`_score_and_finalize_session`); this state briefly shows the same
 /// "terminated" messaging as the web (`templates/resume_interview.html:
 /// 463-470`) before loading results.
@@ -172,6 +185,12 @@ final class MockInterviewResultsFailed extends MockInterviewState {
 class MockInterviewController extends Notifier<MockInterviewState> {
   Timer? _timer;
   bool _lastAdvance = false;
+
+  /// `MALPRACTICE_TERMINATE_THRESHOLD`, fetched once (see
+  /// [_ensureTerminateThreshold]) and reused for the rest of the interview —
+  /// it is a static server config value, not something that changes
+  /// question-to-question.
+  int? _terminateThreshold;
 
   MockInterviewRepository get _repository => ref.read(mockInterviewRepositoryProvider);
 
@@ -217,10 +236,25 @@ class MockInterviewController extends Notifier<MockInterviewState> {
 
   Future<void> retryLoadQuestion() => _loadNextQuestion(advance: _lastAdvance);
 
+  /// Fetches `resume_violation_state`'s `terminate_threshold` once, the
+  /// first time a question loads — best-effort, matching this feature's
+  /// other non-blocking server round-trips (`reportViolation`,
+  /// `uploadRecordedVideo`): a failed fetch just leaves [_terminateThreshold]
+  /// `null`, which the warning dialog treats as "don't show a denominator
+  /// yet", never as license to guess a number.
+  Future<void> _ensureTerminateThreshold() async {
+    if (_terminateThreshold != null) return;
+    final result = await _repository.getViolationState();
+    if (result case Success(value: final violationState)) {
+      _terminateThreshold = violationState.terminateThreshold;
+    }
+  }
+
   Future<void> _loadNextQuestion({required bool advance}) async {
     _timer?.cancel();
     _lastAdvance = advance;
     state = const MockInterviewLoadingQuestion();
+    await _ensureTerminateThreshold();
     final result = await _repository.getNextQuestion(advance: advance);
     switch (result) {
       case Success(value: final outcome):
@@ -230,6 +264,7 @@ class MockInterviewController extends Notifier<MockInterviewState> {
               question: question,
               secondsRemaining: question.timeRemainingSeconds,
               answerText: '',
+              terminateThreshold: _terminateThreshold,
             );
             _startTimer();
           case InterviewCompleted():

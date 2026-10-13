@@ -45,6 +45,8 @@ class _FakeMockInterviewRepository implements MockInterviewRepository {
   Result<AnswerSubmissionResult>? submitResult;
   Result<InterviewAnalyticsResult>? analyticsResult;
   final List<Result<ViolationRecordResult>> violationQueue = [];
+  Result<ViolationState>? violationStateResult;
+  int violationStateCallCount = 0;
 
   int submitCallCount = 0;
   int nextQuestionCallCount = 0;
@@ -73,8 +75,11 @@ class _FakeMockInterviewRepository implements MockInterviewRepository {
   }
 
   @override
-  Future<Result<ViolationState>> getViolationState() async =>
-      const Success(ViolationState(count: 0, status: MalpracticeStatus.clean, flagThreshold: 3, terminateThreshold: 5));
+  Future<Result<ViolationState>> getViolationState() async {
+    violationStateCallCount++;
+    return violationStateResult ??
+        const Success(ViolationState(count: 0, status: MalpracticeStatus.clean, flagThreshold: 2, terminateThreshold: 3));
+  }
 
   @override
   Future<Result<ViolationRecordResult>> recordViolation({required ViolationType type, double? durationSeconds}) async {
@@ -367,6 +372,79 @@ void main() {
       final state = container.read(mockInterviewControllerProvider) as MockInterviewQuestionActive;
       expect(state.activeWarning, isNull);
       expect(state.question.id, 1);
+    });
+
+    group('REGRESSION (Phase 17) — terminateThreshold is read dynamically, never hardcoded', () {
+      test('the real server-provided terminate_threshold (3) flows into the active question state', () async {
+        final repo = _FakeMockInterviewRepository()
+          ..nextQuestionQueue.add(Success(NextQuestionReady(_question())))
+          ..violationStateResult = const Success(
+            ViolationState(count: 0, status: MalpracticeStatus.clean, flagThreshold: 2, terminateThreshold: 3),
+          );
+        final container = _buildContainer(repo);
+        addTearDown(container.dispose);
+        final notifier = container.read(mockInterviewControllerProvider.notifier);
+
+        await notifier.start();
+        await notifier.confirmCameraLive();
+
+        final state = container.read(mockInterviewControllerProvider) as MockInterviewQuestionActive;
+        expect(state.terminateThreshold, 3);
+      });
+
+      test('a different configured terminate_threshold (5) flows through identically — proves this is never a baked-in number', () async {
+        final repo = _FakeMockInterviewRepository()
+          ..nextQuestionQueue.add(Success(NextQuestionReady(_question())))
+          ..violationStateResult = const Success(
+            ViolationState(count: 0, status: MalpracticeStatus.clean, flagThreshold: 3, terminateThreshold: 5),
+          );
+        final container = _buildContainer(repo);
+        addTearDown(container.dispose);
+        final notifier = container.read(mockInterviewControllerProvider.notifier);
+
+        await notifier.start();
+        await notifier.confirmCameraLive();
+
+        final state = container.read(mockInterviewControllerProvider) as MockInterviewQuestionActive;
+        expect(state.terminateThreshold, 5);
+      });
+
+      test('getViolationState is fetched once per interview, not re-fetched on every subsequent question', () async {
+        final repo = _FakeMockInterviewRepository()
+          ..nextQuestionQueue.addAll([
+            Success(NextQuestionReady(_question(id: 1))),
+            Success(NextQuestionReady(_question(id: 2))),
+          ]);
+        final container = _buildContainer(repo);
+        addTearDown(container.dispose);
+        final notifier = container.read(mockInterviewControllerProvider.notifier);
+        await notifier.start();
+        await notifier.confirmCameraLive();
+        expect(repo.violationStateCallCount, 1);
+
+        notifier.updateAnswerText('Yes.');
+        await notifier.submitAnswer();
+
+        final state = container.read(mockInterviewControllerProvider) as MockInterviewQuestionActive;
+        expect(state.question.id, 2);
+        expect(state.terminateThreshold, 3); // carried forward, not lost on the next question
+        expect(repo.violationStateCallCount, 1); // still only ever fetched once
+      });
+
+      test('a failed getViolationState leaves terminateThreshold null rather than guessing a number', () async {
+        final repo = _FakeMockInterviewRepository()
+          ..nextQuestionQueue.add(Success(NextQuestionReady(_question())))
+          ..violationStateResult = const Failed(ServerFailure());
+        final container = _buildContainer(repo);
+        addTearDown(container.dispose);
+        final notifier = container.read(mockInterviewControllerProvider.notifier);
+
+        await notifier.start();
+        await notifier.confirmCameraLive();
+
+        final state = container.read(mockInterviewControllerProvider) as MockInterviewQuestionActive;
+        expect(state.terminateThreshold, isNull);
+      });
     });
   });
 

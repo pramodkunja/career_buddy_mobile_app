@@ -13,10 +13,11 @@ extension MalpracticeStatusApi on MalpracticeStatus {
 }
 
 /// `resume_record_violation`'s own escalation decision
-/// (`career_app/views.py:1119-1126`): `warn` for the first couple of
-/// violations, `flagged` once `MALPRACTICE_FLAG_THRESHOLD` (3) is reached
-/// (session keeps running, just flagged for manual review), `terminated`
-/// once `MALPRACTICE_TERMINATE_THRESHOLD` (5) is reached (the interview is
+/// (`career_app/views.py:1289-1298`): `warn` for the first couple of
+/// violations, `flagged` once `MALPRACTICE_FLAG_THRESHOLD` (verified = 2 in
+/// the updated backend) is reached (session keeps running, just flagged for
+/// manual review), `terminated` once `MALPRACTICE_TERMINATE_THRESHOLD`
+/// (verified = 3 in the updated backend) is reached (the interview is
 /// force-ended server-side, same scoring path as a normal completion).
 enum ViolationAction { warn, flagged, terminated }
 
@@ -30,7 +31,7 @@ extension ViolationActionApi on ViolationAction {
 
 /// `InterviewViolation.TYPE_CHOICES` (`career_app/models.py:125-142`) —
 /// the exact strings `resume_record_violation`'s `type` field must be one
-/// of (`ALLOWED_VIOLATION_TYPES`, `career_app/views.py:1044`).
+/// of (`ALLOWED_VIOLATION_TYPES`, `career_app/views.py:1215`).
 ///
 /// This mobile client only ever actively reports [tabSwitch]/[windowBlur]
 /// (via `WidgetsBindingObserver.didChangeAppLifecycleState` — the real,
@@ -74,7 +75,7 @@ extension ViolationTypeApi on ViolationType {
   };
 }
 
-/// `resume_violation_state`'s response (`career_app/views.py:1047-1064`).
+/// `resume_violation_state`'s response (`career_app/views.py:1218-1235`).
 class ViolationState {
   const ViolationState({
     required this.count,
@@ -89,8 +90,8 @@ class ViolationState {
   final int terminateThreshold;
 }
 
-/// `resume_record_violation`'s response (`career_app/views.py:1137-1142`,
-/// or the shorter already-terminated shape at `1096-1100` which omits
+/// `resume_record_violation`'s response (`career_app/views.py:1308-1313`,
+/// or the shorter already-terminated shape at `1265-1271` which omits
 /// `type_occurrence_number` entirely — hence [typeOccurrenceNumber] is
 /// nullable here, not defaulted to a misleading `0`/`1`).
 class ViolationRecordResult {

@@ -3,6 +3,7 @@ import 'package:dio/dio.dart';
 import '../../../../core/errors/exceptions.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../../core/network/api_endpoints.dart';
+import '../../../../core/utils/html_unescape.dart';
 import '../../domain/entities/employer_registration_data.dart';
 
 /// Talks to the Employer Portal's session-auth login view directly — the
@@ -19,19 +20,52 @@ import '../../domain/entities/employer_registration_data.dart';
 ///   server-side (`accounts_app/views.py:92`) — this client doesn't need to
 ///   read that back; it already knows the session is an employer one
 ///   because this is the datasource that established it.
-/// - Same 302-success / 200-failure distinction as student login, and the
-///   same reason for one generic error message: the login page
-///   (`templates/employer_login/login.html:84-99`) renders Django's
-///   per-field form errors, one of which is the employer-profile check's
-///   own message ("Student accounts cannot log in through the employer
-///   portal.") and another the generic "wrong credentials" one — the
-///   200-vs-302 HTTP-status contract doesn't expose which, so (consistent
-///   with [AuthRemoteDataSource]) this reports one message that covers
-///   both rather than scraping the rendered HTML for the exact text.
+/// - Same 302-success / 200-failure distinction as student login.
+///   **Phase 14**: the 200 response's own rendered page carries a real,
+///   specific, safe error — `login()` now scrapes it instead of reporting
+///   one hardcoded generic string. `templates/employer_login/login.html:84-
+///   99` renders every `form.errors` entry inside its own `.alert.alert-
+///   danger` block, which is either Django's own "wrong credentials" text
+///   (template-overridden to a clean "Invalid username or password.") or
+///   `EmployerLoginForm.clean()`'s own distinct "Student accounts cannot
+///   log in through the employer portal." (`accounts_app/views.py:32-41`).
+///   Unlike student login, `EmployerLoginView` is a bare Django
+///   `auth_views.LoginView` with no lockout logic and no flashed-message
+///   fallback to also check (confirmed: no `messages.error` call anywhere
+///   on this path) — if the form-error block doesn't match, this falls back
+///   to the existing generic message rather than guessing.
 class EmployerAuthRemoteDataSource {
   EmployerAuthRemoteDataSource(this._apiClient);
 
   final ApiClient _apiClient;
+
+  static const _genericLoginFailureMessage =
+      'Invalid username or password, or this account cannot sign in through the employer portal.';
+
+  /// `employer_login/login.html:84-99`'s own `<div class="alert alert-
+  /// danger" style="border-radius: 12px; font-size: 0.85rem; padding:
+  /// 12px;">` block, anchored on its distinctive inline style (not just the
+  /// inner icon, which here is `me-2` — the same margin class `base.html`'s
+  /// own flashed messages use elsewhere in this app, so anchoring on the
+  /// icon alone could cross-match a flashed message on a page that happened
+  /// to carry one too). Captures the first error item's text, which in
+  /// practice is the only one `EmployerLoginForm.clean()`/Django's own
+  /// `AuthenticationForm` ever raises for this form.
+  static final _loginFormErrorPattern = RegExp(
+    r'alert alert-danger" style="border-radius: 12px; font-size: 0\.85rem; padding: 12px;">'
+    r'[\s\S]*?<i class="fas fa-exclamation-circle me-2"></i>\s*([\s\S]*?)\s*</div>',
+  );
+
+  static String _unescape(String value) => unescapeHtmlEntities(value);
+
+  /// Returns the real error Django rendered for a failed employer login, or
+  /// `null` if the known pattern didn't match (never a guess — callers fall
+  /// back to [_genericLoginFailureMessage]).
+  static String? _parseLoginFailureMessage(String html) {
+    final item = _loginFormErrorPattern.firstMatch(html)?.group(1)?.trim();
+    if (item == null || item.isEmpty) return null;
+    return _unescape(item);
+  }
 
   Future<String> login({
     required String usernameOrEmail,
@@ -52,6 +86,7 @@ class EmployerAuthRemoteDataSource {
           contentType: Headers.formUrlEncodedContentType,
           followRedirects: false,
           validateStatus: (_) => true,
+          responseType: ResponseType.plain,
           headers: {'X-CSRFToken': csrfToken ?? ''},
         ),
       );
@@ -60,9 +95,9 @@ class EmployerAuthRemoteDataSource {
         return usernameOrEmail;
       }
       if (response.statusCode == 200) {
-        const message =
-            'Invalid username or password, or this account cannot sign in through the employer portal.';
-        throw const ValidationException({'form': [message]}, message);
+        final html = (response.data as String?) ?? '';
+        final message = _parseLoginFailureMessage(html) ?? _genericLoginFailureMessage;
+        throw ValidationException({'form': [message]}, message);
       }
       throw ServerException(response.statusCode);
     } on DioException catch (e) {
@@ -138,6 +173,42 @@ class EmployerAuthRemoteDataSource {
     }
   }
 
+  static const _genericRegisterFailureMessage =
+      'Registration failed — please check your details (including both email OTP '
+      'verifications) and try again.';
+
+  /// `signup.html`'s per-field error blocks — the exact same `<div
+  /// class="invalid-feedback d-block">{{ form.X.errors.0 }}</div>`
+  /// convention `AuthRemoteDataSource.register`'s own
+  /// `_registerFieldErrorPattern` already scrapes for the student form (and
+  /// `ProfileRemoteDataSource`'s before that) — covers both the unverified-
+  /// email branch (`accounts_app/views.py:58-64`, `form.add_error('email',
+  /// ...)`/`form.add_error('hr_mail', ...)`) and ordinary field-validation
+  /// failures. Re-declared here per this codebase's file-local-regex
+  /// convention rather than shared.
+  static final _registerFieldErrorPattern = RegExp(r'invalid-feedback d-block">([^<]+)<');
+
+  /// `signup.html:291-298`'s whole-form error block — same markup as
+  /// `AuthRemoteDataSource.register`'s own `_registerNonFieldErrorPattern`.
+  /// `EmployerRegisterForm` has no `clean()` override today (confirmed), so
+  /// this is expected to never actually match — scanned anyway so a future
+  /// non-field error isn't silently dropped.
+  static final _registerNonFieldErrorPattern = RegExp(
+    r'<i class="fas fa-exclamation-circle me-1"></i>([^<]*)<br>',
+  );
+
+  /// Every real, specific error Django rendered for a failed employer
+  /// registration, joined one per line — or `null` if nothing recognizable
+  /// was found (never a guess; callers fall back to
+  /// [_genericRegisterFailureMessage]).
+  static String? _parseRegisterFailureMessage(String html) {
+    final messages = [
+      for (final m in _registerFieldErrorPattern.allMatches(html)) m.group(1)!.trim(),
+      for (final m in _registerNonFieldErrorPattern.allMatches(html)) m.group(1)!.trim(),
+    ].where((m) => m.isNotEmpty).map(_unescape).toSet().toList();
+    return messages.isEmpty ? null : messages.join('\n');
+  }
+
   /// `accounts_app.views.employer_register` — a `multipart/form-data` POST
   /// (`enctype="multipart/form-data"`, `signup.html:134`, needed for the
   /// optional `company_logo` file), same 302-success/200-failure contract
@@ -177,6 +248,7 @@ class EmployerAuthRemoteDataSource {
         options: Options(
           followRedirects: false,
           validateStatus: (_) => true,
+          responseType: ResponseType.plain,
           headers: {'X-CSRFToken': csrfToken ?? ''},
         ),
       );
@@ -185,10 +257,9 @@ class EmployerAuthRemoteDataSource {
         return data.username;
       }
       if (response.statusCode == 200) {
-        const message =
-            'Registration failed — please check your details (including both email OTP '
-            'verifications) and try again.';
-        throw const ValidationException({'form': [message]}, message);
+        final html = (response.data as String?) ?? '';
+        final message = _parseRegisterFailureMessage(html) ?? _genericRegisterFailureMessage;
+        throw ValidationException({'form': [message]}, message);
       }
       throw ServerException(response.statusCode);
     } on DioException catch (e) {
