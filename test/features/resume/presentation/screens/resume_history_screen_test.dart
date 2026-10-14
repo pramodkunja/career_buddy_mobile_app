@@ -9,6 +9,7 @@ import 'package:career_buddy_lms/features/auth/domain/entities/student_registrat
 import 'package:career_buddy_lms/features/auth/presentation/providers/auth_providers.dart';
 import 'package:career_buddy_lms/features/resume/domain/entities/resume_analysis.dart';
 import 'package:career_buddy_lms/features/resume/domain/entities/resume_history_item.dart';
+import 'package:career_buddy_lms/features/resume/domain/entities/resume_role.dart';
 import 'package:career_buddy_lms/features/resume/domain/repositories/resume_repository.dart';
 import 'package:career_buddy_lms/features/resume/presentation/controllers/resume_builder_controller.dart';
 import 'package:career_buddy_lms/features/resume/presentation/providers/resume_providers.dart';
@@ -75,6 +76,19 @@ class _FakeResumeRepository implements ResumeRepository {
 
   @override
   Future<Result<List<ResumeHistoryItem>>> getHistory() async => historyResult;
+
+  @override
+  Future<ResumeParseQuota?> getParseQuota() async => null;
+
+  @override
+  Future<Result<List<ResumeRole>>> getRoles() async => throw UnimplementedError();
+
+  @override
+  Future<Result<ResumeRoleSelection>> selectTargetRole({
+    required String role,
+    required String dept,
+    required String track,
+  }) async => throw UnimplementedError();
 }
 
 /// Avoids exercising the real `path_provider`/`url_launcher` plugins (no

@@ -349,6 +349,15 @@ abstract final class RoutePaths {
   /// redirect-to-the-same-result-template behavior.
   static const String resumeHistory = '/resume-builder/history';
 
+  /// Phase 23's role-fit picker (`docs/PHASE_22_ROLE_FIT_PICKER_AUDIT.md`).
+  /// Mobile-only route: on the real web this is a modal opened from the
+  /// landing page's "Choose Your Path" role cards (`roleAct`,
+  /// `landing.html:7589-7622`), not a page of its own — this app instead
+  /// gives it a dedicated, pushed screen reached from inside
+  /// [resumeBuilder] (see Phase 22's audit, §6, for why: the Phase 21 home
+  /// hero is explicitly out of scope for this entry point).
+  static const String resumeRolePicker = '/resume-builder/role-picker';
+
   /// The ATS result page's "Try Interview"/"Take Interview" CTAs link to
   /// `resume_start_interview` (`career_app/views.py:930`) — the AI Mock
   /// Interview flow, a genuinely separate feature from Resume Parsing/ATS

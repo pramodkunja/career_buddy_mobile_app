@@ -5,7 +5,10 @@ import '../../../core/network/api_client.dart';
 import '../../../core/network/api_endpoints.dart';
 import '../domain/entities/resume_analysis.dart';
 import '../domain/entities/resume_history_item.dart';
+import '../domain/entities/resume_role.dart';
+import '../domain/repositories/resume_repository.dart' show ResumeParseQuota, ResumeRoleSelection;
 import 'resume_html_parser.dart';
+import 'resume_role_parser.dart';
 
 /// `career_app.views` — Resume Parsing / ATS. Plain server-rendered HTML
 /// throughout, no JSON API (see `ApiEndpoints`'s doc comment on these
@@ -115,5 +118,72 @@ class ResumeRemoteDataSource {
   Future<void> _ensureCsrfCookie() async {
     if (await _apiClient.readCookie('csrftoken') != null) return;
     await _apiClient.dio.get(ApiEndpoints.resumeBuilderHome);
+  }
+
+  /// A dedicated GET of `resume_builder_home` purely to read the Free-plan
+  /// usage badge — deliberately **not** reusing [_ensureCsrfCookie], which
+  /// only fires conditionally (skipped whenever a CSRF cookie already
+  /// exists from any earlier request this session) and must keep that
+  /// behavior unchanged. This call always fires, so the count is always
+  /// current — e.g. right after an analysis just changed it — regardless
+  /// of cookie state. Best-effort: any failure (network, unexpected
+  /// response shape) simply returns `null`, exactly like a page the
+  /// parser couldn't find the badge on; this must never surface as an
+  /// error to the upload screen.
+  Future<ResumeParseQuota?> getParseQuota() async {
+    try {
+      final response = await _apiClient.dio.get<String>(
+        ApiEndpoints.resumeBuilderHome,
+        options: Options(responseType: ResponseType.plain, validateStatus: (_) => true),
+      );
+      return parseResumeParsesLeft(response.data ?? '');
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// `manual_resume_roles` (Phase 22's "Option B" catalog). Unlike every
+  /// other method here, this endpoint is **not** `@login_required` and
+  /// returns real JSON — confirmed directly (`ApiEndpoints.manualResumeRoles`'s
+  /// doc comment) — so no CSRF priming and no HTML parsing are involved.
+  Future<List<ResumeRole>> getRoles() async {
+    try {
+      final response = await _apiClient.dio.get<Map<String, dynamic>>(ApiEndpoints.manualResumeRoles);
+      return parseManualResumeRoles(response.data);
+    } on DioException catch (e) {
+      throw e.error is AppException ? e.error as AppException : const UnexpectedResponseException();
+    }
+  }
+
+  /// Sets `request.session['rb_role']` via `resume_builder_home`'s own
+  /// `?role=&dept=&track=` query parameters (confirmed directly,
+  /// `career_app/views.py`'s `_remember_target_role`) — the exact
+  /// mechanism the real landing page's role-picker modal uses. Confirms
+  /// success by checking the response actually echoes this selection back
+  /// (`parseTargetRoleBadge`) rather than assuming a 200 status means the
+  /// role was saved: an anonymous/expired session is redirected to the
+  /// login page by this same view's own `@login_required` before the
+  /// badge could ever render, which this treats as [UnauthorizedException]
+  /// — the same failure an unrelated unexpected-page-shape would also
+  /// produce, since both mean "the selection was not confirmed."
+  Future<ResumeRoleSelection> selectTargetRole({
+    required String role,
+    required String dept,
+    required String track,
+  }) async {
+    try {
+      final response = await _apiClient.dio.get<String>(
+        ApiEndpoints.resumeBuilderHome,
+        queryParameters: {'role': role, 'dept': dept, 'track': track},
+        options: Options(responseType: ResponseType.plain, validateStatus: (_) => true),
+      );
+      final echoed = parseTargetRoleBadge(response.data ?? '');
+      if (echoed == null || echoed.role != role || echoed.dept != dept) {
+        throw const UnauthorizedException();
+      }
+      return echoed;
+    } on DioException catch (e) {
+      throw e.error is AppException ? e.error as AppException : const UnexpectedResponseException();
+    }
   }
 }

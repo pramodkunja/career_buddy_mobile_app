@@ -1,21 +1,41 @@
 import 'package:flutter/material.dart';
 
 import '../../../../app/theme/app_spacing.dart';
+import 'home_hero.dart';
 import 'portal_card.dart';
 
-/// The guest branch of `{% block content %}` (`templates/home.html:1185-1274`)
-/// — the "for job seekers" / "for clients" portal cards. Copy (titles,
-/// descriptions, stat numbers) is reproduced verbatim from the template;
-/// see [PortalCard]'s own doc comment for the shared visual spec.
+/// The guest branch of `{% block content %}`. Previously mirrored the
+/// now-superseded `home.html:1185-1274` (the "for job seekers" / "for
+/// clients" portal cards only); Phase 21 adds [HomeHero] above those same
+/// cards, matching the updated `landing.html`'s own hero now sitting above
+/// its equivalent job-seeker/employer marketing sections
+/// (`landing.html:6536-6588` vs `6839-6945`). The portal cards themselves
+/// (titles, descriptions, stat numbers) are intentionally left unchanged
+/// this phase — see [PortalCard]'s own doc comment for the shared visual
+/// spec, and `docs/PHASE_20_HOME_LANDING_PARITY_AUDIT.md` §6 Gap 14 for the
+/// stat-number accuracy question this phase does not resolve.
 ///
-/// Out of scope for this batch (§17): the Seven Core Skill Areas,
-/// Featured Activities, How It Works, Testimonials, and closing CTA
-/// sections further down `home.html` — none of those are in the Batch 5A
-/// checklist, and `featured_activities` in particular isn't data this
-/// app has a way to fetch yet.
+/// Out of scope for this batch (§17, and unchanged by Phase 21): the Seven
+/// Core Skill Areas, Featured Activities, How It Works, Testimonials, and
+/// closing CTA sections further down `home.html`; the updated web's own
+/// Trust Strip/Features Grid/Career Journey/Choose-Your-Path/Skill-Up/
+/// Why-CareerBuddy/Videos/Stories/Final-CTA sections (confirmed absent from
+/// `landing.html` only above/below the hero this phase reproduces).
 class PublicHomeBody extends StatelessWidget {
-  const PublicHomeBody({required this.onLogin, required this.onRegister, required this.onEmployerLogin, required this.onEmployerRegister, super.key});
+  const PublicHomeBody({
+    required this.onGetStarted,
+    required this.onFindJobs,
+    required this.onCreateResume,
+    required this.onLogin,
+    required this.onRegister,
+    required this.onEmployerLogin,
+    required this.onEmployerRegister,
+    super.key,
+  });
 
+  final VoidCallback onGetStarted;
+  final VoidCallback onFindJobs;
+  final VoidCallback onCreateResume;
   final VoidCallback onLogin;
   final VoidCallback onRegister;
   final VoidCallback onEmployerLogin;
@@ -27,6 +47,8 @@ class PublicHomeBody extends StatelessWidget {
       padding: const EdgeInsets.all(AppSpacing.md),
       child: Column(
         children: [
+          HomeHero(onGetStarted: onGetStarted, onFindJobs: onFindJobs, onCreateResume: onCreateResume),
+          const SizedBox(height: AppSpacing.lg),
           PortalCard(
             assetImage: 'assets/images/job_seekers.png',
             badgeIcon: Icons.school_outlined,

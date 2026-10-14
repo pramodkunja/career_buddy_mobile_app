@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -13,6 +15,7 @@ import '../../../../shared/widgets/app_nav_drawer.dart';
 import '../../../../shared/widgets/app_top_bar.dart';
 import '../../../../shared/widgets/buddy_chatbot_overlay.dart';
 import '../../domain/entities/resume_analysis.dart';
+import '../../domain/repositories/resume_repository.dart' show ResumeParseQuota, ResumeRoleSelection;
 import '../controllers/resume_builder_controller.dart';
 import '../providers/resume_providers.dart';
 import '../widgets/resume_score_ring.dart';
@@ -46,11 +49,23 @@ class ResumeBuilderScreen extends ConsumerWidget {
               children: [
                 switch (state) {
                   ResumeResultState(result: final result) => _ResultView(result: result),
-                  ResumeIdle(errorMessage: final errorMessage) => _UploadForm(
-                    errorMessage: errorMessage,
-                    enabled: true,
+                  ResumeIdle(
+                    errorMessage: final errorMessage,
+                    parseQuota: final parseQuota,
+                    targetRole: final targetRole,
+                  ) =>
+                    _UploadForm(
+                      errorMessage: errorMessage,
+                      parseQuota: parseQuota,
+                      targetRole: targetRole,
+                      enabled: true,
+                    ),
+                  ResumeUploading(parseQuota: final parseQuota, targetRole: final targetRole) => _UploadForm(
+                    errorMessage: null,
+                    parseQuota: parseQuota,
+                    targetRole: targetRole,
+                    enabled: false,
                   ),
-                  ResumeUploading() => const _UploadForm(errorMessage: null, enabled: false),
                 },
                 const AppFooter(),
               ],
@@ -69,9 +84,16 @@ class ResumeBuilderScreen extends ConsumerWidget {
 /// (`d-none d-lg-flex`, line 171) are never shown on the web at any width
 /// this app targets — omitted here too, not dropped by oversight.
 class _UploadForm extends ConsumerStatefulWidget {
-  const _UploadForm({required this.errorMessage, required this.enabled});
+  const _UploadForm({
+    required this.errorMessage,
+    required this.parseQuota,
+    required this.targetRole,
+    required this.enabled,
+  });
 
   final String? errorMessage;
+  final ResumeParseQuota? parseQuota;
+  final ResumeRoleSelection? targetRole;
   final bool enabled;
 
   @override
@@ -80,6 +102,18 @@ class _UploadForm extends ConsumerStatefulWidget {
 
 class _UploadFormState extends ConsumerState<_UploadForm> {
   PlatformFile? _picked;
+
+  @override
+  void initState() {
+    super.initState();
+    // Fired once per mount — i.e. once when this screen first opens, and
+    // again each time it freshly remounts after `reset()` (navigating back
+    // from a completed analysis), which is exactly when the count needs to
+    // be re-read. Toggling between `ResumeIdle`/`ResumeUploading` while
+    // this widget stays mounted does NOT re-trigger this (same `State`,
+    // `initState` not re-called), so this never fires in a loop.
+    unawaited(ref.read(resumeBuilderControllerProvider.notifier).loadParseQuota());
+  }
 
   Future<void> _pickFile() async {
     final files = await FilePicker.pickFiles(
@@ -101,6 +135,18 @@ class _UploadFormState extends ConsumerState<_UploadForm> {
         .uploadAndAnalyze(filePath: file!.path!, fileName: file.name);
   }
 
+  /// Entirely optional — see `RolePickerScreen`'s own doc comment.
+  /// `setTargetRole` is only ever called with a selection the picker
+  /// itself already confirmed was saved server-side (never from a mere
+  /// tap); backing out of the picker returns `null` and leaves the
+  /// existing upload flow completely unaffected.
+  Future<void> _chooseTargetRole() async {
+    final selection = await context.push<ResumeRoleSelection>(RoutePaths.resumeRolePicker);
+    if (selection != null) {
+      ref.read(resumeBuilderControllerProvider.notifier).setTargetRole(selection);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -109,6 +155,16 @@ class _UploadFormState extends ConsumerState<_UploadForm> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           const _ResumeHero(),
+          if (widget.parseQuota != null) ...[
+            const SizedBox(height: AppSpacing.md),
+            _ParseQuotaBadge(quota: widget.parseQuota!),
+          ],
+          const SizedBox(height: AppSpacing.md),
+          _TargetRoleRow(
+            targetRole: widget.targetRole,
+            enabled: widget.enabled,
+            onChooseRole: _chooseTargetRole,
+          ),
           if (widget.errorMessage != null) ...[
             const SizedBox(height: AppSpacing.md),
             _ErrorBox(message: widget.errorMessage!),
@@ -240,6 +296,104 @@ class _UploadFormState extends ConsumerState<_UploadForm> {
             icon: Icons.work_outline,
             title: 'Job Recommendations',
             body: 'Discover active job openings from our employer portal that match your profile and skills.',
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// `resume_builder.html:191-195`'s Free-plan usage badge — only ever built
+/// when a real, server-provided [quota] is available (see
+/// `_UploadForm.build`'s `widget.parseQuota != null` guard); there is no
+/// "loading"/"error" rendering of this widget by design, matching the
+/// web's own `{% if parses_left is not None %}` all-or-nothing gate.
+class _ParseQuotaBadge extends StatelessWidget {
+  const _ParseQuotaBadge({required this.quota});
+
+  final ResumeParseQuota quota;
+
+  @override
+  Widget build(BuildContext context) {
+    final atLimit = quota.left == 0;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: atLimit ? const Color(0xFFFEF2F2) : const Color(0xFFF8FAFC),
+        border: Border.all(color: atLimit ? const Color(0xFFFECACA) : const Color(0xFFE2E8F0)),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.description_outlined, size: 14, color: atLimit ? const Color(0xFFDC2626) : AppColors.textMuted),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              'Free plan: ${quota.left} of ${quota.limit} resume analyses left',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: atLimit ? const Color(0xFFDC2626) : AppColors.textPrimary,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Phase 23's role-fit picker entry point — a mobile-only affordance (the
+/// real web's equivalent lives on the landing page's role cards, not this
+/// page, see `RolePickerScreen`'s doc comment). Mirrors
+/// `resume_builder.html:186-189`'s own "Target role: X · Y" badge once a
+/// selection exists; shows a "Choose Target Role" prompt otherwise. Always
+/// optional — the upload/analyze flow below works identically either way.
+class _TargetRoleRow extends StatelessWidget {
+  const _TargetRoleRow({required this.targetRole, required this.enabled, required this.onChooseRole});
+
+  final ResumeRoleSelection? targetRole;
+  final bool enabled;
+  final VoidCallback onChooseRole;
+
+  @override
+  Widget build(BuildContext context) {
+    final role = targetRole;
+    if (role == null) {
+      return SizedBox(
+        width: double.infinity,
+        child: OutlinedButton.icon(
+          onPressed: enabled ? onChooseRole : null,
+          icon: const Icon(Icons.person_search_outlined, size: 16),
+          label: const Text('Choose Target Role (optional)'),
+          style: OutlinedButton.styleFrom(visualDensity: VisualDensity.compact),
+        ),
+      );
+    }
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.my_location_outlined, size: 14, color: AppColors.textMuted),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              'Target role: ${role.role} · ${role.dept}',
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          TextButton(
+            onPressed: enabled ? onChooseRole : null,
+            style: TextButton.styleFrom(visualDensity: VisualDensity.compact, padding: EdgeInsets.zero),
+            child: const Text('Change', style: TextStyle(fontSize: 12)),
           ),
         ],
       ),

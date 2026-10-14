@@ -40,6 +40,7 @@ import 'package:career_buddy_lms/features/jam/presentation/screens/jam_topics_sc
 import 'package:career_buddy_lms/features/mock_tests/presentation/screens/mock_tests_hub_screen.dart';
 import 'package:career_buddy_lms/features/resume/domain/entities/resume_analysis.dart';
 import 'package:career_buddy_lms/features/resume/domain/entities/resume_history_item.dart';
+import 'package:career_buddy_lms/features/resume/domain/entities/resume_role.dart';
 import 'package:career_buddy_lms/features/resume/domain/repositories/resume_repository.dart';
 import 'package:career_buddy_lms/features/resume/presentation/providers/resume_providers.dart';
 import 'package:career_buddy_lms/features/resume/presentation/screens/resume_builder_screen.dart';
@@ -102,6 +103,19 @@ class _FakeResumeRepository implements ResumeRepository {
 
   @override
   Future<Result<List<ResumeHistoryItem>>> getHistory() async => const Success([]);
+
+  @override
+  Future<ResumeParseQuota?> getParseQuota() async => null;
+
+  @override
+  Future<Result<List<ResumeRole>>> getRoles() async => throw UnimplementedError();
+
+  @override
+  Future<Result<ResumeRoleSelection>> selectTargetRole({
+    required String role,
+    required String dept,
+    required String track,
+  }) async => throw UnimplementedError();
 }
 
 class _FakeProfileRepository implements ProfileRepository {

@@ -52,6 +52,7 @@ import '../../features/employer/presentation/screens/employer_home_screen.dart';
 import '../../features/home/presentation/screens/home_screen.dart';
 import '../../features/resume/presentation/screens/resume_builder_screen.dart';
 import '../../features/resume/presentation/screens/resume_history_screen.dart';
+import '../../features/resume/presentation/screens/role_picker_screen.dart';
 import '../../features/mock_tests/amcat/presentation/screens/amcat_mock_test_screen.dart';
 import '../../features/mock_tests/amcat/presentation/screens/cocubes_mock_test_screen.dart';
 import '../../features/mock_tests/domain/entities/quiz_subject.dart';
@@ -264,6 +265,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: RoutePaths.resumeHistory,
         builder: (context, state) => const ResumeHistoryScreen(),
+      ),
+      GoRoute(
+        path: RoutePaths.resumeRolePicker,
+        builder: (context, state) => const RolePickerScreen(),
       ),
       // The ATS result page's "Try Interview" CTA — Batch 9 implements the
       // real feature; both CTA call sites in `resume_builder_screen.dart`

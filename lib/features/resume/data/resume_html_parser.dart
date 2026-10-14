@@ -11,6 +11,7 @@
 import '../../../core/utils/html_unescape.dart';
 import '../domain/entities/resume_analysis.dart';
 import '../domain/entities/resume_history_item.dart';
+import '../domain/repositories/resume_repository.dart' show ResumeParseQuota;
 
 /// True when [html] is a `resume_match_result.html` render — the page's
 /// own `id="score-ring"` SVG element only exists on that template.
@@ -114,6 +115,44 @@ String? parseFlashedErrorMessage(String html) {
     r'class="alert alert-(?:error|danger)[^"]*"[^>]*>\s*(?:<i[^>]*></i>)?\s*([^<]*)',
   ).firstMatch(html);
   return match == null ? null : _unescape(match.group(1)!.trim());
+}
+
+/// `resume_builder_home`'s "Target role" badge (`resume_builder.html:
+/// 186-189`): `Target role: {{ target_role.role }} &middot; {{
+/// target_role.dept }}` — rendered only when `target_role` (i.e.
+/// `request.session['rb_role']`) is truthy, regardless of plan. This is
+/// the mechanism Phase 23's `selectTargetRole` uses to **confirm** a role
+/// selection actually took effect server-side, rather than assuming any
+/// 200 response means success: a `role`/`dept`/`track` query string sent
+/// to an anonymous/expired session is redirected to the login page by
+/// `resume_builder_home`'s own `@login_required` before this badge could
+/// ever render, so its absence (or a mismatch against what was just sent)
+/// reliably signals the selection was never saved.
+({String role, String dept})? parseTargetRoleBadge(String html) {
+  final match = RegExp(r'Target role:\s*([^<]*?)\s*&middot;\s*([^<]*?)\s*</span>').firstMatch(html);
+  if (match == null) return null;
+  final role = _unescape(match.group(1)!.trim());
+  final dept = _unescape(match.group(2)!.trim());
+  if (role.isEmpty || dept.isEmpty) return null;
+  return (role: role, dept: dept);
+}
+
+/// `resume_builder_home`'s Free-plan usage badge (`resume_builder.html:
+/// 191-195`): `<i class="fas fa-file-lines"></i> Free plan: {{ parses_left
+/// }} of {{ parse_limit }} resume analyses left`. That whole `<span>` is
+/// omitted server-side entirely for a paid plan (`{% if parses_left is not
+/// None %}`), so a `null` return here correctly covers both "paid plan"
+/// and "unexpected/malformed page" — this never guesses which. Also
+/// returns `null` for a value outside what the server could actually ever
+/// send (`left` negative, `limit` non-positive, or `left` exceeding
+/// `limit`) rather than display something nonsensical.
+ResumeParseQuota? parseResumeParsesLeft(String html) {
+  final match = RegExp(r'Free plan:\s*(\d+)\s*of\s*(\d+)\s*resume analyses left').firstMatch(html);
+  if (match == null) return null;
+  final left = int.tryParse(match.group(1)!);
+  final limit = int.tryParse(match.group(2)!);
+  if (left == null || limit == null || left < 0 || limit <= 0 || left > limit) return null;
+  return (left: left, limit: limit);
 }
 
 /// Parses `resume_history.html`'s `resumes` list. Each card is delimited

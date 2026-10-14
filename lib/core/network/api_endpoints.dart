@@ -461,6 +461,17 @@ abstract final class ApiEndpoints {
   /// file re-upload needed. Same response shape as [resumeJobMatch].
   static String resumeReanalyze(int resumeId) => '/resume-builder/reanalyze/$resumeId/';
 
+  /// `manual_resume_views.roles_api` (`business_english_lms/urls.py:93`,
+  /// `name='manual_resume_roles'`) — Phase 22/23's role-fit picker catalog
+  /// ("Option B"). Unlike every other constant in this section, this one is
+  /// **not** `@login_required` (confirmed directly: plain `@require_GET`)
+  /// and returns real `JsonResponse` JSON, not server-rendered HTML — the
+  /// one genuine JSON API in this whole feature area. A bare GET (no
+  /// `?slug=`/`?spec=`) returns `client_payload(full=True)`: every
+  /// built-in role (admin-extensible) with every field, not the lighter
+  /// `CARD_KEYS`-only shape the landing page's own inline script uses.
+  static const String manualResumeRoles = '/resume-builder/manual/roles/';
+
   /// Grammar (`subject_views.py`, mounted at `/subject/`). The 9 topics'
   /// text content is static (bundled as a JSON asset, see
   /// `GrammarDataSource`) — these are the genuinely dynamic, per-topic

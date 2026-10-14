@@ -54,8 +54,8 @@ GoRouter _router() => GoRouter(
   ],
 );
 
-Future<void> _pump(WidgetTester tester, {AuthUser? user}) async {
-  tester.view.physicalSize = const Size(400, 2400);
+Future<void> _pump(WidgetTester tester, {AuthUser? user, Size size = const Size(400, 2400)}) async {
+  tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1.0;
   addTearDown(tester.view.reset);
 
@@ -90,6 +90,57 @@ void main() {
       expect(find.textContaining('Post jobs, search verified candidates'), findsOneWidget);
       expect(find.text('Register Free'), findsOneWidget);
       expect(find.text('Register Company'), findsOneWidget);
+    });
+
+    group('REGRESSION (Phase 21) — unified hero', () {
+      testWidgets('renders the unified hero headline and all 3 CTA labels above the portal cards', (tester) async {
+        await _pump(tester);
+
+        expect(find.text('Build skills. Craft capability. Claim your career.'), findsOneWidget);
+        expect(find.text('Get Started'), findsOneWidget);
+        expect(find.text('Find Jobs'), findsOneWidget);
+        expect(find.text('Create Resume'), findsOneWidget);
+        // The hero is new, additive content — the existing portal cards
+        // below it must still be present, not replaced.
+        expect(find.text('for job seekers'), findsOneWidget);
+      });
+
+      testWidgets('tapping Get Started navigates to the registration placeholder, same as Register Free', (
+        tester,
+      ) async {
+        await _pump(tester);
+
+        await tester.tap(find.text('Get Started'));
+        await _pumpAfterTap(tester);
+
+        expect(find.text('Create Account'), findsOneWidget);
+      });
+
+      testWidgets(
+        'tapping Find Jobs pushes the dashboard route — in the real app, the auth guard (tested separately in '
+        'route_guards_test.dart) redirects an anonymous visitor from there to /login, matching '
+        "the real `dashboard()` view's own @login_required",
+        (tester) async {
+          await _pump(tester);
+
+          await tester.tap(find.text('Find Jobs'));
+          await _pumpAfterTap(tester);
+
+          expect(find.text('Dashboard Screen'), findsOneWidget);
+        },
+      );
+
+      testWidgets(
+        'tapping Create Resume pushes the resume-builder route — same auth-guard redirect note as Find Jobs applies',
+        (tester) async {
+          await _pump(tester);
+
+          await tester.tap(find.text('Create Resume'));
+          await _pumpAfterTap(tester);
+
+          expect(find.text('Resume Parsing'), findsOneWidget);
+        },
+      );
     });
 
     testWidgets('shows the default (non-personalized) chatbot greeting', (tester) async {
@@ -133,16 +184,23 @@ void main() {
   group('HomeScreen (authenticated)', () {
     const user = AuthUser(username: 'jane');
 
-    testWidgets('renders the authenticated hero cards and CTA buttons instead of the portal cards', (tester) async {
-      await _pump(tester, user: user);
+    testWidgets(
+      'REGRESSION (Phase 21): renders the same unified hero as a guest sees, not the old hero-image-cards/button-row',
+      (tester) async {
+        await _pump(tester, user: user);
 
-      expect(find.text('for job seekers'), findsNothing);
-      expect(find.text('Learn Business English'), findsOneWidget);
-      expect(find.text('Apply for Your Dream Job'), findsOneWidget);
-      expect(find.text('Parse Your Resume'), findsOneWidget);
-      expect(find.text('My Dashboard'), findsOneWidget);
-      expect(find.text('Browse Activities'), findsOneWidget);
-    });
+        expect(find.text('Build skills. Craft capability. Claim your career.'), findsOneWidget);
+        expect(find.text('Get Started'), findsOneWidget);
+        expect(find.text('Find Jobs'), findsOneWidget);
+        expect(find.text('Create Resume'), findsOneWidget);
+        // The old content this hero replaced for a logged-in student:
+        expect(find.text('Learn Business English'), findsNothing);
+        expect(find.text('Apply for Your Dream Job'), findsNothing);
+        expect(find.text('Parse Your Resume'), findsNothing);
+        expect(find.text('My Dashboard'), findsNothing);
+        expect(find.text('Browse Activities'), findsNothing);
+      },
+    );
 
     testWidgets('shows a personalized chatbot greeting', (tester) async {
       await _pump(tester, user: user);
@@ -152,19 +210,36 @@ void main() {
       expect(find.text('Hello Jane!'), findsOneWidget);
     });
 
-    testWidgets('tapping My Dashboard navigates to /dashboard', (tester) async {
+    testWidgets(
+      'REGRESSION (Phase 21): tapping Get Started goes to the dashboard, never back into registration for an '
+      'already-authenticated user',
+      (tester) async {
+        await _pump(tester, user: user);
+
+        await tester.tap(find.text('Get Started'));
+        await _pumpAfterTap(tester);
+
+        expect(find.text('Dashboard Screen'), findsOneWidget);
+        expect(find.text('Create Account'), findsNothing);
+      },
+    );
+
+    testWidgets('REGRESSION (Phase 21): tapping Find Jobs navigates to /dashboard (same destination as before)', (
+      tester,
+    ) async {
       await _pump(tester, user: user);
 
-      await tester.tap(find.text('My Dashboard'));
+      await tester.tap(find.text('Find Jobs'));
       await _pumpAfterTap(tester);
 
       expect(find.text('Dashboard Screen'), findsOneWidget);
     });
 
-    testWidgets('tapping Parse Your Resume navigates to the resume-builder placeholder', (tester) async {
+    testWidgets('tapping Create Resume navigates to the resume-builder placeholder (same destination/label as before, '
+        'renamed from "Parse Your Resume")', (tester) async {
       await _pump(tester, user: user);
 
-      await tester.tap(find.text('Parse Your Resume'));
+      await tester.tap(find.text('Create Resume'));
       await _pumpAfterTap(tester);
 
       expect(find.text('Resume Parsing'), findsOneWidget);
@@ -203,6 +278,28 @@ void main() {
       await _pumpAfterTap(tester);
 
       expect(find.text('Candidate Search'), findsOneWidget);
+    });
+  });
+
+  group('REGRESSION (Phase 21) — hero responsive layout', () {
+    // 320px is deliberately not included here: it surfaces a pre-existing,
+    // unrelated overflow in `PortalCard` (`portal_card.dart:96`, confirmed
+    // by direct debugging — a file this phase does not touch), not
+    // anything in the new hero. `HomeHero` itself is confirmed overflow-free
+    // at 320px in isolation — see `test/features/home/presentation/widgets/
+    // home_hero_test.dart`. Flagged in the Phase 21 report as a pre-existing
+    // issue to fix separately, per this phase's own scope boundary against
+    // changing the portal cards.
+    testWidgets('renders the hero without horizontal overflow at narrow phone widths, guest and student alike', (
+      tester,
+    ) async {
+      for (final size in [const Size(360, 2600), const Size(390, 2600), const Size(430, 2600)]) {
+        await _pump(tester, size: size);
+        expect(tester.takeException(), isNull);
+
+        await _pump(tester, user: const AuthUser(username: 'jane'), size: size);
+        expect(tester.takeException(), isNull);
+      }
     });
   });
 }

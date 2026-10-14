@@ -7,6 +7,7 @@ import '../../domain/entities/resume_history_item.dart';
 import '../../domain/repositories/resume_repository.dart';
 import '../controllers/resume_builder_controller.dart';
 import '../controllers/resume_history_controller.dart';
+import '../controllers/role_picker_controller.dart';
 
 final resumeRemoteDataSourceProvider = Provider<ResumeRemoteDataSource>((ref) {
   return ResumeRemoteDataSource(ref.watch(apiClientProvider));
@@ -23,4 +24,8 @@ final resumeBuilderControllerProvider = NotifierProvider<ResumeBuilderController
 final resumeHistoryControllerProvider = AsyncNotifierProvider<ResumeHistoryController, List<ResumeHistoryItem>>(
   ResumeHistoryController.new,
   retry: (retryCount, error) => null,
+);
+
+final rolePickerControllerProvider = NotifierProvider<RolePickerController, RolePickerState>(
+  RolePickerController.new,
 );

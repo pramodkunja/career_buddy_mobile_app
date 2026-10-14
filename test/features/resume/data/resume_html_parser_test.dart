@@ -217,6 +217,47 @@ void main() {
     });
   });
 
+  group('parseResumeParsesLeft (Phase 19)', () {
+    test('extracts the exact count/limit from the Free-plan badge', () {
+      const html = '''
+        <span class="badge bg-light text-dark border">
+            <i class="fas fa-file-lines"></i> Free plan: 3 of 4 resume analyses left
+        </span>
+      ''';
+      final quota = parseResumeParsesLeft(html);
+      expect(quota, isNotNull);
+      expect(quota!.left, 3);
+      expect(quota.limit, 4);
+    });
+
+    test('returns null when the badge is entirely absent (e.g. a paid-plan response)', () {
+      const paidPlanPageHtml = '''
+        <div class="resume-hero"><h1>Resume Analysis & ATS Score</h1></div>
+        <div class="upload-card">Drag & Drop your resume here</div>
+      ''';
+      expect(parseResumeParsesLeft(paidPlanPageHtml), isNull);
+    });
+
+    test('returns null for malformed/unexpected HTML without throwing', () {
+      expect(parseResumeParsesLeft('<html><body>completely unrelated page</body></html>'), isNull);
+      expect(parseResumeParsesLeft(''), isNull);
+      expect(() => parseResumeParsesLeft('<<<not even valid markup'), returnsNormally);
+    });
+
+    test('rejects an unexpected negative or nonsensical count rather than displaying it', () {
+      expect(parseResumeParsesLeft('Free plan: -1 of 4 resume analyses left'), isNull);
+      expect(parseResumeParsesLeft('Free plan: 3 of 0 resume analyses left'), isNull);
+      expect(parseResumeParsesLeft('Free plan: 9 of 4 resume analyses left'), isNull); // left > limit
+    });
+
+    test('at-limit (0 of 4) still parses — the hard-block case, not a malformed one', () {
+      final quota = parseResumeParsesLeft('Free plan: 0 of 4 resume analyses left &middot; Upgrade');
+      expect(quota, isNotNull);
+      expect(quota!.left, 0);
+      expect(quota.limit, 4);
+    });
+  });
+
   group('parseResumeHistoryHtml', () {
     final items = parseResumeHistoryHtml(_historyFixture);
 
