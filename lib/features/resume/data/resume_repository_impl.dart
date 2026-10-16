@@ -1,6 +1,11 @@
 import '../../../core/errors/exception_mapper.dart';
 import '../../../core/errors/exceptions.dart';
 import '../../../core/utils/result.dart';
+import '../domain/entities/level_common_suggestions.dart';
+import '../domain/entities/manual_resume_draft.dart';
+import '../domain/entities/manual_resume_page_preview_outcome.dart';
+import '../domain/entities/manual_resume_pdf_outcome.dart';
+import '../domain/entities/manual_resume_preview_outcome.dart';
 import '../domain/entities/resume_analysis.dart';
 import '../domain/entities/resume_history_item.dart';
 import '../domain/entities/resume_role.dart';
@@ -18,7 +23,9 @@ class ResumeRepositoryImpl implements ResumeRepository {
     required String fileName,
   }) async {
     try {
-      return Success(await _remote.uploadAndAnalyze(filePath: filePath, fileName: fileName));
+      return Success(
+        await _remote.uploadAndAnalyze(filePath: filePath, fileName: fileName),
+      );
     } on AppException catch (e) {
       return Failed(ExceptionMapper.map(e));
     }
@@ -61,7 +68,52 @@ class ResumeRepositoryImpl implements ResumeRepository {
     required String track,
   }) async {
     try {
-      return Success(await _remote.selectTargetRole(role: role, dept: dept, track: track));
+      return Success(
+        await _remote.selectTargetRole(role: role, dept: dept, track: track),
+      );
+    } on AppException catch (e) {
+      return Failed(ExceptionMapper.map(e));
+    }
+  }
+
+  @override
+  Future<Result<Map<String, LevelCommonSuggestions>>>
+  getLevelCommonSuggestions() async {
+    try {
+      return Success(await _remote.getLevelCommonSuggestions());
+    } on AppException catch (e) {
+      return Failed(ExceptionMapper.map(e));
+    }
+  }
+
+  @override
+  Future<Result<ManualResumePreviewOutcome>> previewManualResume(
+    ManualResumeDraft draft,
+  ) async {
+    try {
+      return Success(await _remote.previewManualResume(draft));
+    } on AppException catch (e) {
+      return Failed(ExceptionMapper.map(e));
+    }
+  }
+
+  @override
+  Future<Result<ManualResumePagePreviewOutcome>> getManualResumePagePreview(
+    ManualResumeDraft draft,
+  ) async {
+    try {
+      return Success(await _remote.getManualResumePagePreview(draft));
+    } on AppException catch (e) {
+      return Failed(ExceptionMapper.map(e));
+    }
+  }
+
+  @override
+  Future<Result<ManualResumePdfOutcome>> generateManualResumePdf(
+    ManualResumeDraft draft,
+  ) async {
+    try {
+      return Success(await _remote.generateManualResumePdf(draft));
     } on AppException catch (e) {
       return Failed(ExceptionMapper.map(e));
     }

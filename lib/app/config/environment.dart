@@ -4,10 +4,30 @@ import 'package:flutter/foundation.dart' show kReleaseMode, visibleForTesting;
 
 /// Build-time environment selection.
 ///
-/// Pass with `--dart-define=ENV=staging` / `--dart-define=ENV=production`.
-/// Defaults to [Environment.dev]. [Environment.production] is now a
-/// positively-verified real host (Batch 12 — see
-/// `docs/BATCH_12_PRODUCTION_RELEASE.md` for the full evidence: DNS
+/// Pass with `--dart-define=ENV=dev` / `--dart-define=ENV=staging`.
+/// **Phase 35**: defaults to [Environment.production] when no `ENV` flag is
+/// passed at all — changed from the previous default of [Environment.dev].
+/// Confirmed directly (live, on a real physical device, this phase) that a
+/// plain `flutter run`/`flutter build apk --debug` with no `--dart-define`
+/// — the normal, default way anyone (not just a Flutter developer who
+/// remembers the flag) launches or builds this app — silently resolved to
+/// `http://10.0.2.2:8000`/`http://127.0.0.1:8000`, an address meaningless
+/// outside an Android emulator. On a real device this is not just "the
+/// wrong server," it is not a route to anywhere at all, so every request —
+/// including login — hangs until Dio's `connectTimeout` fires and surfaces
+/// as `"The request took too long. Please try again."`: the exact,
+/// verbatim symptom reported. The pre-existing release-mode guard below
+/// only ever caught this for a **release** build with `ENV` forgotten; nothing
+/// caught the far more common case of a plain debug run/build, which is
+/// almost certainly how this was actually being tested. Defaulting to the
+/// real, positively-verified production backend instead means the app
+/// reaches a real server out of the box; a developer who genuinely wants
+/// the local Django dev server must now opt in explicitly with
+/// `--dart-define=ENV=dev` (see `environment_test.dart`'s own doc comment
+/// for how each branch is exercised).
+///
+/// [Environment.production] is a positively-verified real host (Batch 12 —
+/// see `docs/BATCH_12_PRODUCTION_RELEASE.md` for the full evidence: DNS
 /// resolution, a valid Let's Encrypt certificate issued specifically for
 /// this domain, `DEBUG=False`-style security headers matching this exact
 /// Django project's `settings.py`, and several routes/assets/behaviors
@@ -21,7 +41,10 @@ import 'package:flutter/foundation.dart' show kReleaseMode, visibleForTesting;
 enum Environment { dev, staging, production }
 
 abstract final class EnvironmentConfig {
-  static const String _envName = String.fromEnvironment('ENV', defaultValue: 'dev');
+  static const String _envName = String.fromEnvironment(
+    'ENV',
+    defaultValue: 'production',
+  );
 
   static Environment get current => resolve();
 
@@ -33,19 +56,23 @@ abstract final class EnvironmentConfig {
   @visibleForTesting
   static Environment resolve({bool releaseMode = kReleaseMode}) {
     final env = switch (_envName) {
+      'dev' => Environment.dev,
       'staging' => Environment.staging,
-      'production' => Environment.production,
-      _ => Environment.dev,
+      // The default (see this class's own doc comment, Phase 35) and the
+      // fallback for any unrecognized value — never silently dev.
+      _ => Environment.production,
     };
-    // `--dart-define` has no way to distinguish "explicitly passed ENV=dev"
-    // from "no flag passed at all" — both read back as the same default
-    // value. A release build has no legitimate reason to ever point at the
-    // dev server (`10.0.2.2`), so a release artifact that resolves to
-    // [Environment.dev] can only mean the required
-    // `--dart-define=ENV=production` flag was forgotten. This has already
-    // happened once (a release APK was built and installed before this
-    // check existed, silently shipping a build that could never reach any
-    // backend) — failing loudly here, the first time [baseUrl] is read,
+    // Phase 35: now that `dev` is no longer the default, resolving to
+    // [Environment.dev] in a release build can only mean `ENV=dev` was
+    // passed *explicitly* (forgetting the flag entirely now safely
+    // defaults to production instead). A release build has no legitimate
+    // reason to ever point at the dev server (`10.0.2.2`), so this is kept
+    // as a defense-in-depth guard against that explicit mistake. This
+    // exact bug class has already happened twice in this project's history
+    // (a release APK built before this guard existed, and — the Phase 35
+    // finding that prompted flipping the default in the first place — a
+    // debug build silently defaulting to `dev`, confirmed live on a real
+    // device) — failing loudly here, the first time [baseUrl] is read,
     // turns that mistake into an immediate, visible crash instead of a
     // silent dead app in the client's hands.
     if (releaseMode && env == Environment.dev) {

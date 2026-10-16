@@ -3,10 +3,20 @@ import 'package:dio/dio.dart';
 import '../../../core/errors/exceptions.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/network/api_endpoints.dart';
+import '../domain/entities/level_common_suggestions.dart';
+import '../domain/entities/manual_resume_draft.dart';
+import '../domain/entities/manual_resume_page_preview_outcome.dart';
+import '../domain/entities/manual_resume_pdf_outcome.dart';
+import '../domain/entities/manual_resume_preview_outcome.dart';
 import '../domain/entities/resume_analysis.dart';
 import '../domain/entities/resume_history_item.dart';
 import '../domain/entities/resume_role.dart';
-import '../domain/repositories/resume_repository.dart' show ResumeParseQuota, ResumeRoleSelection;
+import '../domain/repositories/resume_repository.dart'
+    show ResumeParseQuota, ResumeRoleSelection;
+import 'manual_resume_page_preview_parser.dart';
+import 'manual_resume_pdf_parser.dart';
+import 'manual_resume_preview_parser.dart';
+import 'manual_resume_preview_payload.dart';
 import 'resume_html_parser.dart';
 import 'resume_role_parser.dart';
 
@@ -54,12 +64,16 @@ class ResumeRemoteDataSource {
       if (isResumeMatchResultHtml(html)) {
         return parseResumeMatchResultHtml(html);
       }
-      final message = parseResumeBuilderError(html) ?? 'Could not analyze this resume. Please try again.';
+      final message =
+          parseResumeBuilderError(html) ??
+          'Could not analyze this resume. Please try again.';
       throw ValidationException({
         'file': [message],
       }, message);
     } on DioException catch (e) {
-      throw e.error is AppException ? e.error as AppException : const UnexpectedResponseException();
+      throw e.error is AppException
+          ? e.error as AppException
+          : const UnexpectedResponseException();
     }
   }
 
@@ -90,12 +104,16 @@ class ResumeRemoteDataSource {
       if (isResumeMatchResultHtml(html)) {
         return parseResumeMatchResultHtml(html);
       }
-      final message = parseFlashedErrorMessage(html) ?? 'Could not re-analyze this resume. Please try again.';
+      final message =
+          parseFlashedErrorMessage(html) ??
+          'Could not re-analyze this resume. Please try again.';
       throw ValidationException({
         'resume': [message],
       }, message);
     } on DioException catch (e) {
-      throw e.error is AppException ? e.error as AppException : const UnexpectedResponseException();
+      throw e.error is AppException
+          ? e.error as AppException
+          : const UnexpectedResponseException();
     }
   }
 
@@ -108,7 +126,9 @@ class ResumeRemoteDataSource {
       );
       return parseResumeHistoryHtml(response.data ?? '');
     } on DioException catch (e) {
-      throw e.error is AppException ? e.error as AppException : const UnexpectedResponseException();
+      throw e.error is AppException
+          ? e.error as AppException
+          : const UnexpectedResponseException();
     }
   }
 
@@ -134,7 +154,10 @@ class ResumeRemoteDataSource {
     try {
       final response = await _apiClient.dio.get<String>(
         ApiEndpoints.resumeBuilderHome,
-        options: Options(responseType: ResponseType.plain, validateStatus: (_) => true),
+        options: Options(
+          responseType: ResponseType.plain,
+          validateStatus: (_) => true,
+        ),
       );
       return parseResumeParsesLeft(response.data ?? '');
     } catch (_) {
@@ -148,10 +171,144 @@ class ResumeRemoteDataSource {
   /// doc comment) — so no CSRF priming and no HTML parsing are involved.
   Future<List<ResumeRole>> getRoles() async {
     try {
-      final response = await _apiClient.dio.get<Map<String, dynamic>>(ApiEndpoints.manualResumeRoles);
+      final response = await _apiClient.dio.get<Map<String, dynamic>>(
+        ApiEndpoints.manualResumeRoles,
+      );
       return parseManualResumeRoles(response.data);
     } on DioException catch (e) {
-      throw e.error is AppException ? e.error as AppException : const UnexpectedResponseException();
+      throw e.error is AppException
+          ? e.error as AppException
+          : const UnexpectedResponseException();
+    }
+  }
+
+  /// Same endpoint as [getRoles], fetched again for its top-level
+  /// `level_common` (Phase 26) — deliberately a separate request rather
+  /// than changing [getRoles]'s return shape, so the already-tested Role
+  /// Picker path is completely unaffected.
+  Future<Map<String, LevelCommonSuggestions>>
+  getLevelCommonSuggestions() async {
+    try {
+      final response = await _apiClient.dio.get<Map<String, dynamic>>(
+        ApiEndpoints.manualResumeRoles,
+      );
+      return parseLevelCommon(response.data);
+    } on DioException catch (e) {
+      throw e.error is AppException
+          ? e.error as AppException
+          : const UnexpectedResponseException();
+    }
+  }
+
+  /// `manual_resume_views.preview_api` (Phase 27) — unlike [getRoles], this
+  /// POST endpoint is standard-CSRF-protected (confirmed directly: no
+  /// `@csrf_exempt`), so it reuses the exact same `_ensureCsrfCookie()` +
+  /// `X-CSRFToken` priming as [uploadAndAnalyze]/[reanalyze]. Sent as a raw
+  /// JSON body (`Content-Type: application/json`), matching `_read_state()`'s
+  /// own `request.content_type == 'application/json'` branch — confirmed
+  /// directly this is a different content-type than every other POST here
+  /// (which all post `multipart/form-data`). `validateStatus: (_) => true`
+  /// (same convention as every other method here) since a 400/429 response
+  /// here is a normal, meaningful, well-formed body
+  /// ([ManualResumePreviewRejected]) — never an exception on its own.
+  Future<ManualResumePreviewOutcome> previewManualResume(
+    ManualResumeDraft draft,
+  ) async {
+    try {
+      await _ensureCsrfCookie();
+      final csrfToken = await _apiClient.readCookie('csrftoken');
+
+      final response = await _apiClient.dio.post<Map<String, dynamic>>(
+        ApiEndpoints.manualResumePreview,
+        data: toManualResumePreviewPayload(draft),
+        options: Options(
+          contentType: 'application/json',
+          headers: {'X-CSRFToken': csrfToken ?? ''},
+          validateStatus: (_) => true,
+        ),
+      );
+
+      final outcome = parseManualResumePreviewResponse(response.data);
+      if (outcome == null) throw const UnexpectedResponseException();
+      return outcome;
+    } on DioException catch (e) {
+      throw e.error is AppException
+          ? e.error as AppException
+          : const UnexpectedResponseException();
+    }
+  }
+
+  /// `manual_resume_views.preview_pages_api` (Phase 28) — same request
+  /// shape as [previewManualResume] (same `normalize_state()` payload, same
+  /// CSRF priming, same `_prepare()`-shared rate-limit/size budget,
+  /// confirmed directly) — this endpoint just renders the result to page
+  /// images instead of the structured JSON document.
+  Future<ManualResumePagePreviewOutcome> getManualResumePagePreview(
+    ManualResumeDraft draft,
+  ) async {
+    try {
+      await _ensureCsrfCookie();
+      final csrfToken = await _apiClient.readCookie('csrftoken');
+
+      final response = await _apiClient.dio.post<Map<String, dynamic>>(
+        ApiEndpoints.manualResumePages,
+        data: toManualResumePreviewPayload(draft),
+        options: Options(
+          contentType: 'application/json',
+          headers: {'X-CSRFToken': csrfToken ?? ''},
+          validateStatus: (_) => true,
+        ),
+      );
+
+      final outcome = parseManualResumePagePreviewResponse(response.data);
+      if (outcome == null) throw const UnexpectedResponseException();
+      return outcome;
+    } on DioException catch (e) {
+      throw e.error is AppException
+          ? e.error as AppException
+          : const UnexpectedResponseException();
+    }
+  }
+
+  /// `manual_resume_views.pdf_download` (Phase 28). Requested as
+  /// `ResponseType.bytes` since a genuine success is raw PDF bytes, never
+  /// JSON (confirmed directly this app never attempts to parse PDF bytes
+  /// as JSON on success) — but a rejection (validation/rate-limit/
+  /// unreadable-payload/PDF-render-failure) is still delivered through the
+  /// *same* bytes channel (Dio applies the requested `responseType` to
+  /// error bodies too), so [parseManualResumePdfResponse] itself decides
+  /// which shape it actually received, by content-type + the real `%PDF-`
+  /// signature, not by HTTP status code alone.
+  Future<ManualResumePdfOutcome> generateManualResumePdf(
+    ManualResumeDraft draft,
+  ) async {
+    try {
+      await _ensureCsrfCookie();
+      final csrfToken = await _apiClient.readCookie('csrftoken');
+
+      final response = await _apiClient.dio.post<List<int>>(
+        ApiEndpoints.manualResumePdf,
+        data: toManualResumePreviewPayload(draft),
+        options: Options(
+          contentType: 'application/json',
+          headers: {'X-CSRFToken': csrfToken ?? ''},
+          responseType: ResponseType.bytes,
+          validateStatus: (_) => true,
+        ),
+      );
+
+      final outcome = parseManualResumePdfResponse(
+        bytes: response.data ?? const [],
+        contentType: response.headers.value('content-type'),
+        contentDisposition: response.headers.value('content-disposition'),
+        xResumeFilenameHeader: response.headers.value('x-resume-filename'),
+      );
+      if (outcome == null) throw const UnexpectedResponseException();
+      return outcome;
+    } on DioException catch (e) {
+      throw e.error is AppException
+          ? e.error as AppException
+          : const UnexpectedResponseException();
     }
   }
 
@@ -175,7 +332,10 @@ class ResumeRemoteDataSource {
       final response = await _apiClient.dio.get<String>(
         ApiEndpoints.resumeBuilderHome,
         queryParameters: {'role': role, 'dept': dept, 'track': track},
-        options: Options(responseType: ResponseType.plain, validateStatus: (_) => true),
+        options: Options(
+          responseType: ResponseType.plain,
+          validateStatus: (_) => true,
+        ),
       );
       final echoed = parseTargetRoleBadge(response.data ?? '');
       if (echoed == null || echoed.role != role || echoed.dept != dept) {
@@ -183,7 +343,9 @@ class ResumeRemoteDataSource {
       }
       return echoed;
     } on DioException catch (e) {
-      throw e.error is AppException ? e.error as AppException : const UnexpectedResponseException();
+      throw e.error is AppException
+          ? e.error as AppException
+          : const UnexpectedResponseException();
     }
   }
 }

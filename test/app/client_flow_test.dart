@@ -40,6 +40,11 @@ import 'package:career_buddy_lms/features/jam/presentation/screens/jam_topics_sc
 import 'package:career_buddy_lms/features/mock_tests/presentation/screens/mock_tests_hub_screen.dart';
 import 'package:career_buddy_lms/features/resume/domain/entities/resume_analysis.dart';
 import 'package:career_buddy_lms/features/resume/domain/entities/resume_history_item.dart';
+import 'package:career_buddy_lms/features/resume/domain/entities/level_common_suggestions.dart';
+import 'package:career_buddy_lms/features/resume/domain/entities/manual_resume_draft.dart';
+import 'package:career_buddy_lms/features/resume/domain/entities/manual_resume_page_preview_outcome.dart';
+import 'package:career_buddy_lms/features/resume/domain/entities/manual_resume_pdf_outcome.dart';
+import 'package:career_buddy_lms/features/resume/domain/entities/manual_resume_preview_outcome.dart';
 import 'package:career_buddy_lms/features/resume/domain/entities/resume_role.dart';
 import 'package:career_buddy_lms/features/resume/domain/repositories/resume_repository.dart';
 import 'package:career_buddy_lms/features/resume/presentation/providers/resume_providers.dart';
@@ -63,28 +68,39 @@ class _FakeAuthRepository implements AuthRepository {
   Future<AuthUser?> restoreSession() async => null;
 
   @override
-  Future<Result<AuthUser>> login({required String usernameOrEmail, required String password}) async =>
-      const Success(AuthUser(username: 'jane'));
+  Future<Result<AuthUser>> login({
+    required String usernameOrEmail,
+    required String password,
+  }) async => const Success(AuthUser(username: 'jane'));
 
   @override
   Future<Result<void>> logout() async => const Success(null);
 
   @override
-  Future<Result<String>> sendOtp(String email) async => throw UnimplementedError();
-
-  @override
-  Future<Result<String>> verifyOtp({required String email, required String code}) async =>
+  Future<Result<String>> sendOtp(String email) async =>
       throw UnimplementedError();
 
   @override
-  Future<Result<AuthUser>> register(StudentRegistrationData data) async => throw UnimplementedError();
+  Future<Result<String>> verifyOtp({
+    required String email,
+    required String code,
+  }) async => throw UnimplementedError();
+
+  @override
+  Future<Result<AuthUser>> register(StudentRegistrationData data) async =>
+      throw UnimplementedError();
 }
 
 class _FakeDashboardRepository implements DashboardRepository {
   @override
   Future<Result<DashboardData>> getDashboard() async => const Success(
     DashboardData(
-      stats: DashboardStats(completedCount: 2, inProgressCount: 1, totalActivities: 10, totalScore: 45),
+      stats: DashboardStats(
+        completedCount: 2,
+        inProgressCount: 1,
+        totalActivities: 10,
+        totalScore: 45,
+      ),
       activities: [],
       recentResults: [],
       recommendedJobs: [],
@@ -95,20 +111,25 @@ class _FakeDashboardRepository implements DashboardRepository {
 
 class _FakeResumeRepository implements ResumeRepository {
   @override
-  Future<Result<ResumeAnalysisResult>> uploadAndAnalyze({required String filePath, required String fileName}) async =>
+  Future<Result<ResumeAnalysisResult>> uploadAndAnalyze({
+    required String filePath,
+    required String fileName,
+  }) async => throw UnimplementedError();
+
+  @override
+  Future<Result<ResumeAnalysisResult>> reanalyze(int resumeId) async =>
       throw UnimplementedError();
 
   @override
-  Future<Result<ResumeAnalysisResult>> reanalyze(int resumeId) async => throw UnimplementedError();
-
-  @override
-  Future<Result<List<ResumeHistoryItem>>> getHistory() async => const Success([]);
+  Future<Result<List<ResumeHistoryItem>>> getHistory() async =>
+      const Success([]);
 
   @override
   Future<ResumeParseQuota?> getParseQuota() async => null;
 
   @override
-  Future<Result<List<ResumeRole>>> getRoles() async => throw UnimplementedError();
+  Future<Result<List<ResumeRole>>> getRoles() async =>
+      throw UnimplementedError();
 
   @override
   Future<Result<ResumeRoleSelection>> selectTargetRole({
@@ -116,6 +137,25 @@ class _FakeResumeRepository implements ResumeRepository {
     required String dept,
     required String track,
   }) async => throw UnimplementedError();
+
+  @override
+  Future<Result<Map<String, LevelCommonSuggestions>>>
+  getLevelCommonSuggestions() async => throw UnimplementedError();
+
+  @override
+  Future<Result<ManualResumePreviewOutcome>> previewManualResume(
+    ManualResumeDraft draft,
+  ) async => throw UnimplementedError();
+
+  @override
+  Future<Result<ManualResumePagePreviewOutcome>> getManualResumePagePreview(
+    ManualResumeDraft draft,
+  ) async => throw UnimplementedError();
+
+  @override
+  Future<Result<ManualResumePdfOutcome>> generateManualResumePdf(
+    ManualResumeDraft draft,
+  ) async => throw UnimplementedError();
 }
 
 class _FakeProfileRepository implements ProfileRepository {
@@ -137,7 +177,8 @@ class _FakeProfileRepository implements ProfileRepository {
   );
 
   @override
-  Future<Result<void>> updateProfile(ProfileEditData data) async => const Success(null);
+  Future<Result<void>> updateProfile(ProfileEditData data) async =>
+      const Success(null);
 }
 
 /// Never resolves `startSession` — only used to verify navigation
@@ -145,7 +186,8 @@ class _FakeProfileRepository implements ProfileRepository {
 /// `_NeverJamRepository`.
 class _StubJamRepository implements JamRepository {
   @override
-  Future<Result<JamSessionStart>> startSession({int? topicId}) => Completer<Result<JamSessionStart>>().future;
+  Future<Result<JamSessionStart>> startSession({int? topicId}) =>
+      Completer<Result<JamSessionStart>>().future;
 
   @override
   Future<Result<List<JamTopic>>> getTopics() async => const Success([]);
@@ -160,18 +202,23 @@ class _StubJamRepository implements JamRepository {
   }) => throw UnimplementedError();
 
   @override
-  Future<Result<JamSessionResult>> completeSession(int sessionId) => throw UnimplementedError();
+  Future<Result<JamSessionResult>> completeSession(int sessionId) =>
+      throw UnimplementedError();
 }
 
 class _StubJamAssessmentRepository implements JamAssessmentRepository {
   @override
-  Future<Result<List<JamPracticeSessionSummary>>> getHistory() async => const Success([]);
+  Future<Result<List<JamPracticeSessionSummary>>> getHistory() async =>
+      const Success([]);
 
   @override
-  Future<Result<JamSessionStart>> startAssessment() => throw UnimplementedError();
+  Future<Result<JamSessionStart>> startAssessment() =>
+      throw UnimplementedError();
 
   @override
-  Future<Result<JamAssessmentStageOutcome>> completeAssessmentStage(int sessionId) => throw UnimplementedError();
+  Future<Result<JamAssessmentStageOutcome>> completeAssessmentStage(
+    int sessionId,
+  ) => throw UnimplementedError();
 }
 
 /// Records every call — copied from `buddy_chatbot_overlay_test.dart`'s own
@@ -207,7 +254,10 @@ class _FakeAriaRemoteDataSource implements AriaRemoteDataSource {
   }) async => const AriaVoiceTranscription(text: '', source: 'sarvam');
 
   @override
-  Future<String?> synthesizeSpeech({required String text, required String language}) async => null;
+  Future<String?> synthesizeSpeech({
+    required String text,
+    required String language,
+  }) async => null;
 }
 
 class _FakeAudioRecorderService implements AudioRecorderService {
@@ -276,7 +326,10 @@ Future<void> _settle(WidgetTester tester, {int times = 6}) async {
 /// one sitting. Splitting restores a clean slate per segment and is more
 /// diagnostic besides: a failure now points at exactly one destination,
 /// not a 15-step chain.
-Future<void> _pumpLoggedInApp(WidgetTester tester, {Size size = const Size(800, 2200)}) async {
+Future<void> _pumpLoggedInApp(
+  WidgetTester tester, {
+  Size size = const Size(800, 2200),
+}) async {
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1.0;
   addTearDown(tester.view.resetPhysicalSize);
@@ -286,8 +339,12 @@ Future<void> _pumpLoggedInApp(WidgetTester tester, {Size size = const Size(800, 
     ProviderScope(
       overrides: [
         authRepositoryProvider.overrideWithValue(_FakeAuthRepository()),
-        dashboardRepositoryProvider.overrideWithValue(_FakeDashboardRepository()),
-        activitiesRepositoryProvider.overrideWithValue(DemoActivitiesRepository()),
+        dashboardRepositoryProvider.overrideWithValue(
+          _FakeDashboardRepository(),
+        ),
+        activitiesRepositoryProvider.overrideWithValue(
+          DemoActivitiesRepository(),
+        ),
         resumeRepositoryProvider.overrideWithValue(_FakeResumeRepository()),
         profileRepositoryProvider.overrideWithValue(_FakeProfileRepository()),
         gdRepositoryProvider.overrideWithValue(FakeGdRepository()),
@@ -295,11 +352,19 @@ Future<void> _pumpLoggedInApp(WidgetTester tester, {Size size = const Size(800, 
         gdSpeechServiceProvider.overrideWithValue(FakeGdSpeechService()),
         gdTtsServiceProvider.overrideWithValue(FakeGdTtsService()),
         jamRepositoryProvider.overrideWithValue(_StubJamRepository()),
-        jamAssessmentRepositoryProvider.overrideWithValue(_StubJamAssessmentRepository()),
+        jamAssessmentRepositoryProvider.overrideWithValue(
+          _StubJamAssessmentRepository(),
+        ),
         apiClientProvider.overrideWithValue(ApiClient.forTesting(Dio())),
-        ariaRemoteDataSourceProvider.overrideWithValue(_FakeAriaRemoteDataSource()),
-        ariaAudioRecorderServiceProvider.overrideWithValue(_FakeAudioRecorderService()),
-        ariaVoicePlaybackServiceProvider.overrideWithValue(_FakeAriaVoicePlaybackService()),
+        ariaRemoteDataSourceProvider.overrideWithValue(
+          _FakeAriaRemoteDataSource(),
+        ),
+        ariaAudioRecorderServiceProvider.overrideWithValue(
+          _FakeAudioRecorderService(),
+        ),
+        ariaVoicePlaybackServiceProvider.overrideWithValue(
+          _FakeAriaVoicePlaybackService(),
+        ),
       ],
       child: const CareerBuddyApp(),
     ),
@@ -314,7 +379,11 @@ Future<void> _pumpLoggedInApp(WidgetTester tester, {Size size = const Size(800, 
   // (the first of the two "Login" buttons — Job Seeker card renders before
   // the Employer card, see `PublicHomeBody`) reaches the real LoginScreen
   // from there, same as a real user would.
-  expect(find.byType(HomeScreen), findsOneWidget, reason: 'unauthenticated boot must land on the real Home screen');
+  expect(
+    find.byType(HomeScreen),
+    findsOneWidget,
+    reason: 'unauthenticated boot must land on the real Home screen',
+  );
   await tester.tap(find.text('Login').first);
   await _settle(tester);
 
@@ -327,38 +396,63 @@ Future<void> _pumpLoggedInApp(WidgetTester tester, {Size size = const Size(800, 
   await _settle(tester);
 
   // ── Dashboard ──────────────────────────────────────────────────────
-  expect(find.byType(DashboardScreen), findsOneWidget, reason: 'login must land on the real Dashboard');
+  expect(
+    find.byType(DashboardScreen),
+    findsOneWidget,
+    reason: 'login must land on the real Dashboard',
+  );
   expect(find.text('Quick Start'), findsOneWidget);
   expect(tester.takeException(), isNull);
 }
 
 void main() {
-  testWidgets('Login -> Dashboard -> Activities -> Activity Detail -> Back -> Back', (tester) async {
-    await _pumpLoggedInApp(tester);
+  testWidgets(
+    'Login -> Dashboard -> Activities -> Activity Detail -> Back -> Back',
+    (tester) async {
+      await _pumpLoggedInApp(tester);
 
       // ── Dashboard -> drawer -> Activities -> Activity Detail -> Back -> Back ──
       await tester.tap(find.byIcon(Icons.menu));
       await _settle(tester, times: 2);
       await tester.tap(find.text('Activities'));
       await _settle(tester);
-      expect(find.text('Vocabulary Quiz'), findsOneWidget, reason: 'the real Activities list must render demo data');
+      expect(
+        find.text('Vocabulary Quiz'),
+        findsOneWidget,
+        reason: 'the real Activities list must render demo data',
+      );
 
       await tester.tap(find.text('Vocabulary Quiz'));
       await _settle(tester);
-      expect(find.text('Vocabulary Practice'), findsOneWidget, reason: 'Activity Detail must render its sub-activities');
+      expect(
+        find.text('Vocabulary Practice'),
+        findsOneWidget,
+        reason: 'Activity Detail must render its sub-activities',
+      );
       expect(tester.takeException(), isNull);
 
       await tester.tap(find.byTooltip('Back'));
       await _settle(tester);
-      expect(find.text('Vocabulary Quiz'), findsWidgets, reason: 'Back from Activity Detail must return to the list');
+      expect(
+        find.text('Vocabulary Quiz'),
+        findsWidgets,
+        reason: 'Back from Activity Detail must return to the list',
+      );
 
       await _systemBack(tester);
       await _settle(tester);
-      expect(find.byType(DashboardScreen), findsOneWidget, reason: 'Back from the list must return to Dashboard');
-  });
+      expect(
+        find.byType(DashboardScreen),
+        findsOneWidget,
+        reason: 'Back from the list must return to Dashboard',
+      );
+    },
+  );
 
-  testWidgets('Dashboard -> Grammar -> Back, Skill-Up(+Certifications) -> Back, Mock Tests -> Back', (tester) async {
-    await _pumpLoggedInApp(tester);
+  testWidgets(
+    'Dashboard -> Grammar -> Back, Skill-Up(+Certifications) -> Back, Mock Tests -> Back',
+    (tester) async {
+      await _pumpLoggedInApp(tester);
 
       // ── Dashboard -> drawer -> Grammar -> Back ──────────────────────────
       await tester.tap(find.byIcon(Icons.menu));
@@ -400,36 +494,60 @@ void main() {
       await _systemBack(tester);
       await _settle(tester);
       expect(find.byType(DashboardScreen), findsOneWidget);
-  });
+    },
+  );
 
-  testWidgets('Dashboard -> Workshop Dashboard -> Enter Workshop (Group Discussion / JAM / Role Play) -> Back', (tester) async {
-    await _pumpLoggedInApp(tester);
+  testWidgets(
+    'Dashboard -> Workshop Dashboard -> Enter Workshop (Group Discussion / JAM / Role Play) -> Back',
+    (tester) async {
+      await _pumpLoggedInApp(tester);
 
       // ── Dashboard -> Workshop entry card -> Enter Workshop (JAM) -> Back ──
       // Below the fold at this viewport height — the Dashboard is a plain
       // `ListView` with stats/jobs/activities/payments above it. "Interactive
       // Workshop" (not bare "Workshop", which also matches the unrelated
       // Quick Start chip) is `WorkshopEntryCard`'s own title text.
-      await tester.dragUntilVisible(find.text('Interactive Workshop'), find.byType(ListView).first, const Offset(0, -300));
+      await tester.dragUntilVisible(
+        find.text('Interactive Workshop'),
+        find.byType(ListView).first,
+        const Offset(0, -300),
+      );
       await tester.tap(find.text('Interactive Workshop'));
       await _settle(tester);
-      expect(find.text('JAM'), findsOneWidget, reason: 'Workshop Dashboard must list the real workshop activities');
+      expect(
+        find.text('JAM'),
+        findsOneWidget,
+        reason: 'Workshop Dashboard must list the real workshop activities',
+      );
 
       // Demo workshop order (`demo_activities_data.dart`): Group Discussion,
       // JAM, Role Play.
       await tester.tap(find.text('Enter Workshop').first);
       await _settle(tester);
-      expect(find.byType(GdTopicScreen), findsOneWidget, reason: 'Group Discussion must open the real screen, not ComingSoon');
+      expect(
+        find.byType(GdTopicScreen),
+        findsOneWidget,
+        reason: 'Group Discussion must open the real screen, not ComingSoon',
+      );
       expect(tester.takeException(), isNull);
 
       await tester.tap(find.byTooltip('Back'));
       await _settle(tester);
-      expect(find.text('JAM'), findsOneWidget, reason: 'Back from Group Discussion must return to the Workshop Dashboard');
+      expect(
+        find.text('JAM'),
+        findsOneWidget,
+        reason:
+            'Back from Group Discussion must return to the Workshop Dashboard',
+      );
 
       // ── Workshop Dashboard -> Enter Workshop (JAM) -> Back ──
       await tester.tap(find.text('Enter Workshop').at(1));
       await _settle(tester);
-      expect(find.byType(JamTopicsScreen), findsOneWidget, reason: 'JAM must open the real screen, not ComingSoon');
+      expect(
+        find.byType(JamTopicsScreen),
+        findsOneWidget,
+        reason: 'JAM must open the real screen, not ComingSoon',
+      );
       expect(tester.takeException(), isNull);
 
       await tester.tap(find.byTooltip('Back'));
@@ -438,7 +556,11 @@ void main() {
       // ── Workshop Dashboard -> Enter Workshop (Role Play) -> Back -> Back ──
       await tester.tap(find.text('Enter Workshop').at(2));
       await _settle(tester);
-      expect(find.byType(RoleplayHomeScreen), findsOneWidget, reason: 'Role Play must open the real screen, not ComingSoon');
+      expect(
+        find.byType(RoleplayHomeScreen),
+        findsOneWidget,
+        reason: 'Role Play must open the real screen, not ComingSoon',
+      );
       expect(tester.takeException(), isNull);
 
       await _systemBack(tester);
@@ -447,10 +569,13 @@ void main() {
       await _settle(tester, times: 12);
       expect(find.byType(DashboardScreen), findsOneWidget);
       expect(tester.takeException(), isNull);
-  });
+    },
+  );
 
-  testWidgets('Dashboard -> Resume Parsing -> Back, ARIA, Profile -> Back, Logout', (tester) async {
-    await _pumpLoggedInApp(tester);
+  testWidgets(
+    'Dashboard -> Resume Parsing -> Back, ARIA, Profile -> Back, Logout',
+    (tester) async {
+      await _pumpLoggedInApp(tester);
 
       // ── Dashboard -> drawer -> Resume Parsing -> Back ───────────────────
       await tester.tap(find.byIcon(Icons.menu));
@@ -475,7 +600,11 @@ void main() {
       await _settle(tester, times: 2);
       await tester.tap(find.text('Pro'));
       await _settle(tester);
-      expect(find.byType(SubscriptionScreen), findsOneWidget, reason: 'Pro must open the real Subscription screen, not ComingSoon');
+      expect(
+        find.byType(SubscriptionScreen),
+        findsOneWidget,
+        reason: 'Pro must open the real Subscription screen, not ComingSoon',
+      );
       expect(find.text('Normal User'), findsOneWidget);
       expect(find.text('Pro User'), findsOneWidget);
       expect(tester.takeException(), isNull);
@@ -487,7 +616,11 @@ void main() {
       // ── ARIA — tap the launcher, confirm the panel opens ────────────────
       await tester.tap(find.byKey(const Key('buddyChatbotLauncher')));
       await _settle(tester);
-      expect(find.byTooltip('Close'), findsOneWidget, reason: 'the ARIA chat panel must open');
+      expect(
+        find.byTooltip('Close'),
+        findsOneWidget,
+        reason: 'the ARIA chat panel must open',
+      );
       expect(tester.takeException(), isNull);
       await tester.tap(find.byKey(const Key('buddyChatbotLauncher')));
       await _settle(tester);
@@ -497,7 +630,11 @@ void main() {
       await _settle(tester, times: 2);
       await tester.tap(find.text('jane'));
       await _settle(tester);
-      expect(find.text('Jane Doe'), findsOneWidget, reason: 'Profile must render the real profile data');
+      expect(
+        find.text('Jane Doe'),
+        findsOneWidget,
+        reason: 'Profile must render the real profile data',
+      );
       expect(tester.takeException(), isNull);
 
       await _systemBack(tester);
@@ -509,7 +646,12 @@ void main() {
       await _settle(tester, times: 2);
       await tester.tap(find.text('Logout'));
       await _settle(tester);
-      expect(find.text('Sign In to Dashboard'), findsOneWidget, reason: 'Logout must return to the real LoginScreen');
+      expect(
+        find.text('Sign In to Dashboard'),
+        findsOneWidget,
+        reason: 'Logout must return to the real LoginScreen',
+      );
       expect(tester.takeException(), isNull);
-  });
+    },
+  );
 }

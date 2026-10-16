@@ -97,7 +97,11 @@ class AuthenticatedHomeBody extends StatelessWidget {
 
     return Padding(
       padding: const EdgeInsets.all(AppSpacing.md),
-      child: HomeHero(onGetStarted: onGetStarted, onFindJobs: onFindJobs, onCreateResume: onCreateResume),
+      child: HomeHero(
+        onGetStarted: onGetStarted,
+        onFindJobs: onFindJobs,
+        onCreateResume: onCreateResume,
+      ),
     );
   }
 }
@@ -135,7 +139,9 @@ class _HeroActionButton extends StatelessWidget {
           textStyle: const TextStyle(fontWeight: FontWeight.w700),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(10),
-            side: outlined ? const BorderSide(color: AppColors.border) : BorderSide.none,
+            side: outlined
+                ? const BorderSide(color: AppColors.border)
+                : BorderSide.none,
           ),
         ),
       ),

@@ -4,107 +4,268 @@ import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_radius.dart';
 import '../../../../app/theme/app_spacing.dart';
 
-/// The updated web's unified hero (`landing.html:6536-6588`, confirmed by
-/// direct source read in Phase 20) — one fixed headline plus 3 primary
-/// CTAs, shown to every non-employer visitor regardless of auth state
-/// (only 2 small role-pills vary by auth there, `landing.html:6556`; the 3
-/// main CTA buttons — "Get Started Free", "Find Jobs", "Create Resume" —
-/// are unconditional). This widget reproduces that same fixed, unified
-/// structure — it does not itself vary by auth state; callers decide each
-/// button's destination (see [PublicHomeBody]/[AuthenticatedHomeBody]).
+/// The updated web's unified hero (`templates/landing.html:6536-6588`).
 ///
-/// The headline/subtitle copy is reproduced (shortened for mobile) from the
-/// same section; the 3 CTAs are stacked full-width here rather than the
-/// web's horizontal row — every width this app targets is narrower than
-/// where that row would still fit without wrapping awkwardly.
+/// Phase 37 — rebuilt from the *actual current* source after tracing its
+/// full CSS cascade, not just its markup. `landing.html` defines its own
+/// local `:root` (lines 22-36, a light content palette) which a later,
+/// still-active "VIBRANT THEME LAYER" block (same `<style>` tag, ~line
+/// 1299 onward) overrides again for `.hero`, `.hero h1`, `.eyebrow`, and
+/// `.btn-primary` — this is the final, currently-rendered state, confirmed
+/// by checking there is no further override after it. That same layer also
+/// sets `.hero .hero-visual{visibility:hidden}` unconditionally, and
+/// `display:none` at `≤960px` — every width this app targets is well
+/// inside that breakpoint, so the hero's photo illustration and its 3
+/// floating quote chips are **not shown on the real site at any mobile
+/// width either**; they are deliberately not reproduced here. (An earlier,
+/// shallower read of just the HTML markup — without tracing this override —
+/// had assumed they would need reproducing; tracing the full cascade
+/// corrects that.)
+///
+/// Not reproduced this phase: the 2 guest-only "I'm a Job Seeker"/"I'm an
+/// Employer" role pills (`landing.html:6556-6563`) — out of this phase's
+/// explicit task list, and this widget is intentionally shared, unchanged,
+/// between the guest and authenticated-student views (`PublicHomeBody`/
+/// `AuthenticatedHomeBody`), matching the real web showing the identical
+/// hero to both (only those 2 pills vary by auth there). Adding them would
+/// need an auth-aware branch this widget doesn't otherwise need. Flagged as
+/// a remaining small gap in the Phase 37 report.
 class HomeHero extends StatelessWidget {
-  const HomeHero({required this.onGetStarted, required this.onFindJobs, required this.onCreateResume, super.key});
+  const HomeHero({
+    required this.onGetStarted,
+    required this.onFindJobs,
+    required this.onCreateResume,
+    super.key,
+  });
 
   final VoidCallback onGetStarted;
   final VoidCallback onFindJobs;
   final VoidCallback onCreateResume;
 
+  /// `--grad` (`linear-gradient(135deg, #185adb 0%, #7c3aed 60%, #db2777
+  /// 100%)`) — the vibrant layer's final `.btn-primary` background.
+  static const _ctaGradient = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [Color(0xFF185ADB), Color(0xFF7C3AED), Color(0xFFDB2777)],
+  );
+
+  /// `.hero h1` (`background: linear-gradient(120deg, #14213d 10%, #3730a3
+  /// 55%, #9d174d 100%); background-clip: text`).
+  static const _headlineGradient = LinearGradient(
+    begin: Alignment.centerLeft,
+    end: Alignment.centerRight,
+    colors: [Color(0xFF14213D), Color(0xFF3730A3), Color(0xFF9D174D)],
+  );
+
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [AppColors.primary, AppColors.primaryDark],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: AppRadius.lgRadius,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+    return ClipRRect(
+      borderRadius: AppRadius.lgRadius,
+      child: Stack(
         children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-            decoration: BoxDecoration(
-              color: const Color(0x26FFFFFF),
-              borderRadius: BorderRadius.circular(50),
-              border: Border.all(color: const Color(0x40FFFFFF)),
-            ),
-            child: const Text(
-              'AI-powered career platform',
-              style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700),
-            ),
-          ),
-          const SizedBox(height: AppSpacing.md),
-          const Text(
-            'Build skills. Craft capability. Claim your career.',
-            style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w800, height: 1.25),
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          const Text(
-            'Professional learning, AI resume tools, interview practice, and skill certifications — '
-            'all in one platform.',
-            style: TextStyle(color: Color(0xD9FFFFFF)),
-          ),
-          const SizedBox(height: AppSpacing.lg),
-          SizedBox(
-            width: double.infinity,
-            height: 48,
-            child: ElevatedButton.icon(
-              onPressed: onGetStarted,
-              icon: const Icon(Icons.rocket_launch_outlined, size: 18),
-              label: const Text('Get Started'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.accent,
-                foregroundColor: AppColors.onAccent,
-                textStyle: const TextStyle(fontWeight: FontWeight.w700),
-                shape: RoundedRectangleBorder(borderRadius: AppRadius.mdRadius),
+          // `.hero` background: a light linear base
+          // (`linear-gradient(180deg,#eef2ff 0%,#fdf2f8 100%)`) plus 3 soft
+          // radial accents (violet top-right, blue top-left, amber bottom)
+          // — the vibrant layer's actual current `.hero` rule.
+          Positioned.fill(
+            child: DecoratedBox(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [Color(0xFFEEF2FF), Color(0xFFFDF2F8)],
+                ),
               ),
             ),
           ),
-          const SizedBox(height: AppSpacing.sm),
-          SizedBox(
-            width: double.infinity,
-            height: 48,
-            child: OutlinedButton.icon(
-              onPressed: onFindJobs,
-              icon: const Icon(Icons.search, size: 18, color: Colors.white),
-              label: const Text('Find Jobs', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
-              style: OutlinedButton.styleFrom(
-                side: const BorderSide(color: Color(0x80FFFFFF)),
-                shape: RoundedRectangleBorder(borderRadius: AppRadius.mdRadius),
+          Positioned.fill(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: RadialGradient(
+                  center: const Alignment(0.9, -0.8),
+                  radius: 1.1,
+                  colors: [
+                    const Color(0xFFA855F7).withValues(alpha: 0.30),
+                    Colors.transparent,
+                  ],
+                ),
               ),
             ),
           ),
-          const SizedBox(height: AppSpacing.sm),
-          SizedBox(
-            width: double.infinity,
-            height: 48,
-            child: OutlinedButton.icon(
-              onPressed: onCreateResume,
-              icon: const Icon(Icons.description_outlined, size: 18, color: Colors.white),
-              label: const Text('Create Resume', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
-              style: OutlinedButton.styleFrom(
-                side: const BorderSide(color: Color(0x80FFFFFF)),
-                shape: RoundedRectangleBorder(borderRadius: AppRadius.mdRadius),
+          Positioned.fill(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: RadialGradient(
+                  center: const Alignment(-0.9, -0.6),
+                  radius: 1.0,
+                  colors: [
+                    const Color(0xFF3B82F6).withValues(alpha: 0.26),
+                    Colors.transparent,
+                  ],
+                ),
               ),
+            ),
+          ),
+          Positioned.fill(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: RadialGradient(
+                  center: const Alignment(0.2, 1.0),
+                  radius: 1.0,
+                  colors: [
+                    const Color(0xFFFBBF24).withValues(alpha: 0.28),
+                    Colors.transparent,
+                  ],
+                ),
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(AppSpacing.lg),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // `.eyebrow` (vibrant-layer override): light blue-to-pink
+                // tint background, purple (`#5b21b6`) text.
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 7,
+                  ),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        const Color(0xFF185ADB).withValues(alpha: 0.12),
+                        const Color(0xFFEC4899).withValues(alpha: 0.14),
+                      ],
+                    ),
+                    borderRadius: BorderRadius.circular(50),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.auto_awesome,
+                        size: 13,
+                        color: Color(0xFF5B21B6),
+                      ),
+                      const SizedBox(width: 6),
+                      const Flexible(
+                        child: Text(
+                          'AI-powered career platform',
+                          style: TextStyle(
+                            color: Color(0xFF5B21B6),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.md),
+                // `.hero h1` — gradient-clipped text
+                // (`background-clip:text`), reproduced with `ShaderMask`.
+                ShaderMask(
+                  shaderCallback: (bounds) =>
+                      _headlineGradient.createShader(bounds),
+                  blendMode: BlendMode.srcIn,
+                  child: const Text(
+                    'Build skills. Craft capability. Claim your career.',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 24,
+                      fontWeight: FontWeight.w800,
+                      height: 1.2,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                const Text(
+                  'CareerBuddy brings professional learning, AI resume tools, interview practice and skill '
+                  'certifications together — so you walk into every interview ready, and every hiring decision '
+                  'easier.',
+                  style: TextStyle(
+                    color: Color(0xFF475569),
+                    fontSize: 14,
+                    height: 1.5,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.lg),
+                // `.hero-ctas .btn` — full-pill buttons (`border-radius:
+                // 999px`), stacked full-width (the web's own horizontal row
+                // never fits any width this app targets).
+                SizedBox(
+                  width: double.infinity,
+                  height: 50,
+                  child: DecoratedBox(
+                    decoration: const BoxDecoration(
+                      gradient: _ctaGradient,
+                      borderRadius: BorderRadius.all(Radius.circular(999)),
+                    ),
+                    child: ElevatedButton.icon(
+                      onPressed: onGetStarted,
+                      icon: const Icon(Icons.rocket_launch_outlined, size: 18),
+                      label: const Text('Get Started Free'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.transparent,
+                        shadowColor: Colors.transparent,
+                        foregroundColor: Colors.white,
+                        textStyle: const TextStyle(fontWeight: FontWeight.w700),
+                        shape: const StadiumBorder(),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                // `.btn-outline` — unchanged by the vibrant layer: a neutral
+                // border and dark ink text.
+                SizedBox(
+                  width: double.infinity,
+                  height: 50,
+                  child: OutlinedButton.icon(
+                    onPressed: onFindJobs,
+                    icon: const Icon(
+                      Icons.search,
+                      size: 18,
+                      color: AppColors.textPrimary,
+                    ),
+                    label: const Text(
+                      'Find Jobs',
+                      style: TextStyle(
+                        color: AppColors.textPrimary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(
+                        color: AppColors.border,
+                        width: 1.5,
+                      ),
+                      backgroundColor: Colors.white,
+                      shape: const StadiumBorder(),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                // `.btn-navy` — unchanged by the vibrant layer: solid navy.
+                SizedBox(
+                  width: double.infinity,
+                  height: 50,
+                  child: ElevatedButton.icon(
+                    onPressed: onCreateResume,
+                    icon: const Icon(Icons.description_outlined, size: 18),
+                    label: const Text('Create Resume'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white,
+                      textStyle: const TextStyle(fontWeight: FontWeight.w700),
+                      shape: const StadiumBorder(),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ],

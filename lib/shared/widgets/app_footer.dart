@@ -21,7 +21,11 @@ import '../../app/theme/app_spacing.dart';
 /// `employer_base.html:6-9`) — the brand *icon* is hidden, but the
 /// "Career Buddy" text next to it stays.
 class AppFooter extends StatelessWidget {
-  const AppFooter({this.showActivityStats = true, this.showBrandIcon = true, super.key});
+  const AppFooter({
+    this.showActivityStats = true,
+    this.showBrandIcon = true,
+    super.key,
+  });
 
   final bool showActivityStats;
   final bool showBrandIcon;
@@ -35,31 +39,42 @@ class AppFooter extends StatelessWidget {
         color: AppColors.primary,
         border: Border(top: BorderSide(color: AppColors.accent, width: 3)),
       ),
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.lg),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.lg,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // `.footer-brand` logo (`base.html:254-259`) — the same navy
-              // square + white book-icon mark used on the navbar/login.
+              // `.footer-brand` logo (`base.html:254-259`). Phase 37: the
+              // real bare gold mark (`static/img/logo-mark-light.png`) —
+              // the variant the web itself uses on this exact navy
+              // background (`base.html:115`), replacing the generic
+              // `Icons.school_outlined` placeholder. No white box behind it
+              // on the web either; the mark reads fine directly on navy.
               if (showBrandIcon) ...[
-                Container(
+                Image.asset(
+                  'assets/images/logo-mark-light.png',
                   width: 24,
                   height: 24,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(5)),
-                  child: const Icon(Icons.school_outlined, color: AppColors.primary, size: 14),
                 ),
                 const SizedBox(width: AppSpacing.xs),
               ],
               Text.rich(
                 TextSpan(
-                  style: theme.textTheme.titleSmall?.copyWith(color: Colors.white, fontWeight: FontWeight.w700),
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                  ),
                   children: const [
                     TextSpan(text: 'Career '),
-                    TextSpan(text: 'Buddy', style: TextStyle(color: AppColors.accent)),
+                    TextSpan(
+                      text: 'Buddy',
+                      style: TextStyle(color: AppColors.accent),
+                    ),
                   ],
                 ),
               ),
@@ -78,16 +93,27 @@ class AppFooter extends StatelessWidget {
               spacing: AppSpacing.md,
               runSpacing: AppSpacing.xs,
               children: [
-                _FooterStat(icon: Icons.menu_book_outlined, label: 'Activities'),
-                _FooterStat(icon: Icons.checklist_outlined, label: 'Sub-Activities'),
-                _FooterStat(icon: Icons.sports_esports_outlined, label: 'Interactive Exercises'),
+                _FooterStat(
+                  icon: Icons.menu_book_outlined,
+                  label: 'Activities',
+                ),
+                _FooterStat(
+                  icon: Icons.checklist_outlined,
+                  label: 'Sub-Activities',
+                ),
+                _FooterStat(
+                  icon: Icons.sports_esports_outlined,
+                  label: 'Interactive Exercises',
+                ),
               ],
             ),
           ],
           const SizedBox(height: AppSpacing.md),
           Text(
             '© 2026 Career Buddy. All rights reserved.',
-            style: theme.textTheme.bodySmall?.copyWith(color: const Color(0x99FFFFFF)),
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: const Color(0x99FFFFFF),
+            ),
           ),
         ],
       ),
@@ -108,7 +134,12 @@ class _FooterStat extends StatelessWidget {
       children: [
         Icon(icon, size: 13, color: const Color(0xBFFFFFFF)),
         const SizedBox(width: 4),
-        Text(label, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: const Color(0xBFFFFFFF))),
+        Text(
+          label,
+          style: Theme.of(
+            context,
+          ).textTheme.bodySmall?.copyWith(color: const Color(0xBFFFFFFF)),
+        ),
       ],
     );
   }

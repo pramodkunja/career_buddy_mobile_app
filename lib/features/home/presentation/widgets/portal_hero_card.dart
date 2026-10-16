@@ -14,7 +14,12 @@ import '../../../../app/theme/app_radius.dart';
 /// proportional step down the web's own responsive curve, not an invented
 /// value.
 class PortalHeroCard extends StatelessWidget {
-  const PortalHeroCard({required this.assetImage, required this.icon, required this.label, super.key});
+  const PortalHeroCard({
+    required this.assetImage,
+    required this.icon,
+    required this.label,
+    super.key,
+  });
 
   final String assetImage;
   final IconData icon;
@@ -26,7 +31,13 @@ class PortalHeroCard extends StatelessWidget {
       height: 220,
       decoration: BoxDecoration(
         borderRadius: AppRadius.lgRadius,
-        boxShadow: const [BoxShadow(color: Color(0x2E185ADB), blurRadius: 30, offset: Offset(0, 10))],
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x2E185ADB),
+            blurRadius: 30,
+            offset: Offset(0, 10),
+          ),
+        ],
       ),
       clipBehavior: Clip.antiAlias,
       child: Stack(
@@ -47,11 +58,16 @@ class PortalHeroCard extends StatelessWidget {
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 9,
+                ),
                 decoration: BoxDecoration(
                   color: const Color(0xEBFFFFFF),
                   borderRadius: BorderRadius.circular(50),
-                  boxShadow: const [BoxShadow(color: Color(0x26000000), blurRadius: 16)],
+                  boxShadow: const [
+                    BoxShadow(color: Color(0x26000000), blurRadius: 16),
+                  ],
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -62,7 +78,11 @@ class PortalHeroCard extends StatelessWidget {
                       child: Text(
                         label,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(color: Color(0xFF0F172A), fontSize: 13, fontWeight: FontWeight.w600),
+                        style: const TextStyle(
+                          color: Color(0xFF0F172A),
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
                   ],

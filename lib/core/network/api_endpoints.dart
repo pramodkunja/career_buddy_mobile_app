@@ -19,7 +19,8 @@ abstract final class ApiEndpoints {
   /// paths one level deeper under `employer/` — giving the URLs below,
   /// confirmed by hitting the dev server directly (both return 200).
   static const String employerLogin = '/employer/accounts/employer/login/';
-  static const String employerRegister = '/employer/accounts/employer/register/';
+  static const String employerRegister =
+      '/employer/accounts/employer/register/';
 
   /// The real post-login/-registration redirect target
   /// (`accounts_app/views.py` `EmployerLoginView.get_success_url`/
@@ -47,7 +48,8 @@ abstract final class ApiEndpoints {
   /// before the `pk` lookup, so a 404 (not 403) is the real server's
   /// answer for another employer's application id — confirmed directly
   /// against `jobs_app/views.py:684-691`.
-  static String employerApplicationDetail(int pk) => '/employer/employer/applications/$pk/';
+  static String employerApplicationDetail(int pk) =>
+      '/employer/employer/applications/$pk/';
 
   /// `jobs_app.views.employer_profile_edit` — same doubled
   /// `employer/employer/` mount as [employerDashboard]. GET renders
@@ -65,7 +67,8 @@ abstract final class ApiEndpoints {
   /// self-registered employer already has an `EmployerProfile` row (created
   /// at signup), so this updates that row rather than inserting a second
   /// one (`jobs_app/views.py:544-551`).
-  static const String employerProfileCreate = '/employer/employer/profile/create/';
+  static const String employerProfileCreate =
+      '/employer/employer/profile/create/';
 
   /// `jobs_app.views.job_create` — same doubled `employer/employer/` mount.
   ///
@@ -114,18 +117,21 @@ abstract final class ApiEndpoints {
   /// scoping as [employerJobEdit]. No JSON body, no confirmation page — the
   /// web's only confirmation is a client-side `confirm('Delete this job?')`
   /// before the POST fires.
-  static String employerJobDelete(int pk) => '/employer/employer/jobs/$pk/delete/';
+  static String employerJobDelete(int pk) =>
+      '/employer/employer/jobs/$pk/delete/';
 
   /// `jobs_app.views.job_applications` — GET only, this job's own
   /// `JobApplication` list, optionally filtered server-side with
   /// `?status=<value>` (one of `JobApplication.STATUS_CHOICES`).
-  static String employerJobApplications(int pk) => '/employer/employer/jobs/$pk/applications/';
+  static String employerJobApplications(int pk) =>
+      '/employer/employer/jobs/$pk/applications/';
 
   /// `jobs_app.views.all_applications` — GET only, every application across
   /// all of the caller's own job postings, optionally filtered
   /// server-side with `?q=` (name/email), `?status=`, and `?source=`
   /// (`JobApplication.SOURCE_CHOICES`).
-  static const String employerAllApplications = '/employer/employer/applications/';
+  static const String employerAllApplications =
+      '/employer/employer/applications/';
 
   /// `jobs_app.views.search_candidates` (`templates/jobs/
   /// candidate_search.html`) — GET only, searches REGISTERED STUDENTS
@@ -135,7 +141,8 @@ abstract final class ApiEndpoints {
   /// different set from `JobPosting.EXPERIENCE_CHOICES`
   /// (`fresher`/`1-2`/`3-5`/`5-8`/`8+`) — confirmed live, not a typo to
   /// "fix".
-  static const String employerSearchCandidates = '/employer/employer/candidates/search/';
+  static const String employerSearchCandidates =
+      '/employer/employer/candidates/search/';
 
   /// `jobs_app.views.download_candidates_csv` — `@login_required` plus the
   /// same `session['portal'] == 'employer'` guard as [employerSearchCandidates].
@@ -147,7 +154,8 @@ abstract final class ApiEndpoints {
   /// show all, since that's the real server's own behavior. Response is
   /// `text/csv` with `Content-Disposition: attachment; filename=
   /// "candidates.csv"` (a static name, no date/job/employer embedded).
-  static const String employerCandidatesDownloadCsv = '/employer/employer/candidates/download-csv/';
+  static const String employerCandidatesDownloadCsv =
+      '/employer/employer/candidates/download-csv/';
 
   /// `jobs_app.views.job_detail` (`employer_portal:job_detail`,
   /// `templates/jobs/job_detail.html`) — the public, job-seeker-facing job
@@ -218,7 +226,8 @@ abstract final class ApiEndpoints {
   /// **The new-password form itself is never processed here, regardless
   /// of method** — posting `new_password1`/`new_password2` straight to
   /// this URL is silently dropped before Django's form is ever looked at.
-  static String passwordResetConfirm(String uidb64, String token) => '/users/reset/$uidb64/$token/';
+  static String passwordResetConfirm(String uidb64, String token) =>
+      '/users/reset/$uidb64/$token/';
 
   /// The session-dependent second half of the same Django view
   /// (`reset_url_token = 'set-password'`, same `views.py:260,279-284`) —
@@ -226,7 +235,8 @@ abstract final class ApiEndpoints {
   /// and actually processed (POST). Reaching it legitimately requires a
   /// prior request to [passwordResetConfirm] with the real token, in the
   /// same session, so Django's session carries the token it checks here.
-  static String passwordResetSetPassword(String uidb64) => '/users/reset/$uidb64/set-password/';
+  static String passwordResetSetPassword(String uidb64) =>
+      '/users/reset/$uidb64/set-password/';
 
   /// `activities.views.dashboard_api` — see
   /// `docs/BACKEND_CONTRACT_dashboard.md` for the response contract this
@@ -275,7 +285,8 @@ abstract final class ApiEndpoints {
   /// `parseSubActivityDetailHtml`.
   static const String activityListHtml = '/activities/';
   static String activityDetailHtml(int id) => '/activities/$id/';
-  static String subActivityDetailHtml(int activityId, int subActivityId) => '/activities/$activityId/sub/$subActivityId/';
+  static String subActivityDetailHtml(int activityId, int subActivityId) =>
+      '/activities/$activityId/sub/$subActivityId/';
 
   /// `activities.views.workshop_dashboard` (`templates/activities/
   /// workshop_dashboard.html`) — the dedicated `/activities/workshop/`
@@ -305,15 +316,18 @@ abstract final class ApiEndpoints {
   /// (fill_blank/matching/bingo/ordering/writing/timer/AI modules/roleplay/
   /// quiz-bank) have no mobile JSON API either — see
   /// `docs/PHASE_3_EXERCISE_ARCHITECTURE.md`.
-  static String mcqExercise(int exerciseId) => '/activities/api/exercise/$exerciseId/';
-  static String submitMcqExercise(int exerciseId) => '/activities/api/exercise/$exerciseId/submit/';
+  static String mcqExercise(int exerciseId) =>
+      '/activities/api/exercise/$exerciseId/';
+  static String submitMcqExercise(int exerciseId) =>
+      '/activities/api/exercise/$exerciseId/submit/';
 
   /// The web's own "Mark Complete" form target (`activities/urls.py`,
   /// `views.mark_sub_complete`) — no JSON sibling exists, so this is
   /// called the same way the browser's `<form method="post">` does (see
   /// `ActivitiesRemoteDataSource.markSubComplete`), the same technique
   /// already used for `login`/`logout`.
-  static String markSubComplete(int subActivityId) => '/activities/sub/$subActivityId/complete/';
+  static String markSubComplete(int subActivityId) =>
+      '/activities/sub/$subActivityId/complete/';
 
   /// The "mock quiz" family — already a genuine, standalone JSON API (not
   /// tied to the `Activity`/`Exercise` models at all; the real UI is a
@@ -339,8 +353,10 @@ abstract final class ApiEndpoints {
   /// cyber, blockchain, crypto) — an unknown slug 404s
   /// (`{"error": "unknown subject"}`), which the app's existing
   /// `NotFoundException`/`NotFoundFailure` mapping already handles cleanly.
-  static String quizQuestions(String subject) => '/activities/quiz/$subject/questions/';
-  static String quizSubmit(String subject) => '/activities/quiz/$subject/submit/';
+  static String quizQuestions(String subject) =>
+      '/activities/quiz/$subject/questions/';
+  static String quizSubmit(String subject) =>
+      '/activities/quiz/$subject/submit/';
 
   /// W022 — AMCAT full mock (`amcat_questions`/`amcat_submit`,
   /// `activities/views.py:2291-2343`, `activities/urls.py:42-43`). No auth
@@ -365,7 +381,8 @@ abstract final class ApiEndpoints {
   /// `language`, `reference_text`). Responds `200` even on a rejected
   /// submission (e.g. no meaningful speech) — the body's own `"success"`
   /// field is authoritative, not the HTTP status.
-  static String analyzeSpeaking(int exerciseId) => '/activities/exercise/$exerciseId/analyze/speaking/';
+  static String analyzeSpeaking(int exerciseId) =>
+      '/activities/exercise/$exerciseId/analyze/speaking/';
 
   /// W015 — AI Writing (`analyze_writing`, `activities/views.py:1690-1767`,
   /// `activities/urls.py:29`). Same auth/CSRF shape as `analyzeSpeaking`
@@ -389,7 +406,8 @@ abstract final class ApiEndpoints {
   /// `result['score_25'] = score_25`, with no equivalent write into
   /// `result['data']`) — confirmed by re-reading the source rather than
   /// assumed from `analyzeSpeaking`'s contract.
-  static String analyzeWriting(int exerciseId) => '/activities/exercise/$exerciseId/analyze/writing/';
+  static String analyzeWriting(int exerciseId) =>
+      '/activities/exercise/$exerciseId/analyze/writing/';
 
   /// W016 — AI Listening. Same `@login_required @require_POST`, not
   /// `@csrf_exempt` shape as `analyzeWriting`/`analyzeSpeaking`, but with a
@@ -400,7 +418,8 @@ abstract final class ApiEndpoints {
   /// Writing. `score_25`/`content_match_percent` are nested inside `data`
   /// (mutated in place — confirmed the same placement as `analyzeSpeaking`,
   /// **not** `analyzeWriting`'s top-level placement).
-  static String analyzeListening(int exerciseId) => '/activities/exercise/$exerciseId/analyze/listening/';
+  static String analyzeListening(int exerciseId) =>
+      '/activities/exercise/$exerciseId/analyze/listening/';
 
   /// `exercise_detail` (`activities/views.py:1327-1364`,
   /// `activities/urls.py:22`) — a plain server-rendered **HTML** view, the
@@ -414,7 +433,8 @@ abstract final class ApiEndpoints {
   /// identically regardless of client. See
   /// `AiListeningRemoteDataSource.fetchAttemptToken` and
   /// `docs/W016_AI_LISTENING.md` for the full reasoning.
-  static String exerciseDetailPage(int exerciseId) => '/activities/exercise/$exerciseId/';
+  static String exerciseDetailPage(int exerciseId) =>
+      '/activities/exercise/$exerciseId/';
 
   /// W017 — AI Reading. Same `@login_required @require_POST`, not
   /// `@csrf_exempt` shape as `analyzeSpeaking`, multipart audio upload
@@ -426,7 +446,8 @@ abstract final class ApiEndpoints {
   /// involved at all — confirmed the `reading-config` embedded script
   /// (`templates/activities/modules/reading.html:263-268`) only carries
   /// `analyzeEndpoint`/`lessonsPath`, unlike Listening's `listening-config`.
-  static String analyzeReading(int exerciseId) => '/activities/exercise/$exerciseId/analyze/reading/';
+  static String analyzeReading(int exerciseId) =>
+      '/activities/exercise/$exerciseId/analyze/reading/';
 
   /// W008 — Matching. `submit_exercise` (`activities/views.py:1413-1526`,
   /// `activities/urls.py:23`) — the generic, non-MCQ exercise submit
@@ -439,7 +460,8 @@ abstract final class ApiEndpoints {
   /// object (`status`/`score`/`max_score`/`percentage`/`attempt`/
   /// `customSummaryHtml`), not the `{success, data}` envelope the newer
   /// `/api/` endpoints use.
-  static String submitExercise(int exerciseId) => '/activities/exercise/$exerciseId/submit/';
+  static String submitExercise(int exerciseId) =>
+      '/activities/exercise/$exerciseId/submit/';
 
   /// Resume Parsing / ATS (`career_app.views`, mounted at `/resume-builder/`
   /// via `business_english_lms/urls.py:65-80`). Plain server-rendered HTML
@@ -459,7 +481,8 @@ abstract final class ApiEndpoints {
   /// `resume_reanalyze` (`career_app/views.py:844-896`), `@require_POST` —
   /// re-runs analysis on a resume already stored server-side (by id), no
   /// file re-upload needed. Same response shape as [resumeJobMatch].
-  static String resumeReanalyze(int resumeId) => '/resume-builder/reanalyze/$resumeId/';
+  static String resumeReanalyze(int resumeId) =>
+      '/resume-builder/reanalyze/$resumeId/';
 
   /// `manual_resume_views.roles_api` (`business_english_lms/urls.py:93`,
   /// `name='manual_resume_roles'`) — Phase 22/23's role-fit picker catalog
@@ -472,6 +495,137 @@ abstract final class ApiEndpoints {
   /// `CARD_KEYS`-only shape the landing page's own inline script uses.
   static const String manualResumeRoles = '/resume-builder/manual/roles/';
 
+  /// `manual_resume_views.preview_api` (`business_english_lms/urls.py:94`,
+  /// `name='manual_resume_preview'`) — Phase 27. Like [manualResumeRoles],
+  /// **not** `@login_required` (`@require_POST` only, confirmed directly)
+  /// and returns real `JsonResponse` JSON — but unlike it, standard Django
+  /// CSRF applies (no `@csrf_exempt`), so this needs the same
+  /// `X-CSRFToken` + `csrftoken`-cookie priming every other POST in this
+  /// feature already uses. Expects `Content-Type: application/json` with
+  /// the normalized draft as the raw body (confirmed directly,
+  /// `_read_state()`'s `request.content_type == 'application/json'`
+  /// branch) — the key names are **snake_case**, matching
+  /// `normalize_state()`'s own `raw.get(...)` calls exactly (`target_title`,
+  /// `role_def`, `decl_date`), which is why this is never just
+  /// `ManualResumeDraft.toJson()` (that method's camelCase keys are for
+  /// this app's own local persistence only, see
+  /// `manual_resume_preview_payload.dart`). Rate-limited at 60 requests per
+  /// 10 minutes per client IP, shared with `pdf_download`/`preview_pages_api`
+  /// (none of which this app calls yet) — a limit hit returns the same
+  /// `{ok:false, errors:[...]}` shape as a genuine validation failure, just
+  /// with HTTP 429 instead of 400.
+  static const String manualResumePreview = '/resume-builder/manual/preview/';
+
+  /// `manual_resume_views.preview_pages_api` (Phase 28,
+  /// `name='manual_resume_pages'`) — same posture as [manualResumePreview]
+  /// (no login required, standard CSRF, shared rate-limit/payload budget,
+  /// confirmed directly: both call the same `_prepare()` helper). Renders
+  /// the actual generated PDF to page images (`career_app/resume_pdf.py`'s
+  /// `render_page_images`, `max_pages=6` — confirmed directly), so the
+  /// preview always matches the real PDF, capped at the first 6 pages
+  /// regardless of the resume's true length (the response's own `total`
+  /// field still reports the true count).
+  static const String manualResumePages = '/resume-builder/manual/pages/';
+
+  /// `manual_resume_views.pdf_download` (Phase 28, `name='manual_resume_pdf'`)
+  /// — same posture as [manualResumePreview]. A JSON request (this app
+  /// always sends one) gets a JSON error body on failure, confirmed
+  /// directly — the plain-text error branch in the real view only fires
+  /// for the web's own non-JSON Print-button form POST, never for this
+  /// client. On success: `content-type: application/pdf`,
+  /// `Content-Disposition: attachment; filename="..."` (or `inline` with
+  /// `?inline=1`, unused here), and an `X-Resume-Filename` header carrying
+  /// the same ASCII-safe filename (`resume_filename()`, confirmed directly
+  /// — always `<name>_<title>_Resume.pdf`, non-ASCII characters folded
+  /// away, no length cap confirmed in the source).
+  static const String manualResumePdf = '/resume-builder/manual/pdf/';
+
+  // --------------------------------------------------------------------- //
+  //  Create Resume — the free-form builder (`career_app/create_resume_views
+  //  .py`, `business_english_lms/urls.py:98-104`). Phase 39. Distinct from
+  //  the Manual Resume Builder above: no AI, no role/suggestion system, the
+  //  candidate types every field themselves — and unlike Manual's purely
+  //  local draft, this one is genuinely server-backed (`ResumeDraft` model),
+  //  scoped to `request.user` on every read/write.
+  // --------------------------------------------------------------------- //
+
+  /// `create_resume_views.preview_api` (`name='create_resume_preview'`) —
+  /// same posture as [manualResumePreview]: no login required, standard
+  /// CSRF, JSON body/response, snake_case keys matching
+  /// `create_resume.normalize()`'s own `raw.get(...)` calls. Unlike the
+  /// Manual builder's preview, this one **always** returns `{ok:true,
+  /// document, errors, status, filename}` even when `errors` is non-empty
+  /// (confirmed directly, `preview_api`'s own docstring: "the document is
+  /// returned even while required fields are missing") — there is no
+  /// rejected/non-200 branch for this specific endpoint. Rate-limited at
+  /// 900 requests per 10 minutes per client IP (`LIMITS['preview']`,
+  /// confirmed directly — far more generous than [createResumePdf]/
+  /// [createResumePages] since the real web posts this on every pause in
+  /// typing).
+  static const String createResumePreview = '/resume-builder/create/preview/';
+
+  /// `create_resume_views.pages_api` (`name='create_resume_pages'`) — same
+  /// posture as [createResumePreview], but requires a fully valid document
+  /// first (`_ready_state()`): a validation failure returns `{ok:false,
+  /// errors:[...]}` at HTTP 400, same shape as [createResumePdf]'s own
+  /// failure branch. Renders up to 10 pages from the real generated PDF
+  /// (`render_page_images(..., max_pages=10)`, confirmed directly). Shares
+  /// the 120-requests-per-10-minutes `LIMITS['render']` budget with
+  /// [createResumePdf].
+  static const String createResumePages = '/resume-builder/create/pages/';
+
+  /// `create_resume_views.pdf_download` (`name='create_resume_pdf'`) — same
+  /// posture as [createResumePages]. A JSON request (this app always sends
+  /// one) gets a JSON `{ok:false, errors:[...]}` error body on failure,
+  /// confirmed directly — the plain-text branch only fires for the real
+  /// web's own non-JSON `#crPrintForm` POST. On success: `content-type:
+  /// application/pdf`, `Content-Disposition: attachment; filename="..."`,
+  /// and an `X-Resume-Filename` header with the same ASCII-safe filename
+  /// (`resume_filename()`).
+  static const String createResumePdf = '/resume-builder/create/pdf/';
+
+  /// `create_resume_views.drafts_list` (`name='create_resume_drafts'`) —
+  /// **`@login_required`** (`_json_login_required`, confirmed directly: a
+  /// 401 JSON body for an AJAX caller, never an HTML redirect — the exact
+  /// footgun already solved elsewhere in this app, see
+  /// `docs/BACKEND_CONTRACT_dashboard.md`'s own note on the same class of
+  /// bug). Returns every `ResumeDraft` row belonging to the signed-in user
+  /// only (`ResumeDraft.objects.filter(user=request.user)`), each as
+  /// `{id, title, template, updated}` — never the full `data` payload (see
+  /// [createResumeDraft] for that). Shares the 300-per-10-minutes
+  /// `LIMITS['drafts']` budget with [createResumeDraftSave]/
+  /// [createResumeDraftDelete].
+  static const String createResumeDrafts = '/resume-builder/create/drafts/';
+
+  /// `create_resume_views.draft_save` (`name='create_resume_draft_save'`) —
+  /// same auth/rate-limit posture as [createResumeDrafts]. Body is
+  /// `{id, data}` — `id` is an existing draft id to update, or omitted/null
+  /// to create a new one; `data` is the same normalized state
+  /// [createResumePreview] posts. `id` present updates
+  /// that draft (re-scoped to `request.user`, a 404 for any other
+  /// account's id, confirmed directly via `get_object_or_404(...,
+  /// user=request.user)`), omitted creates a new one (rejected once the
+  /// account already holds `ResumeDraft.MAX_PER_USER` = 20). A partial,
+  /// not-yet-valid resume may be saved — this endpoint never runs
+  /// `validate()`, confirmed directly.
+  static const String createResumeDraftSave =
+      '/resume-builder/create/drafts/save/';
+
+  /// `create_resume_views.draft_detail` (`name='create_resume_draft'`) —
+  /// same auth posture as [createResumeDrafts]. Returns `{draft: {id,
+  /// title, template, updated}, data: <the full normalized state}` for one
+  /// draft, scoped to `request.user` (a 404, not a 403, for another
+  /// account's id — this app treats both as [NotFoundFailure], since
+  /// neither should ever name whether the id belongs to someone else).
+  static String createResumeDraft(int id) =>
+      '/resume-builder/create/drafts/$id/';
+
+  /// `create_resume_views.draft_delete` (`name='create_resume_draft_delete'`)
+  /// — same auth/ownership posture as [createResumeDraft]. `{ok:true}` on
+  /// success; a 404 for an id that doesn't exist or isn't this account's.
+  static String createResumeDraftDelete(int id) =>
+      '/resume-builder/create/drafts/$id/delete/';
+
   /// Grammar (`subject_views.py`, mounted at `/subject/`). The 9 topics'
   /// text content is static (bundled as a JSON asset, see
   /// `GrammarDataSource`) — these are the genuinely dynamic, per-topic
@@ -480,7 +634,8 @@ abstract final class ApiEndpoints {
   /// the real `NN.png` deck filename (`kGrammarSlideDeckCounts`);
   /// [subjectVideo] streams the topic's local `.mp4` with HTTP Range
   /// support for seeking.
-  static String subjectSlideImage(String slug, String fileName) => '/subject/slides/$slug/$fileName';
+  static String subjectSlideImage(String slug, String fileName) =>
+      '/subject/slides/$slug/$fileName';
   static String subjectVideo(String slug) => '/subject/video/$slug.mp4';
 
   /// `subject_views.subject_illustration` — a small branded SVG, generated
@@ -490,7 +645,8 @@ abstract final class ApiEndpoints {
   /// 1-based, matching how many authored slides the topic has (every one
   /// of the 9 topics' `slide_cards` renders this unconditionally — see
   /// `subject_views.py:_authored_slide_cards`).
-  static String subjectIllustration(String slug, int index) => '/subject/illustrations/$slug/$index.svg';
+  static String subjectIllustration(String slug, int index) =>
+      '/subject/illustrations/$slug/$index.svg';
 
   /// Certifications (`skillup_assessment` app, mounted at
   /// `/skill-up/assessment/` via `business_english_lms/urls.py:32`
@@ -524,10 +680,12 @@ abstract final class ApiEndpoints {
   /// `ResumeRemoteDataSource._ensureCsrfCookie` uses via `resumeBuilderHome`.
   static const String certificationsHub = '/skill-up/assessment/';
   static const String certificationsStatus = '/skill-up/assessment/api/status/';
-  static String certificateGenerate(String subject) => '/skill-up/assessment/api/$subject/certificate/generate/';
+  static String certificateGenerate(String subject) =>
+      '/skill-up/assessment/api/$subject/certificate/generate/';
   static String certificateRegenerate(String subject) =>
       '/skill-up/assessment/api/$subject/certificate/regenerate/';
-  static String certificateDownload(String subject) => '/skill-up/assessment/$subject/certificate/download/';
+  static String certificateDownload(String subject) =>
+      '/skill-up/assessment/$subject/certificate/download/';
 
   /// JAM — "Just A Minute" (`jam_app`, mounted at `/jam/` via
   /// `business_english_lms/urls.py:39`, `path('jam/', include('jam_app.urls'))`).
@@ -561,7 +719,8 @@ abstract final class ApiEndpoints {
   /// `jam_app/views.py:191-194`) — same as [jamSessionStart] but for a
   /// specific `topic_id` (404s if inactive/missing), reached from the
   /// Topics list's "Practice Session" buttons.
-  static String jamSessionStartWithTopic(int topicId) => '/jam/session/start/$topicId/';
+  static String jamSessionStartWithTopic(int topicId) =>
+      '/jam/session/start/$topicId/';
 
   /// (`jam:save_audio`, `save_audio()`, `jam_app/views.py:197-227`) —
   /// `@require_POST`, **not** `@csrf_exempt`. The one real JSON endpoint:
@@ -596,7 +755,8 @@ abstract final class ApiEndpoints {
   /// be part of the assessment flow (`JamSessionStart.stage != null`).
   /// This client relies on Dio's default `followRedirects: true` to land
   /// directly on the final HTML page either way.
-  static String jamCompleteSession(int sessionId) => '/jam/session/complete/$sessionId/';
+  static String jamCompleteSession(int sessionId) =>
+      '/jam/session/complete/$sessionId/';
 
   /// (`jam:session_detail`, `session_detail()`, `jam_app/views.py:718-727`)
   /// — `@login_required`. Renders `templates/jam/session_detail.html` with
@@ -655,7 +815,8 @@ abstract final class ApiEndpoints {
   /// the same template [JamRemoteDataSource.completeAssessmentStage] parses
   /// inline when stage 3 finishes; this constant is for revisiting a past
   /// assessment from History (not built until this batch).
-  static String jamAssessmentResult(int assessmentId) => '/jam/assessment/result/$assessmentId/';
+  static String jamAssessmentResult(int assessmentId) =>
+      '/jam/assessment/result/$assessmentId/';
 
   /// (`jam:profile`, `profile_view()`, `jam_app/views.py:754-771`) — no
   /// `@login_required` (falls back to `get_app_user`'s single-user-mode
@@ -684,7 +845,8 @@ abstract final class ApiEndpoints {
   /// `"Delete this session?"`; `dashboard.html`: `"Are you sure?"`) — this
   /// client uses History's own wording since that's the page it's reached
   /// from here.
-  static String jamDeleteSession(int sessionId) => '/jam/session/delete/$sessionId/';
+  static String jamDeleteSession(int sessionId) =>
+      '/jam/session/delete/$sessionId/';
 
   /// (`jam:delete_assessment`, `delete_assessment()`, `jam_app/views.py:
   /// 801-821`) — `@require_POST`. Deletes an `AssessmentGroup` and all 3 of
@@ -692,7 +854,8 @@ abstract final class ApiEndpoints {
   /// [jamDeleteSession] does per completed session; redirects to
   /// `jam:history` on success. Web confirmation wording: `"Delete this
   /// assessment and all its sessions?"`.
-  static String jamDeleteAssessment(int assessmentId) => '/jam/assessment/delete/$assessmentId/';
+  static String jamDeleteAssessment(int assessmentId) =>
+      '/jam/assessment/delete/$assessmentId/';
 
   /// (`jam:reset_progress`, `reset_progress()`, `jam_app/views.py:94-112`)
   /// — `@login_required`, `@require_POST` (a prior, now-fixed version of
@@ -1019,9 +1182,11 @@ abstract final class ApiEndpoints {
   static const String resumeCameraVerified = '/resume-builder/camera-verified/';
   static const String resumeGetNextQuestion = '/resume-builder/get-question/';
   static const String resumeSubmitAnswer = '/resume-builder/submit-answer/';
-  static const String resumeRecordViolation = '/resume-builder/record-violation/';
+  static const String resumeRecordViolation =
+      '/resume-builder/record-violation/';
   static const String resumeViolationState = '/resume-builder/violation-state/';
-  static const String resumeUploadInterviewVideo = '/resume-builder/upload-interview-video/';
+  static const String resumeUploadInterviewVideo =
+      '/resume-builder/upload-interview-video/';
   static const String resumeAnalytics = '/resume-builder/analytics/';
 
   /// Phase 3 — Subscription checkout (`career_app.views.create_razorpay_order`/

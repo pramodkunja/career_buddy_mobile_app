@@ -80,8 +80,10 @@ abstract final class RoutePaths {
   /// `jobs_app.views.job_applications` — per-job candidate list, reached
   /// from a Dashboard job card's applications badge. Reuses
   /// [employerApplicationDetail] for the "Review Submission" destination.
-  static const String employerJobApplicationsPattern = '/employer-jobs/:id/applications';
-  static String employerJobApplications(int jobId) => '/employer-jobs/$jobId/applications';
+  static const String employerJobApplicationsPattern =
+      '/employer-jobs/:id/applications';
+  static String employerJobApplications(int jobId) =>
+      '/employer-jobs/$jobId/applications';
 
   /// `jobs_app.views.job_detail` (`employer_portal:job_detail`) — the
   /// public job listing + apply page, reachable by anyone regardless of
@@ -108,7 +110,8 @@ abstract final class RoutePaths {
   /// employer dashboard's "complete your profile" prompt
   /// (`EmployerDashboardScreen`'s `_ProfileIncompleteView`), not from the
   /// nav drawer. Same `EmployerCompanyProfileScreen`, `isCreate: true`.
-  static const String employerCompanyProfileCreate = '/employer-company-profile/create';
+  static const String employerCompanyProfileCreate =
+      '/employer-company-profile/create';
 
   /// `jobs_app.views.job_openings` — despite living under the `employer_urls`
   /// module and this constant's name (kept as-is to avoid a wider rename
@@ -130,8 +133,10 @@ abstract final class RoutePaths {
   /// a placeholder) — reachable today only by a direct `context.push` with
   /// a known application id, same as this app's other detail-pattern
   /// routes before their own list screen existed.
-  static const String employerApplicationDetailPattern = '/employer-applications/:id';
-  static String employerApplicationDetail(int id) => '/employer-applications/$id';
+  static const String employerApplicationDetailPattern =
+      '/employer-applications/:id';
+  static String employerApplicationDetail(int id) =>
+      '/employer-applications/$id';
 
   static const String activities = '/activities';
   static const String activityDetailPattern = '/activities/:id';
@@ -143,11 +148,13 @@ abstract final class RoutePaths {
   /// worked against the JSON `sub_activity_detail_api` sibling, confirmed
   /// not deployed to production — see `ApiEndpoints.subActivityDetail`'s
   /// doc comment).
-  static const String subActivityDetailPattern = '/activities/:activityId/sub/:subId';
+  static const String subActivityDetailPattern =
+      '/activities/:activityId/sub/:subId';
   static const String mcqExercisePattern = '/activities/exercise/:id';
 
   static String activityDetail(int id) => '/activities/$id';
-  static String subActivityDetail(int activityId, int subActivityId) => '/activities/$activityId/sub/$subActivityId';
+  static String subActivityDetail(int activityId, int subActivityId) =>
+      '/activities/$activityId/sub/$subActivityId';
   static String mcqExercise(int id) => '/activities/exercise/$id';
 
   /// W014 — AI Speaking. Two path segments after `/activities/exercise/`
@@ -161,44 +168,53 @@ abstract final class RoutePaths {
   /// built its exercise tiles from, so there is nothing to re-fetch or
   /// re-encode.
   static const String aiSpeakingPattern = '/activities/exercise/:id/speaking';
-  static String aiSpeaking(int exerciseId) => '/activities/exercise/$exerciseId/speaking';
+  static String aiSpeaking(int exerciseId) =>
+      '/activities/exercise/$exerciseId/speaking';
 
   /// W015 — AI Writing. Same collision-safety reasoning as
   /// `aiSpeakingPattern`: two path segments after
   /// `/activities/exercise/:id/`, so it can never structurally collide
   /// with `mcqExercisePattern` regardless of declaration order.
   static const String aiWritingPattern = '/activities/exercise/:id/writing';
-  static String aiWriting(int exerciseId) => '/activities/exercise/$exerciseId/writing';
+  static String aiWriting(int exerciseId) =>
+      '/activities/exercise/$exerciseId/writing';
 
   /// W016 — AI Listening. Same collision-safety reasoning as
   /// `aiSpeakingPattern`/`aiWritingPattern`.
   static const String aiListeningPattern = '/activities/exercise/:id/listening';
-  static String aiListening(int exerciseId) => '/activities/exercise/$exerciseId/listening';
+  static String aiListening(int exerciseId) =>
+      '/activities/exercise/$exerciseId/listening';
 
   /// W017 — AI Reading. Same collision-safety reasoning as the other
   /// three AI-module routes.
   static const String aiReadingPattern = '/activities/exercise/:id/reading';
-  static String aiReading(int exerciseId) => '/activities/exercise/$exerciseId/reading';
+  static String aiReading(int exerciseId) =>
+      '/activities/exercise/$exerciseId/reading';
 
   /// W008 — Matching. Same collision-safety reasoning as the AI-module
   /// routes: two path segments after `/activities/exercise/:id/`, so it
   /// can never structurally collide with `mcqExercisePattern`.
-  static const String matchingExercisePattern = '/activities/exercise/:id/matching';
-  static String matchingExercise(int exerciseId) => '/activities/exercise/$exerciseId/matching';
+  static const String matchingExercisePattern =
+      '/activities/exercise/:id/matching';
+  static String matchingExercise(int exerciseId) =>
+      '/activities/exercise/$exerciseId/matching';
 
   /// W009 — Vocabulary Bingo. Same collision-safety reasoning as the other
   /// per-exercise-type routes: two path segments after
   /// `/activities/exercise/:id/`, so it can never structurally collide
   /// with `mcqExercisePattern`.
   static const String bingoExercisePattern = '/activities/exercise/:id/bingo';
-  static String bingoExercise(int exerciseId) => '/activities/exercise/$exerciseId/bingo';
+  static String bingoExercise(int exerciseId) =>
+      '/activities/exercise/$exerciseId/bingo';
 
   /// W010 — Fill in the Blank. Same collision-safety reasoning as the
   /// other per-exercise-type routes: two path segments after
   /// `/activities/exercise/:id/`, so it can never structurally collide
   /// with `mcqExercisePattern`.
-  static const String fillBlankExercisePattern = '/activities/exercise/:id/fill-blank';
-  static String fillBlankExercise(int exerciseId) => '/activities/exercise/$exerciseId/fill-blank';
+  static const String fillBlankExercisePattern =
+      '/activities/exercise/:id/fill-blank';
+  static String fillBlankExercise(int exerciseId) =>
+      '/activities/exercise/$exerciseId/fill-blank';
 
   /// Generic Writing (`Exercise.exercise_type == 'writing'` under an
   /// ordinary, non-module Activity — not the AI Writing module, which
@@ -206,8 +222,10 @@ abstract final class RoutePaths {
   /// the other per-exercise-type routes: two path segments after
   /// `/activities/exercise/:id/`, so it can never structurally collide
   /// with `mcqExercisePattern`.
-  static const String genericWritingExercisePattern = '/activities/exercise/:id/generic-writing';
-  static String genericWritingExercise(int exerciseId) => '/activities/exercise/$exerciseId/generic-writing';
+  static const String genericWritingExercisePattern =
+      '/activities/exercise/:id/generic-writing';
+  static String genericWritingExercise(int exerciseId) =>
+      '/activities/exercise/$exerciseId/generic-writing';
 
   /// Timer (`Exercise.exercise_type == 'timer'`, display label "Timed
   /// Activity"). Same collision-safety reasoning as the other
@@ -215,7 +233,8 @@ abstract final class RoutePaths {
   /// `/activities/exercise/:id/`, so it can never structurally collide
   /// with `mcqExercisePattern`.
   static const String timerExercisePattern = '/activities/exercise/:id/timer';
-  static String timerExercise(int exerciseId) => '/activities/exercise/$exerciseId/timer';
+  static String timerExercise(int exerciseId) =>
+      '/activities/exercise/$exerciseId/timer';
 
   /// W013 — the dedicated Interactive Workshop page
   /// (`workshop_dashboard`, `/activities/workshop/`,
@@ -231,7 +250,8 @@ abstract final class RoutePaths {
 
   /// Mirrors the web dashboard's "Quick Start" links
   /// (`dashboard.html:283-303`, `{% url 'activity_list' %}?category=...`).
-  static String activitiesWithCategory(String category) => '/activities?category=$category';
+  static String activitiesWithCategory(String category) =>
+      '/activities?category=$category';
 
   // No longer used by the dashboard's "View & Apply" job action (Phase 4
   // of the parity-remediation work) — the scraped recommended-job cards
@@ -365,6 +385,64 @@ abstract final class RoutePaths {
   /// pipeline) and out of this batch's explicit scope. Placeholder only.
   static const String resumeInterviewPlaceholder = '/resume-builder/interview';
 
+  /// Phase 25 — the Manual Resume Builder's foundation (draft model +
+  /// five-step wizard shell only; the full form/preview/PDF flow is a later,
+  /// separately approved phase). Reached from [resumeRolePicker]'s own
+  /// "Build Resume" tile. Authenticated-only by omission from
+  /// `publicRoutes`/`universalRoutes` below, matching every other
+  /// account-specific screen in this router — the real web's equivalent
+  /// (`manual_resume_*`, `career_app/manual_resume_views.py`) has no login
+  /// requirement at all (confirmed, Phase 24 audit), but Decision 1 of the
+  /// Phase 25 brief explicitly restricts this Flutter entry point to
+  /// authenticated users only.
+  static const String manualResumeBuilder = '/resume-builder/manual';
+
+  /// Phase 27 — the server-generated preview of the current draft
+  /// (`manual_resume_preview`, `preview_api`). Reached from
+  /// [manualResumeBuilder]'s own "Preview Resume" action, carrying the
+  /// current `ManualResumeDraft` snapshot as route `extra` (the screen has
+  /// no editing capability of its own — correcting a field always means
+  /// popping back to the builder first). Authenticated-only by the same
+  /// omission as [manualResumeBuilder], for the same reason: the real
+  /// endpoint itself has no login requirement (confirmed directly), but
+  /// this Flutter entry point is still only reachable from an
+  /// already-authenticated builder session.
+  static const String manualResumePreview = '/resume-builder/manual/preview';
+
+  /// Phase 28, Part A — the real page-image preview
+  /// (`manual_resume_pages`, `preview_pages_api`), reached from the
+  /// builder's own "Page Preview" action, same `extra`/auth-gating design
+  /// as [manualResumePreview]. A genuinely separate screen from it, not a
+  /// tab/mode switch, matching the task's explicit "keep page-image
+  /// preview distinct from the existing native structured-document
+  /// preview" instruction.
+  static const String manualResumePagePreview = '/resume-builder/manual/pages';
+
+  /// Phase 39 — the free-form Create Resume builder
+  /// (`career_app/create_resume_views.py`). Unlike [manualResumeBuilder],
+  /// the real `preview`/`pdf`/`pages` endpoints genuinely have **no** login
+  /// requirement (confirmed directly — only the drafts endpoints do, via
+  /// `_json_login_required`), and the real web's own entry point
+  /// (`landing.html`'s `#create-resume` section) is reachable by every
+  /// visitor — so, unlike the Manual builder's own Decision 1, this route
+  /// is a member of [universalRoutes] below, matching the verified server
+  /// behavior rather than adding a stricter gate than the real backend has.
+  /// Saving a draft from this screen while unauthenticated still correctly
+  /// fails with the same 401 the server itself returns, surfaced as a
+  /// "sign in to save" prompt rather than silently succeeding or crashing.
+  static const String createResumeBuilder = '/resume-builder/create';
+
+  /// Same auth posture as [createResumeBuilder] (no login required on the
+  /// real endpoint), reached from the builder's own "Preview" action,
+  /// carrying the current form state as route `extra`.
+  static const String createResumePreview = '/resume-builder/create/preview';
+
+  /// The signed-in-only "My Resumes" list (`drafts_list`/`draft_detail`/
+  /// `draft_delete`, all `@login_required` on the real backend, confirmed
+  /// directly) — authenticated-only by omission from `publicRoutes`/
+  /// `universalRoutes`, the same convention as [manualResumeBuilder].
+  static const String createResumeDrafts = '/resume-builder/create/drafts';
+
   /// JAM — "Just A Minute" workshop (`jam_app`, mounted at `/jam/`). The
   /// Topics list is this feature's entry point — matches the real web's own
   /// navigation (`jam:dashboard` → "Practice Topics" → `jam:topics`), and is
@@ -434,7 +512,12 @@ abstract final class RoutePaths {
   /// both match the real web's own `home()`/`job_home` views, which serve
   /// both branches from the same URL rather than redirecting either
   /// session state away.
-  static const Set<String> universalRoutes = {home, employerHome};
+  static const Set<String> universalRoutes = {
+    home,
+    employerHome,
+    createResumeBuilder,
+    createResumePreview,
+  };
 
   /// Routes gated the same way `jobs_app.views.employer_dashboard` and its
   /// sibling employer-only views are on the web

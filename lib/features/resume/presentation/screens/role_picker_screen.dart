@@ -2,7 +2,9 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../../../app/router/route_paths.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_radius.dart';
 import '../../../../app/theme/app_spacing.dart';
@@ -10,7 +12,8 @@ import '../../../../core/utils/result.dart';
 import '../../../../shared/widgets/app_error_view.dart';
 import '../../../../shared/widgets/app_loader.dart';
 import '../../domain/entities/resume_role.dart';
-import '../../domain/repositories/resume_repository.dart' show ResumeRoleSelection;
+import '../../domain/repositories/resume_repository.dart'
+    show ResumeRoleSelection;
 import '../controllers/role_picker_controller.dart';
 import '../providers/resume_providers.dart';
 
@@ -43,7 +46,9 @@ class _RolePickerScreenState extends ConsumerState<RolePickerScreen> {
     // `MockInterviewScreen` already uses) runs it just after this screen
     // finishes mounting instead.
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) unawaited(ref.read(rolePickerControllerProvider.notifier).load());
+      if (mounted) {
+        unawaited(ref.read(rolePickerControllerProvider.notifier).load());
+      }
     });
   }
 
@@ -57,7 +62,8 @@ class _RolePickerScreenState extends ConsumerState<RolePickerScreen> {
         RolePickerLoading() => const AppLoader(message: 'Loading roles…'),
         RolePickerLoadFailed(failure: final failure) => AppErrorView(
           message: failure.message,
-          onRetry: () => ref.read(rolePickerControllerProvider.notifier).retryLoad(),
+          onRetry: () =>
+              ref.read(rolePickerControllerProvider.notifier).retryLoad(),
         ),
         RolePickerLoaded() => const _RoleListView(),
       },
@@ -78,7 +84,12 @@ class _RoleListView extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.md, AppSpacing.md, AppSpacing.sm),
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.md,
+            AppSpacing.md,
+            AppSpacing.md,
+            AppSpacing.sm,
+          ),
           child: Text(
             'Picking a target role is optional — it personalizes your ATS score and interview questions for that '
             'role. You can skip this and analyze your resume as-is.',
@@ -105,7 +116,11 @@ class _RoleListView extends ConsumerWidget {
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
             children: [
-              _CategoryChip(label: 'All', selected: state.category == null, onTap: () => controller.setCategory(null)),
+              _CategoryChip(
+                label: 'All',
+                selected: state.category == null,
+                onTap: () => controller.setCategory(null),
+              ),
               const SizedBox(width: AppSpacing.sm),
               _CategoryChip(
                 label: 'IT',
@@ -143,23 +158,36 @@ class _RoleListView extends ConsumerWidget {
                   ),
                 )
               : ListView.builder(
-                  padding: const EdgeInsets.fromLTRB(AppSpacing.md, 0, AppSpacing.md, AppSpacing.lg),
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.md,
+                    0,
+                    AppSpacing.md,
+                    AppSpacing.lg,
+                  ),
                   itemCount: roles.length,
                   itemBuilder: (context, index) {
                     final role = roles[index];
                     return Card(
                       margin: const EdgeInsets.only(bottom: AppSpacing.sm),
                       child: ListTile(
-                        title: Text(role.title, style: const TextStyle(fontWeight: FontWeight.w700)),
-                        subtitle: Text('${role.categoryLabel} · ${role.subtitle}'),
+                        title: Text(
+                          role.title,
+                          style: const TextStyle(fontWeight: FontWeight.w700),
+                        ),
+                        subtitle: Text(
+                          '${role.categoryLabel} · ${role.subtitle}',
+                        ),
                         trailing: const Icon(Icons.chevron_right),
                         onTap: () async {
-                          final selection = await showModalBottomSheet<ResumeRoleSelection>(
-                            context: context,
-                            isScrollControlled: true,
-                            builder: (_) => _RoleActionSheet(role: role),
-                          );
-                          if (selection != null && context.mounted) Navigator.of(context).pop(selection);
+                          final selection =
+                              await showModalBottomSheet<ResumeRoleSelection>(
+                                context: context,
+                                isScrollControlled: true,
+                                builder: (_) => _RoleActionSheet(role: role),
+                              );
+                          if (selection != null && context.mounted) {
+                            Navigator.of(context).pop(selection);
+                          }
                         },
                       ),
                     );
@@ -172,7 +200,11 @@ class _RoleListView extends ConsumerWidget {
 }
 
 class _CategoryChip extends StatelessWidget {
-  const _CategoryChip({required this.label, required this.selected, required this.onTap});
+  const _CategoryChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
 
   final String label;
   final bool selected;
@@ -185,7 +217,9 @@ class _CategoryChip extends StatelessWidget {
       selected: selected,
       onSelected: (_) => onTap(),
       selectedColor: AppColors.action,
-      labelStyle: TextStyle(color: selected ? AppColors.textOnDark : AppColors.textPrimary),
+      labelStyle: TextStyle(
+        color: selected ? AppColors.textOnDark : AppColors.textPrimary,
+      ),
       backgroundColor: AppColors.surface,
       side: BorderSide(color: selected ? AppColors.action : AppColors.border),
     );
@@ -193,11 +227,13 @@ class _CategoryChip extends StatelessWidget {
 }
 
 /// The real web's `roleAct` modal (`landing.html:7589-7622`), reproduced
-/// as a bottom sheet: 3 actions — only "Resume Parsing & Interview" is
-/// functional this phase (Phase 22/23's own explicit scope). "Skills" and
-/// "Build Resume" are shown, honestly disabled with "Coming soon" — never
-/// a fake, tappable placeholder — since the manual resume builder and an
-/// in-app skills summary don't exist in this app yet.
+/// as a bottom sheet: 3 actions. "Resume Parsing & Interview" has been
+/// functional since Phase 23; "Build Resume" now opens Phase 25's Manual
+/// Resume Builder foundation (navigating straight into it, not popping a
+/// result back to `ResumeBuilderScreen` — that screen has nothing to do
+/// with manually-built resumes). "Skills" remains honestly disabled with
+/// "Coming soon" — never a fake, tappable placeholder — since an in-app
+/// skills summary doesn't exist in this app yet.
 class _RoleActionSheet extends ConsumerStatefulWidget {
   const _RoleActionSheet({required this.role});
 
@@ -212,7 +248,9 @@ class _RoleActionSheetState extends ConsumerState<_RoleActionSheet> {
   String? _error;
 
   Future<void> _confirm() async {
-    if (_isSaving) return; // prevents a duplicate submission while one is in flight
+    if (_isSaving) {
+      return; // prevents a duplicate submission while one is in flight
+    }
     setState(() {
       _isSaving = true;
       _error = null;
@@ -220,7 +258,11 @@ class _RoleActionSheetState extends ConsumerState<_RoleActionSheet> {
     final role = widget.role;
     final result = await ref
         .read(resumeRepositoryProvider)
-        .selectTargetRole(role: role.title, dept: role.subtitle, track: role.track);
+        .selectTargetRole(
+          role: role.title,
+          dept: role.subtitle,
+          track: role.track,
+        );
     if (!mounted) return;
     switch (result) {
       case Success(value: final selection):
@@ -242,11 +284,20 @@ class _RoleActionSheetState extends ConsumerState<_RoleActionSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(widget.role.categoryLabel, style: const TextStyle(color: AppColors.textMuted, fontSize: 12)),
+            Text(
+              widget.role.categoryLabel,
+              style: const TextStyle(color: AppColors.textMuted, fontSize: 12),
+            ),
             const SizedBox(height: 4),
-            Text(widget.role.title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+            Text(
+              widget.role.title,
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+            ),
             const SizedBox(height: AppSpacing.sm),
-            const Text('What would you like to do next?', style: TextStyle(color: AppColors.textMuted)),
+            const Text(
+              'What would you like to do next?',
+              style: TextStyle(color: AppColors.textMuted),
+            ),
             const SizedBox(height: AppSpacing.lg),
             _ActionTile(
               icon: Icons.checklist_outlined,
@@ -258,21 +309,32 @@ class _RoleActionSheetState extends ConsumerState<_RoleActionSheet> {
             _ActionTile(
               icon: Icons.description_outlined,
               title: 'Build Resume',
-              subtitle: 'Coming soon',
-              enabled: false,
+              subtitle: 'Create a resume from scratch for this role.',
+              enabled: true,
+              onTap: () {
+                Navigator.of(context).pop();
+                context.push(
+                  RoutePaths.manualResumeBuilder,
+                  extra: widget.role,
+                );
+              },
             ),
             const SizedBox(height: AppSpacing.sm),
             _ActionTile(
               icon: Icons.fact_check_outlined,
               title: 'Resume Parsing & Interview',
-              subtitle: 'Upload your resume for AI parsing and ATS scoring for this role.',
+              subtitle:
+                  'Upload your resume for AI parsing and ATS scoring for this role.',
               enabled: !_isSaving,
               isLoading: _isSaving,
               onTap: _confirm,
             ),
             if (_error != null) ...[
               const SizedBox(height: AppSpacing.sm),
-              Text(_error!, style: const TextStyle(color: AppColors.danger, fontSize: 13)),
+              Text(
+                _error!,
+                style: const TextStyle(color: AppColors.danger, fontSize: 13),
+              ),
             ],
           ],
         ),
@@ -312,7 +374,10 @@ class _ActionTile extends StatelessWidget {
         ),
         child: Row(
           children: [
-            Icon(icon, color: enabled ? AppColors.primary : AppColors.textMuted),
+            Icon(
+              icon,
+              color: enabled ? AppColors.primary : AppColors.textMuted,
+            ),
             const SizedBox(width: AppSpacing.md),
             Expanded(
               child: Column(
@@ -322,16 +387,28 @@ class _ActionTile extends StatelessWidget {
                     title,
                     style: TextStyle(
                       fontWeight: FontWeight.w700,
-                      color: enabled ? AppColors.textPrimary : AppColors.textMuted,
+                      color: enabled
+                          ? AppColors.textPrimary
+                          : AppColors.textMuted,
                     ),
                   ),
                   const SizedBox(height: 2),
-                  Text(subtitle, style: const TextStyle(color: AppColors.textMuted, fontSize: 12)),
+                  Text(
+                    subtitle,
+                    style: const TextStyle(
+                      color: AppColors.textMuted,
+                      fontSize: 12,
+                    ),
+                  ),
                 ],
               ),
             ),
             if (isLoading)
-              const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+              const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
             else if (enabled)
               const Icon(Icons.chevron_right, color: AppColors.textMuted),
           ],

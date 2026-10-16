@@ -33,20 +33,31 @@ class AppTopBar extends StatelessWidget implements PreferredSizeWidget {
       titleSpacing: 0,
       title: Row(
         children: [
-          Container(
-            width: 34,
-            height: 34,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(6)),
-            child: const Icon(Icons.school_outlined, color: Colors.white, size: 19),
+          // Phase 37 — the real brand mark (`static/img/logo-mark.png`,
+          // `templates/includes/site_nav.html:45`), replacing the generic
+          // `Icons.school_outlined` placeholder. Already carries its own
+          // navy background, so no extra decoration is needed here.
+          ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: Image.asset(
+              'assets/images/logo-mark.png',
+              width: 34,
+              height: 34,
+            ),
           ),
           const SizedBox(width: AppSpacing.xs),
           Text.rich(
             TextSpan(
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(color: AppColors.primary, fontWeight: FontWeight.w700),
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                color: AppColors.primary,
+                fontWeight: FontWeight.w700,
+              ),
               children: const [
                 TextSpan(text: 'Career '),
-                TextSpan(text: 'Buddy', style: TextStyle(color: AppColors.accent)),
+                TextSpan(
+                  text: 'Buddy',
+                  style: TextStyle(color: AppColors.accent),
+                ),
               ],
             ),
           ),

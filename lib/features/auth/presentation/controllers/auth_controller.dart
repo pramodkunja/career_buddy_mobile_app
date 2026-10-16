@@ -72,7 +72,9 @@ class AuthController extends Notifier<AuthState> {
 
   Future<void> _restore() async {
     final user = await ref.read(authRepositoryProvider).restoreSession();
-    state = user != null ? AuthAuthenticated(user) : const AuthUnauthenticated();
+    state = user != null
+        ? AuthAuthenticated(user)
+        : const AuthUnauthenticated();
   }
 
   /// None of the controllers below are `.autoDispose` (each needs to
@@ -138,6 +140,21 @@ class AuthController extends Notifier<AuthState> {
     ref.invalidate(aiReadingControllerProvider);
     ref.invalidate(aiSpeakingControllerProvider);
     ref.invalidate(aiWritingControllerProvider);
+    // Phase 25 — the Manual Resume Builder's in-progress draft (names,
+    // phone numbers, employment history) is exactly the kind of per-account
+    // data this method exists to stop leaking across a login/logout cycle
+    // in the same app process, same as every other controller above. The
+    // on-disk copy is namespaced by username as well (never read here
+    // either), so this call only clears the in-memory copy.
+    ref.invalidate(manualResumeBuilderControllerProvider);
+    // Phase 27 — the last-generated preview echoes back the same candidate
+    // content (name, skills, employment history) as the draft itself, so
+    // it needs the same cross-account protection.
+    ref.invalidate(manualResumePreviewControllerProvider);
+    // Phase 28 — same reasoning: page-image previews and a just-generated
+    // PDF both carry the same candidate content as the draft itself.
+    ref.invalidate(manualResumePagePreviewControllerProvider);
+    ref.invalidate(manualResumePdfControllerProvider);
   }
 
   Future<void> login({
@@ -220,7 +237,9 @@ class AuthController extends Notifier<AuthState> {
   Future<void> registerEmployer(EmployerRegistrationData data) async {
     _invalidateUserScopedProviders();
     state = const AuthRefreshing();
-    final result = await ref.read(employerAuthRepositoryProvider).register(data);
+    final result = await ref
+        .read(employerAuthRepositoryProvider)
+        .register(data);
     state = switch (result) {
       Success(value: final user) => AuthAuthenticated(user),
       Failed(failure: final failure) => AuthUnauthenticated(failure.message),

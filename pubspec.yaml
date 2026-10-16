@@ -194,6 +194,15 @@ flutter:
     - assets/images/template_modern_professional.png
     - assets/images/template_executive_tech.png
     - assets/images/template_minimalist_career.png
+    # Phase 37 — the real brand mark (`static/img/logo-mark*.png`), replacing
+    # the generic `Icons.school_outlined` placeholder on the landing page's
+    # top bar/footer. `logo-mark.png` carries its own navy background (for a
+    # white/light surface); `logo-mark-light.png` is the bare gold mark with
+    # no background (for a navy/dark surface) — matching exactly how the
+    # updated web itself chooses between the two (`site_nav.html` vs
+    # `base.html`/`landing.html`'s footer).
+    - assets/images/logo-mark.png
+    - assets/images/logo-mark-light.png
     # Batch 7 — Grammar's 9 topics, extracted verbatim (via a read-only
     # `ast.literal_eval` script, never Django code execution) from
     # `subject_views.py`'s own `SUBJECT_TOPIC_CARDS`/`SUBJECT_TOPICS`/

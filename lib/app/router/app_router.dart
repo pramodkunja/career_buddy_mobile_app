@@ -50,6 +50,15 @@ import '../../features/employer/presentation/screens/employer_dashboard_screen.d
 import '../../features/employer/presentation/screens/employer_job_applications_screen.dart';
 import '../../features/employer/presentation/screens/employer_home_screen.dart';
 import '../../features/home/presentation/screens/home_screen.dart';
+import '../../features/resume/domain/entities/create_resume_state.dart';
+import '../../features/resume/domain/entities/manual_resume_draft.dart';
+import '../../features/resume/domain/entities/resume_role.dart';
+import '../../features/resume/presentation/screens/create_resume_builder_screen.dart';
+import '../../features/resume/presentation/screens/create_resume_drafts_screen.dart';
+import '../../features/resume/presentation/screens/create_resume_preview_screen.dart';
+import '../../features/resume/presentation/screens/manual_resume_builder_screen.dart';
+import '../../features/resume/presentation/screens/manual_resume_page_preview_screen.dart';
+import '../../features/resume/presentation/screens/manual_resume_preview_screen.dart';
 import '../../features/resume/presentation/screens/resume_builder_screen.dart';
 import '../../features/resume/presentation/screens/resume_history_screen.dart';
 import '../../features/resume/presentation/screens/role_picker_screen.dart';
@@ -177,11 +186,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: RoutePaths.employerCompanyProfile,
-        builder: (context, state) => const EmployerCompanyProfileScreen(isCreate: false),
+        builder: (context, state) =>
+            const EmployerCompanyProfileScreen(isCreate: false),
       ),
       GoRoute(
         path: RoutePaths.employerCompanyProfileCreate,
-        builder: (context, state) => const EmployerCompanyProfileScreen(isCreate: true),
+        builder: (context, state) =>
+            const EmployerCompanyProfileScreen(isCreate: true),
       ),
       GoRoute(
         path: RoutePaths.employerJobOpenings,
@@ -256,7 +267,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: RoutePaths.skillUpLesson,
-        builder: (context, state) => SkillUpLessonScreen(args: state.extra! as SkillUpLessonRouteArgs),
+        builder: (context, state) =>
+            SkillUpLessonScreen(args: state.extra! as SkillUpLessonRouteArgs),
       ),
       GoRoute(
         path: RoutePaths.resumeBuilder,
@@ -269,6 +281,45 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: RoutePaths.resumeRolePicker,
         builder: (context, state) => const RolePickerScreen(),
+      ),
+      // Not in `publicRoutes`/`universalRoutes` — the auth-redirect guard
+      // already protects this route, matching Decision 1 of the Phase 25
+      // brief (authenticated users only).
+      GoRoute(
+        path: RoutePaths.manualResumeBuilder,
+        builder: (context, state) =>
+            ManualResumeBuilderScreen(role: state.extra as ResumeRole?),
+      ),
+      GoRoute(
+        path: RoutePaths.manualResumePreview,
+        builder: (context, state) =>
+            ManualResumePreviewScreen(draft: state.extra! as ManualResumeDraft),
+      ),
+      GoRoute(
+        path: RoutePaths.manualResumePagePreview,
+        builder: (context, state) => ManualResumePagePreviewScreen(
+          draft: state.extra! as ManualResumeDraft,
+        ),
+      ),
+      // Phase 39 — Create Resume. [createResumeBuilder]/[createResumePreview]
+      // are in `universalRoutes` (see their own doc comments: the real
+      // endpoints genuinely have no login requirement); [createResumeDrafts]
+      // is not, matching the real `drafts_list`'s own `@login_required`.
+      GoRoute(
+        path: RoutePaths.createResumeBuilder,
+        builder: (context, state) => CreateResumeBuilderScreen(
+          initialForm: state.extra as CreateResumeFormState?,
+        ),
+      ),
+      GoRoute(
+        path: RoutePaths.createResumePreview,
+        builder: (context, state) => CreateResumePreviewScreen(
+          form: state.extra! as CreateResumeFormState,
+        ),
+      ),
+      GoRoute(
+        path: RoutePaths.createResumeDrafts,
+        builder: (context, state) => const CreateResumeDraftsScreen(),
       ),
       // The ATS result page's "Try Interview" CTA — Batch 9 implements the
       // real feature; both CTA call sites in `resume_builder_screen.dart`
@@ -289,7 +340,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: RoutePaths.grammarTopicPattern,
-        builder: (context, state) => GrammarDetailScreen(slug: state.pathParameters['slug']!),
+        builder: (context, state) =>
+            GrammarDetailScreen(slug: state.pathParameters['slug']!),
       ),
       // Batch 8 — Roleplay/JAM workshop entry points. Each feature's own
       // in-flow screens (practice/recording/results) are reached via plain
@@ -360,7 +412,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: RoutePaths.activities,
-        builder: (context, state) => ActivityListScreen(initialCategory: state.uri.queryParameters['category']),
+        builder: (context, state) => ActivityListScreen(
+          initialCategory: state.uri.queryParameters['category'],
+        ),
       ),
       // Must be declared BEFORE `activityDetailPattern` below: GoRoute
       // matching walks the route list in declaration order and uses the
@@ -386,9 +440,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: RoutePaths.subActivityDetailPattern,
         builder: (context, state) {
-          final activityId = int.tryParse(state.pathParameters['activityId'] ?? '') ?? -1;
+          final activityId =
+              int.tryParse(state.pathParameters['activityId'] ?? '') ?? -1;
           final subId = int.tryParse(state.pathParameters['subId'] ?? '') ?? -1;
-          return SubActivityDetailScreen(activityId: activityId, subActivityId: subId);
+          return SubActivityDetailScreen(
+            activityId: activityId,
+            subActivityId: subId,
+          );
         },
       ),
       GoRoute(
@@ -406,9 +464,15 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           return AiSpeakingScreen(
             exerciseId: id,
             activityId: args is AiSpeakingRouteArgs ? args.activityId : -1,
-            subActivityId: args is AiSpeakingRouteArgs ? args.subActivityId : -1,
-            activityTitle: args is AiSpeakingRouteArgs ? args.activityTitle : '',
-            previousAttempt: args is AiSpeakingRouteArgs ? args.previousAttempt : null,
+            subActivityId: args is AiSpeakingRouteArgs
+                ? args.subActivityId
+                : -1,
+            activityTitle: args is AiSpeakingRouteArgs
+                ? args.activityTitle
+                : '',
+            previousAttempt: args is AiSpeakingRouteArgs
+                ? args.previousAttempt
+                : null,
           );
         },
       ),
@@ -422,7 +486,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             activityId: args is AiWritingRouteArgs ? args.activityId : -1,
             subActivityId: args is AiWritingRouteArgs ? args.subActivityId : -1,
             activityTitle: args is AiWritingRouteArgs ? args.activityTitle : '',
-            previousAttempt: args is AiWritingRouteArgs ? args.previousAttempt : null,
+            previousAttempt: args is AiWritingRouteArgs
+                ? args.previousAttempt
+                : null,
           );
         },
       ),
@@ -434,9 +500,15 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           return AiListeningScreen(
             exerciseId: id,
             activityId: args is AiListeningRouteArgs ? args.activityId : -1,
-            subActivityId: args is AiListeningRouteArgs ? args.subActivityId : -1,
-            activityTitle: args is AiListeningRouteArgs ? args.activityTitle : '',
-            previousAttempt: args is AiListeningRouteArgs ? args.previousAttempt : null,
+            subActivityId: args is AiListeningRouteArgs
+                ? args.subActivityId
+                : -1,
+            activityTitle: args is AiListeningRouteArgs
+                ? args.activityTitle
+                : '',
+            previousAttempt: args is AiListeningRouteArgs
+                ? args.previousAttempt
+                : null,
           );
         },
       ),
@@ -450,7 +522,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             activityId: args is AiReadingRouteArgs ? args.activityId : -1,
             subActivityId: args is AiReadingRouteArgs ? args.subActivityId : -1,
             activityTitle: args is AiReadingRouteArgs ? args.activityTitle : '',
-            previousAttempt: args is AiReadingRouteArgs ? args.previousAttempt : null,
+            previousAttempt: args is AiReadingRouteArgs
+                ? args.previousAttempt
+                : null,
           );
         },
       ),
@@ -461,7 +535,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           final args = state.extra;
           return MatchingExerciseScreen(
             exerciseId: id,
-            args: args is MatchingRouteArgs ? args : const MatchingRouteArgs(title: 'Exercise', order: 1, activityId: -1, subActivityId: -1),
+            args: args is MatchingRouteArgs
+                ? args
+                : const MatchingRouteArgs(
+                    title: 'Exercise',
+                    order: 1,
+                    activityId: -1,
+                    subActivityId: -1,
+                  ),
           );
         },
       ),
@@ -472,7 +553,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           final args = state.extra;
           return BingoExerciseScreen(
             exerciseId: id,
-            args: args is BingoRouteArgs ? args : const BingoRouteArgs(title: 'Exercise', order: 1, activityId: -1, subActivityId: -1),
+            args: args is BingoRouteArgs
+                ? args
+                : const BingoRouteArgs(
+                    title: 'Exercise',
+                    order: 1,
+                    activityId: -1,
+                    subActivityId: -1,
+                  ),
           );
         },
       ),
@@ -483,7 +571,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           final args = state.extra;
           return FillBlankExerciseScreen(
             exerciseId: id,
-            args: args is FillBlankRouteArgs ? args : const FillBlankRouteArgs(title: 'Exercise', order: 1, activityId: -1, subActivityId: -1),
+            args: args is FillBlankRouteArgs
+                ? args
+                : const FillBlankRouteArgs(
+                    title: 'Exercise',
+                    order: 1,
+                    activityId: -1,
+                    subActivityId: -1,
+                  ),
           );
         },
       ),
@@ -494,7 +589,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           final args = state.extra;
           return GenericWritingScreen(
             exerciseId: id,
-            args: args is GenericWritingRouteArgs ? args : const GenericWritingRouteArgs(title: 'Exercise', order: 1, activityId: -1, subActivityId: -1),
+            args: args is GenericWritingRouteArgs
+                ? args
+                : const GenericWritingRouteArgs(
+                    title: 'Exercise',
+                    order: 1,
+                    activityId: -1,
+                    subActivityId: -1,
+                  ),
           );
         },
       ),
@@ -505,7 +607,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           final args = state.extra;
           return TimerExerciseScreen(
             exerciseId: id,
-            args: args is TimerExerciseRouteArgs ? args : const TimerExerciseRouteArgs(title: 'Exercise', order: 1, activityId: -1, subActivityId: -1),
+            args: args is TimerExerciseRouteArgs
+                ? args
+                : const TimerExerciseRouteArgs(
+                    title: 'Exercise',
+                    order: 1,
+                    activityId: -1,
+                    subActivityId: -1,
+                  ),
           );
         },
       ),
@@ -521,10 +630,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: RoutePaths.subjectQuizPattern,
         builder: (context, state) {
           final subject = state.pathParameters['subject'] ?? '';
-          final title = kQuizSubjects.firstWhere(
-            (s) => s.slug == subject,
-            orElse: () => QuizSubject(slug: subject, title: subject),
-          ).title;
+          final title = kQuizSubjects
+              .firstWhere(
+                (s) => s.slug == subject,
+                orElse: () => QuizSubject(slug: subject, title: subject),
+              )
+              .title;
           return SubjectQuizMockTestScreen(subject: subject, title: title);
         },
       ),
