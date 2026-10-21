@@ -22,25 +22,34 @@ import '../../../../app/theme/app_spacing.dart';
 /// had assumed they would need reproducing; tracing the full cascade
 /// corrects that.)
 ///
-/// Not reproduced this phase: the 2 guest-only "I'm a Job Seeker"/"I'm an
-/// Employer" role pills (`landing.html:6556-6563`) — out of this phase's
-/// explicit task list, and this widget is intentionally shared, unchanged,
-/// between the guest and authenticated-student views (`PublicHomeBody`/
-/// `AuthenticatedHomeBody`), matching the real web showing the identical
-/// hero to both (only those 2 pills vary by auth there). Adding them would
-/// need an auth-aware branch this widget doesn't otherwise need. Flagged as
-/// a remaining small gap in the Phase 37 report.
+/// Landing-page parity phase: the 2 guest-only "I'm a Job Seeker"/"I'm an
+/// Employer" role pills (`landing.html:6556-6563`, `{% if not user.is_
+/// authenticated %}`-gated) are now reproduced via [onJobSeeker]/
+/// [onEmployer] — both nullable so this widget stays shared, unchanged,
+/// between the guest and authenticated-student views (`PublicHomeBody`
+/// passes them, `AuthenticatedHomeBody` leaves them `null` and the pills
+/// simply don't render), matching the real web's own `{% if %}` exactly
+/// rather than adding an auth lookup inside this widget. Confirmed directly:
+/// both pills link to the exact same destinations as "Get Started Free"
+/// (`/users/register/`) and "Create Resume"'s neighboring employer
+/// equivalent (`/employer/accounts/employer/register/`) — i.e. the same
+/// [onJobSeeker]≈`onRegister`/[onEmployer]≈`onEmployerRegister` callbacks
+/// `PublicHomeBody` already has, not new destinations.
 class HomeHero extends StatelessWidget {
   const HomeHero({
     required this.onGetStarted,
     required this.onFindJobs,
     required this.onCreateResume,
+    this.onJobSeeker,
+    this.onEmployer,
     super.key,
   });
 
   final VoidCallback onGetStarted;
   final VoidCallback onFindJobs;
   final VoidCallback onCreateResume;
+  final VoidCallback? onJobSeeker;
+  final VoidCallback? onEmployer;
 
   /// `--grad` (`linear-gradient(135deg, #185adb 0%, #7c3aed 60%, #db2777
   /// 100%)`) — the vibrant layer's final `.btn-primary` background.
@@ -265,10 +274,60 @@ class HomeHero extends StatelessWidget {
                     ),
                   ),
                 ),
+                if (onJobSeeker != null && onEmployer != null) ...[
+                  const SizedBox(height: AppSpacing.md),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _RolePill(
+                          icon: Icons.school_outlined,
+                          label: "I'm a Job Seeker",
+                          onTap: onJobSeeker!,
+                        ),
+                      ),
+                      const SizedBox(width: AppSpacing.sm),
+                      Expanded(
+                        child: _RolePill(
+                          icon: Icons.apartment_outlined,
+                          label: "I'm an Employer",
+                          onTap: onEmployer!,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ],
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// `.role-pill` (`landing.html:6556-6563`).
+class _RolePill extends StatelessWidget {
+  const _RolePill({required this.icon, required this.label, required this.onTap});
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return OutlinedButton.icon(
+      onPressed: onTap,
+      icon: Icon(icon, size: 15, color: AppColors.textPrimary),
+      label: Text(
+        label,
+        style: const TextStyle(color: AppColors.textPrimary, fontSize: 12.5, fontWeight: FontWeight.w600),
+        overflow: TextOverflow.ellipsis,
+      ),
+      style: OutlinedButton.styleFrom(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+        side: const BorderSide(color: AppColors.border),
+        backgroundColor: Colors.white,
+        shape: const StadiumBorder(),
       ),
     );
   }

@@ -247,6 +247,58 @@ class _OneQuestionMockInterviewRepository implements MockInterviewRepository {
       const Success(_analytics);
 }
 
+/// Phase 48 — records exactly which [ViolationType]s `MockInterviewScreen`'s
+/// `WidgetsBindingObserver` actually reported, to verify the
+/// `AppLifecycleState` → [ViolationType] mapping itself (previously only the
+/// controller's own `reportViolation` method was unit-tested directly; this
+/// exercises the real screen-level wiring that calls it).
+class _TrackingViolationRepository implements MockInterviewRepository {
+  final List<ViolationType> reportedTypes = [];
+
+  @override
+  Future<Result<void>> startInterview() async => const Success(null);
+
+  @override
+  Future<Result<void>> confirmCameraLive() async => const Success(null);
+
+  @override
+  Future<Result<NextQuestionOutcome>> getNextQuestion({required bool advance}) =>
+      throw UnimplementedError();
+
+  @override
+  Future<Result<AnswerSubmissionResult>> submitAnswer({
+    required int questionId,
+    required String answerText,
+  }) => throw UnimplementedError();
+
+  @override
+  Future<Result<ViolationState>> getViolationState() async => const Success(
+    ViolationState(count: 0, status: MalpracticeStatus.clean, flagThreshold: 3, terminateThreshold: 5),
+  );
+
+  @override
+  Future<Result<ViolationRecordResult>> recordViolation({
+    required ViolationType type,
+    double? durationSeconds,
+  }) async {
+    reportedTypes.add(type);
+    return Success(
+      ViolationRecordResult(
+        count: reportedTypes.length,
+        status: MalpracticeStatus.clean,
+        action: ViolationAction.warn,
+        typeOccurrenceNumber: reportedTypes.length,
+      ),
+    );
+  }
+
+  @override
+  Future<Result<bool>> uploadInterviewVideo(String filePath) async => const Success(true);
+
+  @override
+  Future<Result<InterviewAnalyticsResult>> getAnalytics() async => const Success(_analytics);
+}
+
 void main() {
   group('MockInterviewScreen — Batch 10: video recording wiring', () {
     testWidgets(
@@ -392,6 +444,120 @@ void main() {
     });
   });
 
+  group('Phase 48 — MockInterviewScreen app-lifecycle anti-malpractice wiring', () {
+    // Unlike the other question-view tests above (which only need a seeded
+    // state to render), this exercises the real `WidgetsBindingObserver`
+    // mixin end to end, so it needs a real `mockInterviewRepositoryProvider`
+    // wired to a working `recordViolation` — the plain `_pump` helper leaves
+    // that provider unconfigured.
+    Future<ProviderContainer> pumpActiveQuestion(
+      WidgetTester tester,
+      MockInterviewRepository repo,
+    ) async {
+      tester.view.physicalSize = const Size(400, 2600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+      final container = ProviderContainer(
+        overrides: [
+          mockInterviewControllerProvider.overrideWith(
+            () => _SeededMockInterviewController(
+              MockInterviewQuestionActive(
+                question: _question(),
+                secondsRemaining: 22,
+                answerText: '',
+              ),
+            ),
+          ),
+          mockInterviewRepositoryProvider.overrideWithValue(repo),
+          interviewCameraServiceFactoryProvider.overrideWithValue(
+            () => _FakeInterviewCameraService(),
+          ),
+          authRepositoryProvider.overrideWithValue(_FakeAuthRepository()),
+        ],
+      );
+      addTearDown(container.dispose);
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: const MaterialApp(home: MockInterviewScreen()),
+        ),
+      );
+      await tester.pump();
+      return container;
+    }
+
+    testWidgets(
+      'backgrounding the app during an active question reports a real violation; the warning '
+      'dialog surfaces once the app is foregrounded again',
+      (tester) async {
+        final repo = _OneQuestionMockInterviewRepository();
+
+        await pumpActiveQuestion(tester, repo);
+        // Leaving the app: the violation is recorded server-side immediately
+        // (mirrors the web's `document.hidden` firing the instant the tab is
+        // switched away, not only once the user returns) — this must not
+        // wait for the app to come back.
+        tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+        await tester.pump();
+
+        // No dialog is visible yet — Flutter's own `SchedulerBinding` does
+        // not produce new visible frames while the app is backgrounded
+        // (real, documented behavior, not a bug here), exactly mirroring
+        // how a real OS wouldn't show new UI for a backgrounded app either.
+        expect(find.byType(AlertDialog), findsNothing);
+
+        // Returning to the app: Flutter's own lifecycle state machine only
+        // allows adjacent transitions (`AppLifecycleListener`'s internal
+        // assertion), so coming back from `paused` is `paused -> hidden ->
+        // inactive -> resumed`, never a direct `paused -> resumed` jump —
+        // and `hidden`/`inactive` are each their own reportable event too
+        // (see this screen's own doc comment on the lifecycle mapping), so
+        // this one real "leave and come back" gesture legitimately reports
+        // more than one violation, same as it would on a real device.
+        tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
+        await tester.pump();
+        tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+        await tester.pump();
+        tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+        for (var i = 0; i < 3; i++) {
+          await tester.pump();
+        }
+
+        expect(find.textContaining('Warning'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'AppLifecycleState.inactive (a lesser focus change) also reports, as windowBlur',
+      (tester) async {
+        final repo = _TrackingViolationRepository();
+
+        await pumpActiveQuestion(tester, repo);
+        tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+        for (var i = 0; i < 5; i++) {
+          await tester.pump();
+        }
+
+        expect(repo.reportedTypes, [ViolationType.windowBlur]);
+      },
+    );
+
+    testWidgets(
+      'AppLifecycleState.resumed reports nothing',
+      (tester) async {
+        final repo = _TrackingViolationRepository();
+
+        await pumpActiveQuestion(tester, repo);
+        tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+        for (var i = 0; i < 5; i++) {
+          await tester.pump();
+        }
+
+        expect(repo.reportedTypes, isEmpty);
+      },
+    );
+  });
+
   group('MockInterviewScreen — results', () {
     testWidgets(
       'renders the real final score, pass/fail state, and per-question feedback',
@@ -399,7 +565,10 @@ void main() {
         await _pump(tester, const MockInterviewResults(_analytics));
 
         expect(find.text('84'), findsOneWidget);
-        expect(find.text('Qualified Candidate'), findsOneWidget);
+        // Phase 46 — the full real badge text
+        // (`resume_analytics.html:207-209`), not just "Qualified
+        // Candidate" — it also names the real passing threshold.
+        expect(find.text('Qualified Candidate (Score ≥ 90/100)'), findsOneWidget);
         expect(find.text('20/20'), findsOneWidget);
         expect(find.text('4.2/5'), findsOneWidget);
         expect(find.text('What is a list comprehension?'), findsOneWidget);

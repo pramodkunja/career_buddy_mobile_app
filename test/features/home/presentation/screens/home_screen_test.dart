@@ -123,6 +123,26 @@ GoRouter _router() => GoRouter(
       builder: (context, state) =>
           const Scaffold(body: Text('Create Resume Builder Screen')),
     ),
+    GoRoute(
+      path: RoutePaths.resumeRolePicker,
+      builder: (context, state) =>
+          const Scaffold(body: Text('Role Picker Screen')),
+    ),
+    GoRoute(
+      path: RoutePaths.careerDepartments,
+      builder: (context, state) =>
+          Scaffold(body: Text('Career Departments Screen: ${state.extra}')),
+    ),
+    GoRoute(
+      path: RoutePaths.resumeHistory,
+      builder: (context, state) =>
+          const Scaffold(body: Text('Resume History Screen')),
+    ),
+    GoRoute(
+      path: RoutePaths.skillUpSections,
+      builder: (context, state) =>
+          const Scaffold(body: Text('Skill Up Sections Screen')),
+    ),
   ],
 );
 
@@ -196,7 +216,10 @@ void main() {
           );
           expect(find.text('Get Started Free'), findsOneWidget);
           expect(find.text('Find Jobs').first, findsWidgets);
-          expect(find.text('Create Resume'), findsOneWidget);
+          // Landing-page parity phase: the new resume-maker teaser section
+          // also has its own "Create Resume" button — the hero's own is
+          // first in tree order, same handling as "Find Jobs" above.
+          expect(find.text('Create Resume').first, findsWidgets);
           // The hero is above the story sections, not instead of them.
           expect(find.text('Built for your career journey'), findsOneWidget);
         },
@@ -236,7 +259,9 @@ void main() {
         (tester) async {
           await _pump(tester);
 
-          await tester.tap(find.text('Create Resume'));
+          // The hero's own "Create Resume" is first in tree order — see the
+          // "all 3 CTA labels" test above for why `.first` is needed now.
+          await tester.tap(find.text('Create Resume').first);
           await _pumpAfterTap(tester);
 
           expect(find.text('Create Resume Builder Screen'), findsOneWidget);
@@ -261,6 +286,11 @@ void main() {
       (tester) async {
         await _pump(tester);
 
+        // Landing-page parity phase: Platform Overview/Career Journey/Choose
+        // Your Path now push this section further down than the test's
+        // fixed viewport — scroll it into view first, same as the existing
+        // footer tests already do for content below the fold.
+        await tester.ensureVisible(find.text('Login').first);
         await tester.tap(find.text('Login').first);
         await _pumpAfterTap(tester);
 
@@ -274,6 +304,7 @@ void main() {
       (tester) async {
         await _pump(tester);
 
+        await tester.ensureVisible(find.text('Explore Job Seeker Portal'));
         await tester.tap(find.text('Explore Job Seeker Portal'));
         await _pumpAfterTap(tester);
 
@@ -287,6 +318,7 @@ void main() {
       (tester) async {
         await _pump(tester);
 
+        await tester.ensureVisible(find.text('Explore Employer Portal'));
         await tester.tap(find.text('Explore Employer Portal'));
         await _pumpAfterTap(tester);
 
@@ -314,12 +346,15 @@ void main() {
       ) async {
         await _pump(tester);
 
+        // Landing-page parity phase: the new Skill Up teaser section's own
+        // eyebrow pill is also literally "Skill Up" — the footer's link,
+        // reproduced last in the page, is `.last` in tree order.
         await tester.dragUntilVisible(
-          find.text('Skill Up'),
+          find.text('Skill Up').last,
           find.byType(SingleChildScrollView),
           const Offset(0, -300),
         );
-        await tester.tap(find.text('Skill Up'));
+        await tester.tap(find.text('Skill Up').last);
         await _pumpAfterTap(tester);
 
         expect(find.text('Skill Up Screen'), findsOneWidget);
@@ -341,6 +376,328 @@ void main() {
         expect(find.text('Pro Screen'), findsOneWidget);
       });
     });
+
+    group('landing-page parity — new sections', () {
+      testWidgets(
+        'renders every new section header added this phase',
+        (tester) async {
+          await _pump(tester);
+
+          for (final heading in [
+            'Everything you need to move your career forward', // Platform overview
+            'Your career journey, step by step', // Career journey
+            'Choose Your Path', // Choose your path
+            'Seven core skill areas', // Skill Up
+            'Turn your resume into a career advantage', // Resume & AI
+            'Your career & learning assistant', // Meet Buddy
+            'Why job seekers and employers choose CareerBuddy', // About
+            'Create your resume', // Resume maker teaser
+            'Learn How CareerBuddy Works', // Tutorials
+            'What our job seekers say', // Testimonials
+            'What our employers say',
+          ]) {
+            expect(
+              find.text(heading),
+              findsOneWidget,
+              reason: 'missing section heading: $heading',
+            );
+          }
+        },
+      );
+
+      testWidgets(
+        'tapping IT Job Seeker in Choose Your Path opens IT career browsing '
+        '(Phase 43 — previously opened the generic Role Picker)',
+        (tester) async {
+          await _pump(tester);
+
+          await tester.ensureVisible(find.text('IT Job Seeker'));
+          await tester.tap(find.text('IT Job Seeker'));
+          await _pumpAfterTap(tester);
+
+          expect(
+            find.text('Career Departments Screen: it'),
+            findsOneWidget,
+          );
+        },
+      );
+
+      testWidgets(
+        'tapping Non-IT Job Seeker in Choose Your Path opens Non-IT career browsing',
+        (tester) async {
+          await _pump(tester);
+
+          await tester.ensureVisible(find.text('Non-IT Job Seeker'));
+          await tester.tap(find.text('Non-IT Job Seeker'));
+          await _pumpAfterTap(tester);
+
+          expect(
+            find.text('Career Departments Screen: non-it'),
+            findsOneWidget,
+          );
+        },
+      );
+
+      testWidgets(
+        'tapping a Skill Up row navigates to the matching Activities category',
+        (tester) async {
+          await _pump(tester);
+
+          await tester.ensureVisible(find.text('Speaking & Presentation'));
+          await tester.tap(find.text('Speaking & Presentation'));
+          await _pumpAfterTap(tester);
+
+          expect(find.text('Activities Screen'), findsOneWidget);
+        },
+      );
+
+      testWidgets(
+        'tapping Ask Buddy in the Meet Buddy section opens the chat panel',
+        (tester) async {
+          await _pump(tester);
+
+          // The Meet Buddy section's own button and the footer's "Ask
+          // Buddy" link (both open the same panel) share this label — the
+          // section's is first in tree order.
+          await tester.ensureVisible(find.text('Ask Buddy').first);
+          await tester.tap(find.text('Ask Buddy').first);
+          await tester.pump();
+
+          // The chat panel's own close button only exists once the panel
+          // (not just the launcher/greeting bubble) is open.
+          expect(find.byIcon(Icons.close), findsOneWidget);
+        },
+      );
+
+      testWidgets(
+        'tapping a Featured Tutorial opens the video dialog',
+        (tester) async {
+          await _pump(tester);
+
+          await tester.ensureVisible(find.text('Welcome to CareerBuddy'));
+          await tester.tap(find.text('Welcome to CareerBuddy'));
+          await tester.pump();
+
+          // Opens the dialog shell immediately (loading spinner) — this
+          // test deliberately does not wait for the real network video to
+          // load (no network access in a unit test), only that the real
+          // tutorial-video action is wired, not a placeholder.
+          expect(find.byType(Dialog), findsOneWidget);
+          expect(find.byType(CircularProgressIndicator), findsOneWidget);
+        },
+      );
+    });
+  });
+
+  group('Phase 49 — path picker popup', () {
+    testWidgets('does not appear before 5 seconds have elapsed', (tester) async {
+      await _pump(tester);
+
+      await tester.pump(const Duration(seconds: 4));
+
+      expect(find.text('Which path suits you?'), findsNothing);
+    });
+
+    testWidgets('appears 5 seconds after load for a guest, with the real popup copy', (tester) async {
+      await _pump(tester);
+
+      await tester.pump(const Duration(seconds: 5));
+      await tester.pump();
+
+      expect(find.text('Which path suits you?'), findsOneWidget);
+      expect(find.text("Pick a track and we'll show you the roles that match."), findsOneWidget);
+      expect(find.text('Software, data, AI, cloud, testing and security roles.'), findsOneWidget);
+      // The popup's own Non-IT copy ("Technical and Non-Technical
+      // opportunities beyond IT.") omits "Explore ", unlike the inline
+      // section's wording — both exist on the real page as genuinely
+      // different strings, so the popup must not just reuse the inline
+      // text.
+      expect(find.text('Technical and Non-Technical opportunities beyond IT.'), findsOneWidget);
+    });
+
+    testWidgets('never appears for an authenticated (non-employer) user', (tester) async {
+      await _pump(tester, user: const AuthUser(username: 'jane'));
+
+      await tester.pump(const Duration(seconds: 5));
+      await tester.pump();
+
+      expect(find.text('Which path suits you?'), findsNothing);
+    });
+
+    testWidgets('tapping IT Job Seeker in the popup navigates and dismisses it', (tester) async {
+      await _pump(tester);
+      await tester.pump(const Duration(seconds: 5));
+      await tester.pump();
+
+      await tester.tap(find.byKey(const Key('path-picker-it-card')));
+      await _pumpAfterTap(tester);
+
+      expect(find.text('Career Departments Screen: it'), findsOneWidget);
+      expect(find.text('Which path suits you?'), findsNothing);
+    });
+
+    testWidgets('tapping Non-IT Job Seeker advances to step 2 (Technical/Non-Technical), not a direct navigation', (
+      tester,
+    ) async {
+      await _pump(tester);
+      await tester.pump(const Duration(seconds: 5));
+      await tester.pump();
+
+      await tester.tap(find.byKey(const Key('path-picker-nonit-card')));
+      await tester.pump();
+
+      expect(find.text('Technical or Non-Technical?'), findsOneWidget);
+      expect(find.text('Choose the kind of Non-IT work you want to explore.'), findsOneWidget);
+      expect(find.text('Career Departments Screen: it'), findsNothing);
+    });
+
+    testWidgets('step 2 "Back" returns to step 1', (tester) async {
+      await _pump(tester);
+      await tester.pump(const Duration(seconds: 5));
+      await tester.pump();
+      await tester.tap(find.byKey(const Key('path-picker-nonit-card')));
+      await tester.pump();
+      expect(find.text('Technical or Non-Technical?'), findsOneWidget);
+
+      await tester.tap(find.text('Back'));
+      await tester.pump();
+
+      expect(find.text('Which path suits you?'), findsOneWidget);
+    });
+
+    testWidgets('step 2 "Technical" navigates to the Non-IT career browsing screen and dismisses the popup', (
+      tester,
+    ) async {
+      await _pump(tester);
+      await tester.pump(const Duration(seconds: 5));
+      await tester.pump();
+      await tester.tap(find.byKey(const Key('path-picker-nonit-card')));
+      await tester.pump();
+
+      await tester.tap(find.byKey(const Key('path-picker-technical-card')));
+      await _pumpAfterTap(tester);
+
+      expect(find.text('Career Departments Screen: non-it'), findsOneWidget);
+      expect(find.text('Which path suits you?'), findsNothing);
+    });
+
+    testWidgets('step 2 "Non-Technical" navigates to the same Non-IT career browsing screen', (tester) async {
+      await _pump(tester);
+      await tester.pump(const Duration(seconds: 5));
+      await tester.pump();
+      await tester.tap(find.byKey(const Key('path-picker-nonit-card')));
+      await tester.pump();
+
+      await tester.tap(find.byKey(const Key('path-picker-nontechnical-card')));
+      await _pumpAfterTap(tester);
+
+      expect(find.text('Career Departments Screen: non-it'), findsOneWidget);
+    });
+
+    testWidgets(
+      'REGRESSION (Phase 50): tapping outside the dialog (the barrier) does not dismiss it — '
+      'the real <dialog> has no backdrop click handler',
+      (tester) async {
+        await _pump(tester);
+        await tester.pump(const Duration(seconds: 5));
+        await tester.pump();
+        expect(find.text('Which path suits you?'), findsOneWidget);
+
+        // A point clearly outside the dialog's own content box (near the
+        // very top-left corner) but still within the modal barrier.
+        await tester.tapAt(const Offset(5, 5));
+        await tester.pump();
+
+        expect(find.text('Which path suits you?'), findsOneWidget);
+      },
+    );
+
+    testWidgets('the close (X) button dismisses the popup without navigating', (tester) async {
+      await _pump(tester);
+      await tester.pump(const Duration(seconds: 5));
+      await tester.pump();
+
+      await tester.tap(find.byKey(const Key('path-picker-close-button')));
+      await tester.pump();
+
+      expect(find.text('Which path suits you?'), findsNothing);
+      expect(find.text('Career Departments Screen: it'), findsNothing);
+    });
+
+    testWidgets('"Maybe later" dismisses the popup without navigating', (tester) async {
+      await _pump(tester);
+      await tester.pump(const Duration(seconds: 5));
+      await tester.pump();
+
+      await tester.tap(find.byKey(const Key('path-picker-maybe-later-button')));
+      await tester.pump();
+
+      expect(find.text('Which path suits you?'), findsNothing);
+    });
+
+    testWidgets('choosing a path directly (before 5s) cancels the pending popup — it never appears afterward', (
+      tester,
+    ) async {
+      await _pump(tester);
+
+      await tester.ensureVisible(find.text('IT Job Seeker'));
+      await tester.tap(find.text('IT Job Seeker'));
+      await _pumpAfterTap(tester);
+      expect(find.text('Career Departments Screen: it'), findsOneWidget);
+
+      // The popup's own 5s timer was already running when the inline card
+      // was tapped directly — it must not still fire afterward and cover
+      // the screen the user already navigated to.
+      await tester.pump(const Duration(seconds: 5));
+      await tester.pump();
+
+      expect(find.text('Which path suits you?'), findsNothing);
+    });
+
+    testWidgets('navigating away before 5s (e.g. via the hero CTA) suppresses the popup', (tester) async {
+      await _pump(tester);
+
+      await tester.tap(find.text('Get Started Free'));
+      await _pumpAfterTap(tester);
+
+      await tester.pump(const Duration(seconds: 5));
+      await tester.pump();
+
+      expect(find.text('Which path suits you?'), findsNothing);
+    });
+
+    testWidgets('renders without overflow at narrow phone widths, including the step 2 content', (tester) async {
+      for (final size in [const Size(320, 700), const Size(360, 700), const Size(390, 700)]) {
+        await _pump(tester, size: size);
+        await tester.pump(const Duration(seconds: 5));
+        await tester.pump();
+        expect(tester.takeException(), isNull);
+
+        await tester.tap(find.byKey(const Key('path-picker-nonit-card')));
+        await tester.pump();
+        expect(tester.takeException(), isNull);
+      }
+    });
+
+    testWidgets(
+      'REGRESSION (Phase 50): repeated pumps/rebuilds after the popup appears never produce a 2nd dialog',
+      (tester) async {
+        await _pump(tester);
+        await tester.pump(const Duration(seconds: 5));
+        await tester.pump();
+        expect(find.byType(Dialog), findsOneWidget);
+
+        // Several more frames/rebuilds (the Buddy launcher's own repeating
+        // float animation alone causes ongoing rebuilds) must not stack a
+        // 2nd popup instance.
+        for (var i = 0; i < 5; i++) {
+          await tester.pump(const Duration(milliseconds: 200));
+        }
+
+        expect(find.byType(Dialog), findsOneWidget);
+        expect(find.text('Which path suits you?'), findsOneWidget);
+      },
+    );
   });
 
   group('HomeScreen (authenticated)', () {

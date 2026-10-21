@@ -1,34 +1,39 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../../../app/router/route_paths.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_spacing.dart';
+import 'home_about_section.dart';
+import 'home_career_journey.dart';
+import 'home_choose_path.dart';
 import 'home_hero.dart';
+import 'home_meet_buddy_section.dart';
+import 'home_platform_overview.dart';
+import 'home_resume_maker_teaser.dart';
+import 'home_skill_up_teaser.dart';
+import 'home_testimonials_section.dart';
 import 'home_trust_strip.dart';
+import 'home_tutorials_section.dart';
 import 'portal_card.dart';
 
 /// The guest branch of `{% block content %}` (`templates/landing.html`).
 ///
-/// Phase 37: [HomeHero] and the two [PortalCard] "story" sections (`#job
-/// -seeker`/`#employer`, `landing.html:6839-6945`) rebuilt from the actual
-/// current web source — see each widget's own doc comment for what changed
-/// and why. The CTA labels below changed from "Register Free"/"Register
-/// Company" to the real web's "Explore Job Seeker Portal"/"Explore Employer
-/// Portal" (`landing.html:6859,6912`), but both still call the exact same
-/// [onRegister]/[onEmployerRegister] callbacks as before — only the visible
-/// label changed, not the destination. A secondary "Login" text action was
-/// added under each primary CTA so [onLogin]/[onEmployerLogin] remain
-/// reachable from this screen exactly as before (the real web does not
-/// repeat a login link here — it's only in the nav bar — but removing an
-/// existing, working action from this screen was out of this phase's
-/// scope; `AppNavDrawer` also still has both, unchanged).
+/// Landing-page parity phase: every section of the real page is now
+/// reproduced, in the real page's own order (`landing.html`'s section
+/// comments, read top to bottom): Hero → Trust strip → Platform overview
+/// (`#features`) → Career journey (`.journey-sec`) → Choose Your Path
+/// (`#choose-path`) → Job seeker / Employer story cards (`#job-seeker`/
+/// `#employer`, pre-existing [PortalCard]s) → Skill Up (`#skillup`) →
+/// Resume & AI (`#resume`, reusing the same [PortalCard] the job-seeker/
+/// employer sections already use — `#resume`'s own markup is the identical
+/// `.story` layout) → Meet Buddy (`#buddy`) → About CareerBuddy (`#why`) →
+/// Resume maker teaser (`#create-resume`) → Tutorials (`#videos`) →
+/// Testimonials (`#stories`). The footer ([HomeLandingFooter]) is composed
+/// by [HomeScreen] itself, unchanged.
 ///
-/// Still out of scope (unchanged by this phase, see
-/// `docs/PHASE_37_LANDING_PAGE_UI_REBUILD_REPORT.md` for the full list):
-/// the Trust Strip, the career-journey timeline, the Choose-Your-Path
-/// cards, the Feature Grid, testimonials, the Final CTA section, and the
-/// richer landing-specific footer — each is a separate, undone section of
-/// `landing.html`, not something this phase's task list asked for beyond
-/// the hero/cards/logo/colors/trust-strip-and-footer-scoping it did cover.
+/// See `docs/LANDING_PAGE_WEB_MOBILE_PARITY_REPORT.md` for the full
+/// section-by-section before/after and every route-mapping decision below.
 class PublicHomeBody extends StatelessWidget {
   const PublicHomeBody({
     required this.onGetStarted,
@@ -38,6 +43,9 @@ class PublicHomeBody extends StatelessWidget {
     required this.onRegister,
     required this.onEmployerLogin,
     required this.onEmployerRegister,
+    required this.onAskBuddy,
+    required this.onItJobSeeker,
+    required this.onNonItJobSeeker,
     super.key,
   });
 
@@ -49,9 +57,21 @@ class PublicHomeBody extends StatelessWidget {
   final VoidCallback onEmployerLogin;
   final VoidCallback onEmployerRegister;
 
-  /// `--grad` — the same vibrant-layer gradient [HomeHero] uses for its
-  /// primary CTA; `#job-seeker`'s own `.btn-primary` resolves to the exact
-  /// same rule.
+  /// Phase 49 — same destinations `HomeChoosePath`'s 2 cards already push
+  /// (`RoutePaths.careerDepartments`, track `'it'`/`'non-it'`), now passed
+  /// in from [HomeScreen] instead of being hardcoded here, so it can also
+  /// cancel its own path-picker popup timer the instant either card is
+  /// tapped directly (mirrors the real page's `clearTimeout(t)`).
+  final VoidCallback onItJobSeeker;
+  final VoidCallback onNonItJobSeeker;
+
+  /// Opens [BuddyChatbotOverlay]'s panel (`buddyOverlayOpenRequestProvider`)
+  /// — shared by the Platform Overview "Meet Buddy" link and the Meet Buddy
+  /// section's own "Ask Buddy" button, matching the real web's "Meet Buddy"
+  /// card linking to `#buddy` (the page scrolls to the same panel this one
+  /// opens directly) and `#buddy`'s own CTA calling `window.openChat()`.
+  final VoidCallback onAskBuddy;
+
   static const _primaryCtaGradient = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
@@ -68,9 +88,27 @@ class PublicHomeBody extends StatelessWidget {
             onGetStarted: onGetStarted,
             onFindJobs: onFindJobs,
             onCreateResume: onCreateResume,
+            onJobSeeker: onRegister,
+            onEmployer: onEmployerRegister,
           ),
           const SizedBox(height: AppSpacing.md),
           const HomeTrustStrip(),
+          const SizedBox(height: AppSpacing.xl),
+          HomePlatformOverview(
+            onExploreSkillUp: () => _push(context, RoutePaths.skillUp),
+            onCheckResume: () => _push(context, RoutePaths.resumeBuilder),
+            onStartMockInterview: () => _push(context, RoutePaths.resumeBuilder),
+            onBrowseActivities: () => _push(context, RoutePaths.activities),
+            onSeeMatchingJobs: onFindJobs,
+            onMeetBuddy: onAskBuddy,
+          ),
+          const SizedBox(height: AppSpacing.xl),
+          const HomeCareerJourney(),
+          const SizedBox(height: AppSpacing.xl),
+          HomeChoosePath(
+            onItJobSeeker: onItJobSeeker,
+            onNonItJobSeeker: onNonItJobSeeker,
+          ),
           const SizedBox(height: AppSpacing.xl),
           PortalCard(
             eyebrow: 'For job seekers',
@@ -158,8 +196,69 @@ class PublicHomeBody extends StatelessWidget {
               ),
             ],
           ),
+          const SizedBox(height: AppSpacing.xl),
+          HomeSkillUpTeaser(
+            onSpeaking: () => _push(context, RoutePaths.activitiesWithCategory('speaking')),
+            onWriting: () => _push(context, RoutePaths.activitiesWithCategory('writing')),
+            onVocabulary: () => _push(context, RoutePaths.skillUpSections),
+            onNegotiation: () => _push(context, RoutePaths.activitiesWithCategory('negotiation')),
+            onCommunication: () => _push(context, RoutePaths.activitiesWithCategory('communication')),
+            onAnalysis: () => _push(context, RoutePaths.activitiesWithCategory('analysis')),
+            onWorkshops: () => _push(context, RoutePaths.activitiesWithCategory('workshop')),
+            onBrowseAll: () => _push(context, RoutePaths.skillUpSections),
+          ),
+          const SizedBox(height: AppSpacing.xl),
+          PortalCard(
+            eyebrow: 'Resume & AI',
+            title: 'Turn your resume into a career advantage',
+            description:
+                "Upload your resume and get real, specific AI feedback — not generic tips. See your ATS score, "
+                "fix what's holding you back, and track every version.",
+            checklist: const [
+              'AI-powered resume parsing & analysis',
+              'ATS compatibility scoring',
+              'Resume history across every version',
+              'Job match analytics based on your resume',
+            ],
+            ctaLabel: 'Check Your Resume',
+            onCta: () => _push(context, RoutePaths.resumeBuilder),
+            ctaFallbackColor: AppColors.action,
+            secondaryLabel: 'Resume History',
+            onSecondary: () => _push(context, RoutePaths.resumeHistory),
+            caption: 'Build a resume that gets noticed',
+            avatarColors: const [
+              Color(0xFFFEF3C7),
+              Color(0xFFD1FAE5),
+              Color(0xFFDBEAFE),
+            ],
+            isDarkVisual: true,
+            highlights: const [
+              PortalHighlight(
+                icon: Icons.check_circle_outline,
+                title: 'Resume Score',
+                description: '87/100 — Strong keyword match, 2 formatting fixes suggested.',
+              ),
+              PortalHighlight(
+                icon: Icons.history,
+                title: 'Version History',
+                description: 'Every analysis saved, so you can compare and improve.',
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.xl),
+          HomeMeetBuddySection(onAskBuddy: onAskBuddy),
+          const SizedBox(height: AppSpacing.xl),
+          const HomeAboutSection(),
+          const SizedBox(height: AppSpacing.xl),
+          HomeResumeMakerTeaser(onCreateResume: onCreateResume),
+          const SizedBox(height: AppSpacing.xl),
+          const HomeTutorialsSection(),
+          const SizedBox(height: AppSpacing.xl),
+          const HomeTestimonialsSection(),
         ],
       ),
     );
   }
+
+  void _push(BuildContext context, String path) => context.push(path);
 }

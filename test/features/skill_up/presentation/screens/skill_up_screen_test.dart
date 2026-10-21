@@ -63,6 +63,15 @@ GoRouter _router({int initialTabIndex = 0}) => GoRouter(
         return Scaffold(body: Text('LESSON: ${args.title} | ${args.url}'));
       },
     ),
+    // Phase 47 — a fake stand-in for `SkillUpNonItDepartmentsScreen` (which
+    // loads a real bundled asset via a `FutureProvider`), same reasoning as
+    // the lesson route above: this file tests `SkillUpScreen`'s own
+    // navigation wiring, not the destination screen itself, which has its
+    // own dedicated test file (`skill_up_nonit_departments_screen_test.dart`).
+    GoRoute(
+      path: RoutePaths.skillUpNonIt,
+      builder: (context, state) => const Scaffold(body: Text('NON-IT DEPARTMENTS')),
+    ),
   ],
 );
 
@@ -197,6 +206,35 @@ void main() {
         expect(find.text(section.title), findsWidgets);
       }
     });
+
+    group('Phase 47 — Non-IT Center entry point', () {
+      testWidgets('renders the real header, counts copy, and tag verbatim from the web source', (tester) async {
+        await _pump(tester);
+
+        await _tapTab(tester, 'Sections in depth');
+
+        expect(find.text('Non-IT Center'), findsWidgets);
+        expect(
+          find.textContaining(
+            'Every Non-IT department and the roles inside it — 21 departments, 202 roles, '
+            'each with the skills that role calls for.',
+          ),
+          findsWidgets,
+        );
+        expect(find.text('Industry'), findsWidgets);
+      });
+
+      testWidgets('"Browse departments" navigates to the Non-IT departments screen', (tester) async {
+        await _pump(tester);
+
+        await _tapTab(tester, 'Sections in depth');
+        await tester.ensureVisible(find.byKey(const Key('skillup-nonit-browse-departments-button')).first);
+        await tester.tap(find.byKey(const Key('skillup-nonit-browse-departments-button')).first);
+        await _settle(tester);
+
+        expect(find.text('NON-IT DEPARTMENTS'), findsOneWidget);
+      });
+    });
   });
 
   group('SkillUpScreen — Sitemap tab', () {
@@ -217,6 +255,15 @@ void main() {
       // No tap needed — the tab should already be selected, so its
       // content ("Platform at a glance") is immediately present.
       expect(find.text(SkillUpData.glanceTitle), findsOneWidget);
+    });
+
+    testWidgets('Phase 47 — also shows the Non-IT Center entry, matching the real Sitemap tab', (tester) async {
+      await _pump(tester);
+
+      await _tapTab(tester, 'Sitemap');
+
+      expect(find.text('Non-IT Center'), findsWidgets);
+      expect(find.byKey(const Key('skillup-nonit-browse-departments-button')), findsWidgets);
     });
   });
 

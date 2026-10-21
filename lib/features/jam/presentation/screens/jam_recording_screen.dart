@@ -29,6 +29,18 @@ import 'jam_result_screen.dart';
 /// back on this same running screen instance via [JamSessionController]'s
 /// own `getFeedback` → `JamReady` transition — no navigation, no second
 /// `startSession`-style call — see that method's doc comment.
+///
+/// Anti-malpractice (Phase 48): mixes in [WidgetsBindingObserver], the same
+/// pattern `MockInterviewScreen` already uses, to detect the app being
+/// backgrounded mid-recording — the native equivalent of the web's
+/// `document.visibilitychange` listener (`session.html:583-588`) — and
+/// auto-stops the recording exactly as that listener does, with the same
+/// one-shot (not escalating) behavior; see [JamSessionController]'s own doc
+/// comment for why there is no violation counter here. Only
+/// [AppLifecycleState.paused]/`hidden` map to this (the direct native match
+/// for `document.hidden`) — unlike `MockInterviewScreen`, [AppLifecycleState
+/// .inactive] is deliberately not treated as a leave here, since the real
+/// `session.html` only ever listens for `visibilitychange`, never `blur`.
 class JamRecordingScreen extends ConsumerStatefulWidget {
   const JamRecordingScreen({
     this.topicId,
@@ -52,10 +64,12 @@ class JamRecordingScreen extends ConsumerStatefulWidget {
   ConsumerState<JamRecordingScreen> createState() => _JamRecordingScreenState();
 }
 
-class _JamRecordingScreenState extends ConsumerState<JamRecordingScreen> {
+class _JamRecordingScreenState extends ConsumerState<JamRecordingScreen>
+    with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       // Guarded on `JamSessionInitial` — without this, remounting this
       // screen (or, in a widget test, seeding the controller with a fixed
@@ -72,6 +86,39 @@ class _JamRecordingScreenState extends ConsumerState<JamRecordingScreen> {
         }
       }
     });
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  /// See this class's own doc comment for exactly which lifecycle states map
+  /// here and why. A no-op (via [JamSessionController.stopRecording]'s own
+  /// guard) unless a recording is actually in progress, so backgrounding the
+  /// app on the Instructions/Captured/Result steps does nothing.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    switch (state) {
+      case AppLifecycleState.paused:
+      case AppLifecycleState.hidden:
+        if (ref.read(jamSessionControllerProvider) is JamRecordingInProgress) {
+          ref.read(jamSessionControllerProvider.notifier).stopRecording();
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Recording was automatically stopped because you left the app. '
+                'Please stay in Career Buddy while speaking.',
+              ),
+            ),
+          );
+        }
+      case AppLifecycleState.inactive:
+      case AppLifecycleState.resumed:
+      case AppLifecycleState.detached:
+        break;
+    }
   }
 
   @override

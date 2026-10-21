@@ -86,8 +86,19 @@ class _FixedSessionController extends JamSessionController {
   _FixedSessionController(this.fixedState);
   final JamSessionState fixedState;
 
+  /// Phase 48 — how many times [JamRecordingScreen]'s app-lifecycle observer
+  /// actually called [stopRecording]. Overridden (rather than letting the
+  /// real implementation run) because the real one touches `_recorder`,
+  /// which `build()` here never wires up.
+  int stopRecordingCallCount = 0;
+
   @override
   JamSessionState build() => fixedState;
+
+  @override
+  Future<void> stopRecording() async {
+    stopRecordingCallCount++;
+  }
 
   /// Test-only: pushes a new state directly, to exercise `ref.listen`
   /// side effects (e.g. navigation on `JamResultReady`) that only fire on a
@@ -234,6 +245,76 @@ void main() {
 
       expect(find.byType(JamResultScreen), findsOneWidget);
       expect(find.text('Great job.'), findsOneWidget);
+    });
+  });
+
+  group('Phase 48 — anti-malpractice: app backgrounded mid-recording', () {
+    Future<_FixedSessionController> pumpWithState(WidgetTester tester, JamSessionState fixedState) async {
+      final controller = _FixedSessionController(fixedState);
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            authRepositoryProvider.overrideWithValue(_FakeAuthRepository()),
+            jamSessionControllerProvider.overrideWith(() => controller),
+            jamRepositoryProvider.overrideWithValue(_NeverJamRepository()),
+          ],
+          child: const MaterialApp(home: JamRecordingScreen()),
+        ),
+      );
+      await tester.pump();
+      return controller;
+    }
+
+    testWidgets('backgrounding the app while recording stops it and shows the real warning copy', (tester) async {
+      final controller = await pumpWithState(tester, JamRecordingInProgress(session: _session(), elapsedSeconds: 10));
+
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+      await tester.pump();
+
+      expect(controller.stopRecordingCallCount, 1);
+      expect(
+        find.text(
+          'Recording was automatically stopped because you left the app. '
+          'Please stay in Career Buddy while speaking.',
+        ),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('AppLifecycleState.hidden also stops an in-progress recording', (tester) async {
+      final controller = await pumpWithState(tester, JamRecordingInProgress(session: _session(), elapsedSeconds: 10));
+
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
+      await tester.pump();
+
+      expect(controller.stopRecordingCallCount, 1);
+    });
+
+    testWidgets('backgrounding the app while NOT recording does nothing (Instructions step)', (tester) async {
+      final controller = await pumpWithState(tester, JamReady(session: _session()));
+
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+      await tester.pump();
+
+      expect(controller.stopRecordingCallCount, 0);
+      expect(
+        find.text(
+          'Recording was automatically stopped because you left the app. '
+          'Please stay in Career Buddy while speaking.',
+        ),
+        findsNothing,
+      );
+    });
+
+    testWidgets('AppLifecycleState.inactive does not stop a recording (the real page never listens for blur)', (
+      tester,
+    ) async {
+      final controller = await pumpWithState(tester, JamRecordingInProgress(session: _session(), elapsedSeconds: 10));
+
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+      await tester.pump();
+
+      expect(controller.stopRecordingCallCount, 0);
     });
   });
 }

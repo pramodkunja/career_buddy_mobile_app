@@ -373,4 +373,49 @@ void main() {
       await _unmount(tester);
     }
   });
+
+  // Phase 44 — a different Scaffold shape than the landing page's: this
+  // screen's in-progress exam has its own `bottomNavigationBar` (the
+  // `_SubmitBar`) *in addition to* the shared `BuddyChatbotOverlay`, at a
+  // narrow/short viewport. Confirms the shared overlay's Phase 44
+  // viewport-adaptive sizing fix (see `BuddyChatbotOverlay`'s own doc
+  // comment) doesn't regress on a screen shaped very differently from the
+  // landing page it was originally reported on.
+  testWidgets('Phase 44 regression: the Buddy launcher and panel stay usable alongside this screen\'s own Submit bar at a short viewport', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(320, 640);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await _pump(tester, _FakeMockQuizRepository(getResult: Success(_questions())));
+    await tester.scrollUntilVisible(find.text('Start Test'), 200, scrollable: find.byType(Scrollable));
+    await tester.tap(find.text('Start Test'));
+    await tester.pump();
+    await tester.pump();
+
+    // In progress now — the `_SubmitBar` bottomNavigationBar is present
+    // alongside the overlay. The launcher must still render without the
+    // combination throwing a layout exception.
+    expect(find.text('Question 1 of 4'), findsOneWidget);
+    expect(find.byKey(const Key('buddyChatbotLauncher')), findsOneWidget);
+    expect(tester.takeException(), isNull);
+
+    // Opening the panel must not hide its own close button or input field —
+    // the exact Phase 44 regression (previously silently clipped off the
+    // top with no error, on any sufficiently constrained viewport).
+    await tester.tap(find.byKey(const Key('buddyChatbotLauncher')));
+    await tester.pump(const Duration(milliseconds: 200));
+
+    expect(find.byIcon(Icons.close), findsOneWidget);
+    expect(find.byType(TextField), findsOneWidget);
+    expect(tester.takeException(), isNull);
+
+    await tester.tap(find.byIcon(Icons.close));
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(tester.takeException(), isNull);
+
+    await _unmount(tester);
+  });
 }

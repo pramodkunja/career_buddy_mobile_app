@@ -394,6 +394,75 @@ void main() {
       });
     });
 
+    group('Phase 48 — concurrent stopRecording calls never double-stop/double-upload', () {
+      test('a 2nd stopRecording while the 1st is still awaiting the recorder is a no-op', () {
+        fakeAsync((async) {
+          final repo = _FakeJamRepository()
+            ..startResult = Success(_session())
+            ..saveAudioResult = const Success(null);
+          final recorder = _FakeAudioRecorderService(stopPath: '/tmp/once.m4a');
+          final container = _buildContainer(recorder: recorder, repo: repo);
+          addTearDown(container.dispose);
+          final notifier = container.read(jamSessionControllerProvider.notifier);
+          notifier.startSession();
+          async.flushMicrotasks();
+          notifier.startRecording();
+          async.flushMicrotasks();
+          async.elapse(const Duration(seconds: 10));
+
+          // Reproduces the real race this guards: the app-lifecycle auto-stop
+          // (Phase 48) and the manual Stop button (or the 60s timer) both
+          // calling `stopRecording()` before the first call's `await
+          // _recorder.stop()` has resolved — `state` is still
+          // `JamRecordingInProgress` for both at the moment they're called.
+          notifier.stopRecording();
+          notifier.stopRecording();
+          async.flushMicrotasks();
+
+          final state = container.read(jamSessionControllerProvider) as JamReadyForFeedback;
+          expect(state.elapsedSeconds, 10);
+          expect(recorder.stopCount, 1, reason: 'the recorder must only be stopped once');
+          expect(repo.saveAudioCallCount, 1, reason: 'the recording must only be uploaded once');
+        });
+      });
+
+      test('the guard releases after a completed stop — a later, non-racing stopRecording still works', () {
+        fakeAsync((async) {
+          final repo = _FakeJamRepository()
+            ..startResult = Success(_session(id: 5))
+            ..saveAudioResult = const Success(null);
+          final recorder = _FakeAudioRecorderService(stopPath: '/tmp/take-a.m4a');
+          final container = _buildContainer(recorder: recorder, repo: repo);
+          addTearDown(container.dispose);
+          final notifier = container.read(jamSessionControllerProvider.notifier);
+          notifier.startSession();
+          async.flushMicrotasks();
+          notifier.startRecording();
+          async.flushMicrotasks();
+          // Under 2s — `JamRecordingTooShort`, not uploaded, and (unlike
+          // `JamReadyForFeedback`) a state `startRecording` accepts again, so
+          // this re-exercises `stopRecording` end to end a 2nd time, proving
+          // `_stoppingRecording` isn't a one-shot/stuck lockout.
+          async.elapse(const Duration(seconds: 1));
+          notifier.stopRecording();
+          async.flushMicrotasks();
+          expect(container.read(jamSessionControllerProvider), isA<JamRecordingTooShort>());
+          expect(recorder.stopCount, 1);
+
+          notifier.startRecording();
+          async.flushMicrotasks();
+          async.elapse(const Duration(seconds: 4));
+          notifier.stopRecording();
+          async.flushMicrotasks();
+
+          final state = container.read(jamSessionControllerProvider) as JamReadyForFeedback;
+          expect(state.elapsedSeconds, 4);
+          expect(recorder.stopCount, 2);
+          expect(repo.saveAudioCallCount, 1);
+        });
+      });
+    });
+
     test('setLanguage changes the language sent on the next upload', () {
       fakeAsync((async) {
         final repo = _FakeJamRepository()

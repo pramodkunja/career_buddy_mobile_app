@@ -1,14 +1,19 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/providers/core_providers.dart';
+import '../../data/career_departments_asset_datasource.dart';
+import '../../data/create_resume_guest_draft_local_datasource.dart';
+import '../../data/create_resume_guest_draft_repository_impl.dart';
 import '../../data/create_resume_remote_datasource.dart';
 import '../../data/create_resume_repository_impl.dart';
 import '../../data/manual_resume_draft_local_datasource.dart';
 import '../../data/manual_resume_draft_repository_impl.dart';
 import '../../data/resume_remote_datasource.dart';
 import '../../data/resume_repository_impl.dart';
+import '../../domain/entities/career_department.dart';
 import '../../domain/entities/create_resume_draft_summary.dart';
 import '../../domain/entities/resume_history_item.dart';
+import '../../domain/repositories/create_resume_guest_draft_repository.dart';
 import '../../domain/repositories/create_resume_repository.dart';
 import '../../domain/repositories/manual_resume_draft_repository.dart';
 import '../../domain/repositories/resume_repository.dart';
@@ -110,6 +115,39 @@ final createResumePdfControllerProvider =
     NotifierProvider<CreateResumePdfController, CreateResumePdfState>(
       CreateResumePdfController.new,
     );
+
+// --------------------------------------------------------------------- //
+//  Phase 43 — the real "Choose Your Path" department/role catalogs.
+// --------------------------------------------------------------------- //
+
+final careerDepartmentsAssetDataSourceProvider =
+    Provider<CareerDepartmentsAssetDataSource>((ref) {
+      return CareerDepartmentsAssetDataSource();
+    });
+
+/// [track] is `'it'` or `'non-it'`. A plain [FutureProvider.family], not a
+/// sealed-state controller — this is bundled static data with nothing to
+/// retry against a real backend (a load failure here would mean a corrupt
+/// asset, not a network error), the same reasoning `grammarTopicCardsProvider`
+/// already uses for the same kind of bundled content.
+final careerDepartmentsProvider =
+    FutureProvider.family<List<CareerDepartmentGroup>, String>((ref, track) {
+      return ref.watch(careerDepartmentsAssetDataSourceProvider).load(track);
+    });
+
+final createResumeGuestDraftLocalDataSourceProvider =
+    Provider<CreateResumeGuestDraftLocalDataSource>((ref) {
+      return CreateResumeGuestDraftLocalDataSource(
+        ref.watch(secureStorageProvider),
+      );
+    });
+
+final createResumeGuestDraftRepositoryProvider =
+    Provider<CreateResumeGuestDraftRepository>((ref) {
+      return CreateResumeGuestDraftRepositoryImpl(
+        ref.watch(createResumeGuestDraftLocalDataSourceProvider),
+      );
+    });
 
 final createResumeDraftsControllerProvider =
     AsyncNotifierProvider<

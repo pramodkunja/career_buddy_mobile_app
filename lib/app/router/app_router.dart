@@ -62,6 +62,9 @@ import '../../features/resume/presentation/screens/manual_resume_preview_screen.
 import '../../features/resume/presentation/screens/resume_builder_screen.dart';
 import '../../features/resume/presentation/screens/resume_history_screen.dart';
 import '../../features/resume/presentation/screens/role_picker_screen.dart';
+import '../../features/resume/domain/entities/career_department.dart';
+import '../../features/resume/presentation/screens/career_departments_screen.dart';
+import '../../features/resume/presentation/screens/career_roles_screen.dart';
 import '../../features/mock_tests/amcat/presentation/screens/amcat_mock_test_screen.dart';
 import '../../features/mock_tests/amcat/presentation/screens/cocubes_mock_test_screen.dart';
 import '../../features/mock_tests/domain/entities/quiz_subject.dart';
@@ -80,6 +83,8 @@ import '../../features/mock_interview/presentation/screens/mock_interview_screen
 import '../../features/roleplay/presentation/screens/roleplay_home_screen.dart';
 import '../../features/skill_up/presentation/screens/skill_up_screen.dart';
 import '../../features/skill_up/presentation/screens/skill_up_lesson_screen.dart';
+import '../../features/skill_up/presentation/screens/skill_up_nonit_departments_screen.dart';
+import '../../features/skill_up/presentation/screens/skill_up_nonit_roles_screen.dart';
 import '../../features/skill_up/presentation/skill_up_lesson_route_args.dart';
 import '../../features/splash/presentation/screens/splash_screen.dart';
 import '../../features/subscription/presentation/screens/subscription_screen.dart';
@@ -271,6 +276,15 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             SkillUpLessonScreen(args: state.extra! as SkillUpLessonRouteArgs),
       ),
       GoRoute(
+        path: RoutePaths.skillUpNonIt,
+        builder: (context, state) => const SkillUpNonItDepartmentsScreen(),
+      ),
+      GoRoute(
+        path: RoutePaths.skillUpNonItRoles,
+        builder: (context, state) =>
+            SkillUpNonItRolesScreen(department: state.extra! as CareerDepartment),
+      ),
+      GoRoute(
         path: RoutePaths.resumeBuilder,
         builder: (context, state) => const ResumeBuilderScreen(),
       ),
@@ -281,6 +295,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: RoutePaths.resumeRolePicker,
         builder: (context, state) => const RolePickerScreen(),
+      ),
+      GoRoute(
+        path: RoutePaths.careerDepartments,
+        builder: (context, state) =>
+            CareerDepartmentsScreen(track: state.extra! as String),
+      ),
+      GoRoute(
+        path: RoutePaths.careerRoles,
+        builder: (context, state) =>
+            CareerRolesScreen(department: state.extra! as CareerDepartment),
       ),
       // Not in `publicRoutes`/`universalRoutes` — the auth-redirect guard
       // already protects this route, matching Decision 1 of the Phase 25

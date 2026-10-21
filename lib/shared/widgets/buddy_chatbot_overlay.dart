@@ -44,6 +44,26 @@ import '../../features/auth/presentation/controllers/auth_controller.dart';
 /// widget tests that mount screens containing this overlay with bounded
 /// `tester.pump()` (never `pumpAndSettle()`, since the float animation
 /// repeats forever) and don't expect background network activity.
+///
+/// Landing-page parity phase: "Meet Buddy"/"Ask Buddy" (`#buddy`'s own CTA
+/// literally calls `window.openChat()` on the real site, confirmed directly
+/// in its `onclick`) need to open this exact panel from elsewhere on the
+/// page, not navigate to a separate screen. [buddyOverlayOpenRequestProvider]
+/// is incremented by that CTA; this widget's own `build` listens for the
+/// change and opens the panel the same way the launcher tap does — the only
+/// way in, since the open/greet logic lives on this private State and this
+/// is the one widget instance mounted on every screen.
+class BuddyOverlayOpenRequestController extends Notifier<int> {
+  @override
+  int build() => 0;
+
+  void requestOpen() => state++;
+}
+
+final buddyOverlayOpenRequestProvider = NotifierProvider<BuddyOverlayOpenRequestController, int>(
+  BuddyOverlayOpenRequestController.new,
+);
+
 class BuddyChatbotOverlay extends ConsumerStatefulWidget {
   const BuddyChatbotOverlay({super.key});
 
@@ -140,6 +160,10 @@ class _BuddyChatbotOverlayState extends ConsumerState<BuddyChatbotOverlay> with 
     final authState = ref.watch(authControllerProvider);
     final greeting = AriaChatController.greetingFor(authState);
 
+    ref.listen(buddyOverlayOpenRequestProvider, (previous, next) {
+      if (previous != null && next != previous && !_panelOpen) _togglePanel();
+    });
+
     // Laid out as a bottom-right-anchored Column (panel/tooltip stacked
     // directly above the launcher) rather than a `Stack` of `Positioned`
     // children overflowing a fixed-size box — the earlier decorative-only
@@ -149,46 +173,147 @@ class _BuddyChatbotOverlayState extends ConsumerState<BuddyChatbotOverlay> with 
     // interacts badly with ancestor hit-testing (observed directly: taps on
     // the panel's send button silently missed in widget tests). A `Column`
     // sized to its own content sidesteps that entirely.
+    //
+    // Phase 44: `top: 0` is set *in addition to* `bottom`, not left unset.
+    // With only `right`/`bottom` given (the pre-Phase-44 code), `RenderStack`
+    // gives this child fully **unconstrained** height — confirmed directly:
+    // the Column's own ~638px natural height (520 panel + 8 gap + 110
+    // launcher) silently exceeds every real Scaffold body's visible height
+    // whenever the keyboard is open (a Scaffold's default
+    // `resizeToAvoidBottomInset: true` shrinks the body by the keyboard's
+    // height first), and the excess is hard-clipped off the *top* by the
+    // Stack's own `Clip.hardEdge` — with no RenderFlex overflow warning,
+    // since an unconstrained axis can never "overflow". The silently
+    // clipped region is exactly the panel's header: title, language
+    // selector, mic, speaker, and **the close button** — this was the root
+    // cause of the chat panel becoming unusable/unclosable once the
+    // keyboard was open, or on any sufficiently short viewport. Giving both
+    // `top` and `bottom` makes `RenderStack` *tighten* this child to the
+    // real, finite height Scaffold has actually computed for its body
+    // (already correctly net of any AppBar/bottomNavigationBar/keyboard —
+    // no guessing needed), which the `LayoutBuilder` below reads to size
+    // the panel adaptively instead of assuming a fixed 520px always fits.
+    final mediaQuery = MediaQuery.of(context);
     return Positioned(
-      // `.riya-assistant{right:10px;bottom:15px}` (`riya_assistant.css`).
+      top: 0,
+      // `.riya-assistant{right:10px;bottom:15px}` (`riya_assistant.css`) —
+      // `bottom` additionally grows with the device's own bottom safe-area
+      // inset (gesture-nav pill / home indicator), so the launcher never
+      // renders flush against — or under — that system UI.
       right: 10,
-      bottom: 15,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          if (_panelOpen)
-            _PanelEntrance(
-              child: _ChatPanel(onSend: _send, onClose: _closePanel, onMicToggle: _toggleMic),
-            )
-          else
-            // `.riya-greeting-bubble` — shown near the launcher while the
-            // panel is closed, same visual styling as the original
-            // decorative-only version.
-            Container(
-              constraints: const BoxConstraints(maxWidth: 170),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                border: Border.all(color: const Color(0xFFE2E8F0), width: 1.5),
-                borderRadius: BorderRadius.circular(6),
-                boxShadow: const [BoxShadow(color: Color(0x260EA5E9), blurRadius: 14)],
-              ),
-              child: Text(
-                greeting,
-                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF0F172A)),
-              ),
+      bottom: 15 + mediaQuery.padding.bottom,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          // `constraints.maxHeight` is finite here (see the comment above),
+          // but fall back to the screen height defensively rather than
+          // assume it always will be.
+          final availableHeight = constraints.maxHeight.isFinite ? constraints.maxHeight : mediaQuery.size.height;
+          return _BuddyColumn(
+            panelOpen: _panelOpen,
+            greeting: greeting,
+            availableHeight: availableHeight,
+            floatController: _floatController,
+            onLauncherTap: _togglePanel,
+            onSend: _send,
+            onClose: _closePanel,
+            onMicToggle: _toggleMic,
+          );
+        },
+      ),
+    );
+  }
+}
+
+/// Extracted so the height-adaptive math below has a clear, single home —
+/// see [BuddyChatbotOverlay.build]'s own comment for why `availableHeight`
+/// is passed in rather than re-derived here.
+class _BuddyColumn extends StatelessWidget {
+  const _BuddyColumn({
+    required this.panelOpen,
+    required this.greeting,
+    required this.availableHeight,
+    required this.floatController,
+    required this.onLauncherTap,
+    required this.onSend,
+    required this.onClose,
+    required this.onMicToggle,
+  });
+
+  final bool panelOpen;
+  final String greeting;
+  final double availableHeight;
+  final AnimationController floatController;
+  final VoidCallback onLauncherTap;
+  final void Function(String text) onSend;
+  final VoidCallback onClose;
+  final VoidCallback onMicToggle;
+
+  // Launcher (110) + the `SizedBox(height: 8)` gap always rendered above it,
+  // whether or not the panel is open.
+  static const double _launcherReserve = 110 + 8;
+
+  @override
+  Widget build(BuildContext context) {
+    // A `Column` can't shrink a fixed-size sibling (the 110px launcher) to
+    // make room for another — if reserving its space would push the panel
+    // below [_ChatPanel._minHeight], the launcher is temporarily omitted
+    // *while the panel is open* instead, so the panel (the thing the user
+    // actually opened) gets the space instead of the whole group
+    // overflowing. Never reachable with the panel closed — the closed
+    // state's own footprint (a small tooltip + the launcher) is a small
+    // fraction of any real viewport.
+    final panelFitsWithLauncher = availableHeight - _launcherReserve >= _ChatPanel._minHeight;
+    final showLauncher = !panelOpen || panelFitsWithLauncher;
+    final panelMaxHeight = showLauncher ? availableHeight - _launcherReserve : availableHeight;
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      // Any leftover slack (the common case: plenty of room) collapses to
+      // the *top* of this now-tightly-bounded box, keeping the launcher
+      // visually flush with the bottom edge exactly as before — only a
+      // genuinely constrained viewport (short screen, keyboard open) ever
+      // causes the panel below to actually shrink.
+      mainAxisAlignment: MainAxisAlignment.end,
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        if (panelOpen)
+          _PanelEntrance(
+            child: _ChatPanel(
+              onSend: onSend,
+              onClose: onClose,
+              onMicToggle: onMicToggle,
+              maxHeight: panelMaxHeight,
             ),
+          )
+        else
+          // `.riya-greeting-bubble` — shown near the launcher while the
+          // panel is closed, same visual styling as the original
+          // decorative-only version.
+          Container(
+            constraints: const BoxConstraints(maxWidth: 170),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              border: Border.all(color: const Color(0xFFE2E8F0), width: 1.5),
+              borderRadius: BorderRadius.circular(6),
+              boxShadow: const [BoxShadow(color: Color(0x260EA5E9), blurRadius: 14)],
+            ),
+            child: Text(
+              greeting,
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF0F172A)),
+            ),
+          ),
+        if (showLauncher) ...[
           const SizedBox(height: 8),
           AnimatedBuilder(
-            animation: _floatController,
+            animation: floatController,
             builder: (context, child) {
-              final dy = -8 * (1 - (2 * (_floatController.value - 0.5)).abs());
+              final dy = -8 * (1 - (2 * (floatController.value - 0.5)).abs());
               return Transform.translate(offset: Offset(0, dy), child: child);
             },
             child: GestureDetector(
               key: const Key('buddyChatbotLauncher'),
-              onTap: _togglePanel,
+              onTap: onLauncherTap,
               child: Container(
                 width: 110,
                 height: 110,
@@ -206,7 +331,7 @@ class _BuddyChatbotOverlayState extends ConsumerState<BuddyChatbotOverlay> with 
             ),
           ),
         ],
-      ),
+      ],
     );
   }
 }
@@ -245,11 +370,36 @@ class _PanelEntrance extends StatelessWidget {
 /// `ApiEndpoints.riyaChat`'s doc comment for the request/response contract
 /// this ultimately drives via [AriaChatController].
 class _ChatPanel extends ConsumerStatefulWidget {
-  const _ChatPanel({required this.onSend, required this.onClose, required this.onMicToggle});
+  const _ChatPanel({
+    required this.onSend,
+    required this.onClose,
+    required this.onMicToggle,
+    required this.maxHeight,
+  });
 
   final void Function(String text) onSend;
   final VoidCallback onClose;
   final VoidCallback onMicToggle;
+
+  /// The real, finite vertical space actually [_BuddyColumn] has already
+  /// decided to give this panel (after its own launcher-reservation/hiding
+  /// logic — see that widget's doc comment) — never requested raw, always
+  /// clamped against [_idealHeight] in `build()` below, so a short viewport
+  /// shrinks the panel instead of silently clipping its header and close
+  /// button off-screen.
+  final double maxHeight;
+
+  /// The pre-Phase-44 fixed height — used whenever there's room for it.
+  static const double _idealHeight = 520;
+
+  /// Below this, the panel stops being usefully readable (header + the
+  /// welcome-cards panel's own `min-height` + composer already need close
+  /// to this much) — used only as [_BuddyColumn]'s *threshold* for deciding
+  /// whether to free up the launcher's reserved space, never as a lower
+  /// bound here: this panel's own rendered height must never exceed
+  /// [maxHeight], however small, or it would overflow its parent instead of
+  /// the (now avoided) silent clip this phase fixes.
+  static const double _minHeight = 280;
 
   @override
   ConsumerState<_ChatPanel> createState() => _ChatPanelState();
@@ -418,7 +568,14 @@ class _ChatPanelState extends ConsumerState<_ChatPanel> {
       // chunk of always-visible content the original 300×420 sizing was
       // chosen without, and squeezing it into the old height left almost
       // nothing for the message transcript above it.
-      height: 520,
+      //
+      // Phase 44: shrinks below the 520 ideal when `widget.maxHeight` says
+      // there isn't room for it (keyboard open, short viewport) — clamped
+      // only against 0 on the low end, never against `_minHeight` (see
+      // [_ChatPanel]'s own doc comment for why requesting more than
+      // `maxHeight` actually gives, however small, would overflow instead
+      // of the silent clip this phase fixes).
+      height: widget.maxHeight.clamp(0.0, _ChatPanel._idealHeight),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),

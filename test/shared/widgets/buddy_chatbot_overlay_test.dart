@@ -212,6 +212,36 @@ Future<void> _pumpWithRouter(WidgetTester tester, ProviderContainer container, S
   await tester.pump();
 }
 
+/// Same host as [_pump], but wrapped in an explicit [MediaQuery] so a test
+/// can simulate a device's bottom safe-area inset (gesture-nav pill / home
+/// indicator) and/or an open on-screen keyboard (`viewInsets.bottom`) —
+/// neither of which the default test environment ever produces on its own.
+/// A real `Scaffold` reads this same [MediaQuery] to shrink its body by
+/// `viewInsets.bottom` (its default `resizeToAvoidBottomInset: true`),
+/// which is exactly the real-world condition that used to leave the chat
+/// panel's header and close button silently clipped off-screen — see
+/// `BuddyChatbotOverlay`'s own doc comment for the full root-cause.
+Future<void> _pumpWithMediaQuery(
+  WidgetTester tester,
+  ProviderContainer container, {
+  EdgeInsets viewInsets = EdgeInsets.zero,
+  EdgeInsets padding = EdgeInsets.zero,
+}) async {
+  await tester.pumpWidget(
+    UncontrolledProviderScope(
+      container: container,
+      child: MaterialApp(
+        builder: (context, child) => MediaQuery(
+          data: MediaQuery.of(context).copyWith(viewInsets: viewInsets, padding: padding),
+          child: child!,
+        ),
+        home: const Scaffold(body: Stack(children: [BuddyChatbotOverlay()])),
+      ),
+    ),
+  );
+  await tester.pump();
+}
+
 void main() {
   group('BuddyChatbotOverlay', () {
     testWidgets('shows the default greeting bubble and the launcher image when unauthenticated', (tester) async {
@@ -563,6 +593,81 @@ void main() {
       await tester.pump();
 
       expect(dataSource.capturedLanguages, ['hindi']);
+    });
+  });
+
+  // Phase 44 — fixes the floating Buddy overlay silently overlapping or
+  // clipping content: the collapsed launcher now respects the device's
+  // bottom safe-area inset, and the expanded chat panel now shrinks to fit
+  // the real available viewport height instead of assuming a fixed 520px
+  // always fits (see `BuddyChatbotOverlay`'s own doc comment for the full
+  // root-cause this group confirms is fixed).
+  group('Phase 44 — safe-area and viewport-adaptive sizing', () {
+    testWidgets('the collapsed launcher renders within a bottom safe-area inset (gesture nav / home indicator)', (
+      tester,
+    ) async {
+      await _pumpWithMediaQuery(tester, _container(), padding: const EdgeInsets.only(bottom: 34));
+
+      final launcherRect = tester.getRect(find.byKey(const Key('buddyChatbotLauncher')));
+      final screenHeight = tester.view.physicalSize.height / tester.view.devicePixelRatio;
+
+      // The launcher's bottom edge must clear the 34px safe-area inset —
+      // before Phase 44, `bottom` was a flat 15px with no awareness of
+      // `MediaQuery.padding.bottom` at all.
+      expect(screenHeight - launcherRect.bottom, greaterThanOrEqualTo(34));
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets(
+      'opening the panel with the keyboard open (viewInsets.bottom) keeps the header, close button and composer visible — not clipped',
+      (tester) async {
+        // A typical soft-keyboard height on a ~700dp-tall phone, leaving
+        // well under the panel's old fixed 638px (520 panel + 8 + 110
+        // launcher) requirement — before Phase 44 this silently clipped the
+        // header (title, language selector, mic, speaker, close button)
+        // off the top with no error at all, since an unconstrained
+        // `Positioned` height can never "overflow".
+        await _pumpWithMediaQuery(
+          tester,
+          _container(),
+          viewInsets: const EdgeInsets.only(bottom: 300),
+        );
+
+        await tester.tap(find.byKey(const Key('buddyChatbotLauncher')));
+        await tester.pump(const Duration(milliseconds: 200));
+
+        expect(find.byIcon(Icons.close), findsOneWidget);
+        expect(find.byKey(const Key('ariaLanguageSelector')), findsOneWidget);
+        expect(find.byKey(const Key('ariaMicButton')), findsOneWidget);
+        expect(find.byKey(const Key('ariaSpeakerButton')), findsOneWidget);
+        expect(find.byType(TextField), findsOneWidget);
+        expect(tester.takeException(), isNull);
+
+        // The close button must still be genuinely tappable, not just
+        // present in the tree underneath a clipped-away hit-test area.
+        await tester.tap(find.byIcon(Icons.close));
+        await tester.pump(const Duration(milliseconds: 200));
+        expect(find.byType(TextField), findsNothing);
+        expect(tester.takeException(), isNull);
+      },
+    );
+
+    testWidgets('an extremely short viewport still shows a usable, non-throwing panel at the clamped minimum height', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(400, 480);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await _pump(tester, _container());
+
+      await tester.tap(find.byKey(const Key('buddyChatbotLauncher')));
+      await tester.pump(const Duration(milliseconds: 200));
+
+      expect(find.byIcon(Icons.close), findsOneWidget);
+      expect(find.byType(TextField), findsOneWidget);
+      expect(tester.takeException(), isNull);
     });
   });
 }

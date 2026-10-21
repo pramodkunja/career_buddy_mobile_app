@@ -209,6 +209,29 @@ flutter:
     # `TOPIC_EMOJI` constants — the exact real content, not re-authored.
     # See `docs/UI_PARITY_MASTER_AUDIT.md` §7 Batch 7 for how it was made.
     - assets/data/grammar_data.json
+    # Phase 43 — the real "Choose Your Path" department/role catalogs.
+    # `it_departments.json` is copied byte-for-byte from the real
+    # `static/data/it_departments.json` the web itself fetches
+    # (`landing.html:6742`'s `data-src`). `nonit_departments.json` is the
+    # Non-IT equivalent — on the real web this data is inline JS, not a
+    # separate file, so this copy was produced by extracting the exact
+    # `var DEPTS = [...]` literal from `landing.html` and evaluating it with
+    # Node (never re-authored by hand) — see
+    # `docs/PHASE_43_IT_NONIT_CAREER_BROWSING_REPORT.md` for the exact
+    # extraction method.
+    - assets/data/it_departments.json
+    - assets/data/nonit_departments.json
+    # Phase 47 — the real Non-IT Skill Up curriculum (`static/data/
+    # nonit_departments.json`, `index.html:3886`'s `data-src` for the
+    # `#depth-nonit` section). Copied byte-for-byte from that file, which is
+    # NOT the same file as the Phase 43 asset above despite the identical
+    # real-web filename: that one is extracted from `landing.html`'s inline
+    # `DEPTS` literal for career-path browsing and has no lesson link; this
+    # one is the dedicated Skill Up data source and adds a 3rd array element
+    # per role — the relative path to that role's lesson page (`initNonIt()`,
+    # `r.course`). Kept under a distinct asset name to avoid confusing the
+    # two. See `docs/PHASE_47_NONIT_SKILLUP_CONTENT_PARITY_REPORT.md`.
+    - assets/data/nonit_skillup_departments.json
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

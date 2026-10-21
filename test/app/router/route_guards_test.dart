@@ -662,5 +662,64 @@ void main() {
         },
       );
     });
+
+    group('Phase 43 — Career browsing routes', () {
+      const universalCareerRoutes = [
+        RoutePaths.careerDepartments,
+        RoutePaths.careerRoles,
+      ];
+
+      test(
+        'departments and roles browsing are universal routes, reachable by both auth states — '
+        'matching the real career_path() view, confirmed directly to have no @login_required',
+        () {
+          for (final route in universalCareerRoutes) {
+            expect(
+              RoutePaths.universalRoutes.contains(route),
+              isTrue,
+              reason: '$route must be universal',
+            );
+            expect(
+              computeRedirect(
+                authState: const AuthUnauthenticated(),
+                matchedLocation: route,
+              ),
+              isNull,
+              reason:
+                  '$route should be reachable while unauthenticated, with no redirect',
+            );
+            const authenticated = AuthAuthenticated(AuthUser(username: 'jane'));
+            expect(
+              computeRedirect(authState: authenticated, matchedLocation: route),
+              isNull,
+              reason:
+                  '$route should be reachable while authenticated too, with no redirect',
+            );
+          }
+        },
+      );
+
+      test(
+        'the role-action sheet\'s own destinations (Resume Parsing -> resumeBuilder, '
+        'Build Resume -> manualResumeBuilder) remain protected, unchanged by this phase',
+        () {
+          for (final route in [
+            RoutePaths.resumeBuilder,
+            RoutePaths.manualResumeBuilder,
+          ]) {
+            expect(RoutePaths.publicRoutes.contains(route), isFalse);
+            expect(RoutePaths.universalRoutes.contains(route), isFalse);
+            expect(
+              computeRedirect(
+                authState: const AuthUnauthenticated(),
+                matchedLocation: route,
+              ),
+              RoutePaths.login,
+              reason: '$route must still redirect an anonymous visitor to login',
+            );
+          }
+        },
+      );
+    });
   });
 }

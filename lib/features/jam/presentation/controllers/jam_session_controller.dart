@@ -128,10 +128,35 @@ final class JamAssessmentResultReady extends JamSessionState {
   final JamAssessmentResult result;
 }
 
+/// Phase 48 — [stopRecording] is also called by [JamRecordingScreen]'s
+/// `WidgetsBindingObserver` the moment the app is backgrounded mid-recording,
+/// reproducing `session.html`'s own anti-malpractice control: `document.
+/// addEventListener("visibilitychange", () => { if (document.hidden &&
+/// timerInterval) { stopSession(); alert(...) } })` (`templates/jam/
+/// session.html:583-588`) — leaving mid-recording ends it exactly as the 60s
+/// timer running out would, rather than letting a candidate pause the clock
+/// by switching away and resume later. Confirmed this same template (and
+/// therefore this same control) backs both an ordinary practice session and
+/// every stage of the graded Assessment (`jam_app/views.py:283-303`'s
+/// `assessment_session` renders the identical `jam/session.html`). No
+/// server-side violation counter exists for JAM (unlike the Mock Interview's
+/// `InterviewViolation`/`malpractice_status` — confirmed directly against
+/// `career_app/models.py`/`views.py`): the web's own control is a one-shot
+/// stop, not an escalating 3-strike system, so this mirrors exactly that and
+/// nothing more.
 class JamSessionController extends Notifier<JamSessionState> {
   late final AudioRecorderService _recorder;
   Timer? _timer;
   String _language = 'english';
+
+  /// Phase 48 — [stopRecording] now has 2 call sites that can race ([_tick]'s
+  /// own 60s auto-stop and [JamRecordingScreen]'s new app-lifecycle auto-stop,
+  /// on top of the existing manual Stop button): [state] only moves off
+  /// [JamRecordingInProgress] after the `await _recorder.stop()` below
+  /// resolves, so 2 calls arriving before that still both pass the `current
+  /// is! JamRecordingInProgress` guard and would double-stop the recorder and
+  /// race 2 uploads for the same session. This flag closes that window.
+  bool _stoppingRecording = false;
 
   @override
   JamSessionState build() {
@@ -212,17 +237,23 @@ class JamSessionController extends Notifier<JamSessionState> {
   }
 
   Future<void> stopRecording() async {
+    if (_stoppingRecording) return;
     final current = state;
     if (current is! JamRecordingInProgress) return;
-    _timer?.cancel();
-    final elapsed = current.elapsedSeconds;
-    final path = await _recorder.stop();
+    _stoppingRecording = true;
+    try {
+      _timer?.cancel();
+      final elapsed = current.elapsedSeconds;
+      final path = await _recorder.stop();
 
-    if (elapsed < 2) {
-      state = JamRecordingTooShort(session: current.session);
-      return;
+      if (elapsed < 2) {
+        state = JamRecordingTooShort(session: current.session);
+        return;
+      }
+      await _uploadAndAdvance(session: current.session, audioFilePath: path, elapsedSeconds: elapsed);
+    } finally {
+      _stoppingRecording = false;
     }
-    await _uploadAndAdvance(session: current.session, audioFilePath: path, elapsedSeconds: elapsed);
   }
 
   Future<void> _uploadAndAdvance({

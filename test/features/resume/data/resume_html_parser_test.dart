@@ -1,4 +1,5 @@
 import 'package:career_buddy_lms/features/resume/data/resume_html_parser.dart';
+import 'package:career_buddy_lms/features/resume/domain/entities/resume_analysis.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 const _resultFixture = '''
@@ -111,6 +112,23 @@ const _historyFixture = '''
 </div>
 ''';
 
+/// Phase 46 — a minimal fragment carrying just the unique markers each real
+/// `ResumeInterviewGate` branch renders (`resume_match_result.html:
+/// 309-379`), appended to [_resultFixture]'s own base markup so the other
+/// fields ([ResumeAnalysisResult.analysis] etc.) still parse normally.
+String _withBanner(String bannerHeading, {String? skillUpBlock}) => '''
+$_resultFixture
+<h6 class="fw-bold mb-1">$bannerHeading</h6>
+${skillUpBlock ?? ''}
+''';
+
+const _skillUpBlock = '''
+<p class="text-muted small fw-semibold mb-2">Skills Backend Developer needs that your resume doesn&rsquo;t show:</p>
+<a href="/skill-up/?section=role-tech-development--backend-developer" class="btn btn-success fw-bold rounded-3 mt-3">
+    <i class="fas fa-graduation-cap"></i> Skill up yourself
+</a>
+''';
+
 void main() {
   group('isResumeMatchResultHtml', () {
     test('true for a result page, false for an upload-page-with-error', () {
@@ -180,6 +198,57 @@ void main() {
 
     test('isAtsOnly is true when the score label says "ATS Score"', () {
       expect(result.isAtsOnly, isTrue);
+    });
+
+    test('Phase 46 — an abbreviated/unexpected page with none of the 4 real banner headings defaults to planLocked', () {
+      expect(result.gate, ResumeInterviewGate.planLocked);
+      expect(result.showSkillUpAction, isFalse);
+      expect(result.targetRoleName, isNull);
+    });
+  });
+
+  group('parseResumeMatchResultHtml — Phase 46 ResumeInterviewGate (4-way branch)', () {
+    test('role-mismatch banner heading maps to ResumeInterviewGate.roleMismatch, with the role name extracted', () {
+      final result = parseResumeMatchResultHtml(
+        _withBanner('This resume doesn&rsquo;t match the Backend Developer role'),
+      );
+      expect(result.gate, ResumeInterviewGate.roleMismatch);
+      expect(result.effectiveGate, ResumeInterviewGate.roleMismatch);
+      expect(result.canInterview, isTrue, reason: 'a paid user who picked the wrong role can still interview for a different role');
+      expect(result.targetRoleName, 'Backend Developer');
+    });
+
+    test('below-threshold banner heading maps to ResumeInterviewGate.belowThreshold', () {
+      final result = parseResumeMatchResultHtml(
+        _withBanner('🔒 Reach 90% ATS Score to Unlock the AI Interview'),
+      );
+      expect(result.gate, ResumeInterviewGate.belowThreshold);
+      expect(result.canInterview, isTrue, reason: 'a paid user below threshold is not the same as a Free-plan user');
+    });
+
+    test('eligible banner heading maps to ResumeInterviewGate.eligible', () {
+      final result = parseResumeMatchResultHtml(
+        _withBanner('🎯 Complete the Interview to Unlock Job Recommendations'),
+      );
+      expect(result.gate, ResumeInterviewGate.eligible);
+      expect(result.canInterview, isTrue);
+    });
+
+    test('the "Skill up yourself" button is detected only when the server actually rendered it', () {
+      final withSkillUp = parseResumeMatchResultHtml(
+        _withBanner('🔒 Reach 90% ATS Score to Unlock the AI Interview', skillUpBlock: _skillUpBlock),
+      );
+      expect(withSkillUp.showSkillUpAction, isTrue);
+      expect(withSkillUp.targetRoleName, 'Backend Developer');
+
+      final withoutSkillUp = parseResumeMatchResultHtml(
+        _withBanner('🔒 Reach 90% ATS Score to Unlock the AI Interview'),
+      );
+      expect(withoutSkillUp.showSkillUpAction, isFalse);
+    });
+
+    test('kAtsInterviewThreshold is 90, matching the verified current server constant', () {
+      expect(kAtsInterviewThreshold, 90);
     });
   });
 

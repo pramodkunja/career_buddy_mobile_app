@@ -345,6 +345,19 @@ abstract final class RoutePaths {
   /// than re-authoring its content.
   static const String skillUpLesson = '/skill-up/lesson';
 
+  /// Phase 47 — the Non-IT Center's department browsing screen
+  /// (`index.html:3886-3892`'s `#depth-nonit` article, `initNonIt()`). No
+  /// `extra` — shows both of the real page's tracks ("Non-IT · Technical"/
+  /// "Non-IT · Non-Technical") and all 21 departments together, the same
+  /// simplification [careerDepartments] already uses for the structurally
+  /// identical career-path groups.
+  static const String skillUpNonIt = '/skill-up/non-it';
+
+  /// The role list inside one Non-IT Center department (`initNonIt()`'s
+  /// `deptView()`). `extra` carries the selected `CareerDepartment`, the
+  /// same threading pattern [careerRoles] already uses.
+  static const String skillUpNonItRoles = '/skill-up/non-it/roles';
+
   /// Grammar (`subject_views.subject_home`, `templates/subject/home.html`)
   /// — the 9-topic index.
   static const String grammar = '/grammar';
@@ -377,6 +390,23 @@ abstract final class RoutePaths {
   /// [resumeBuilder] (see Phase 22's audit, §6, for why: the Phase 21 home
   /// hero is explicitly out of scope for this entry point).
   static const String resumeRolePicker = '/resume-builder/role-picker';
+
+  /// Phase 43 — the real "Choose Your Path" department browsing page
+  /// (`activities.views.career_path`, confirmed directly: no
+  /// `@login_required`), reached from the Home landing page's "IT Job
+  /// Seeker"/"Non-IT Job Seeker" cards. `extra` carries the track string
+  /// (`'it'`/`'non-it'`) `career_path`'s own URL parameter uses. In
+  /// [universalRoutes] below — browsing departments/roles needs no
+  /// account, matching the real page exactly (only the role-action sheet's
+  /// own "Resume Parsing"/"Build Resume" sub-actions are gated, by their
+  /// own, already-protected destination routes).
+  static const String careerDepartments = '/careers';
+
+  /// Phase 43 — the role list inside one department
+  /// (`deptRolesView`/the Non-IT `route()` function's role-grid,
+  /// confirmed directly). `extra` carries the selected `CareerDepartment`.
+  /// Also in [universalRoutes] — same reasoning as [careerDepartments].
+  static const String careerRoles = '/careers/roles';
 
   /// The ATS result page's "Try Interview"/"Take Interview" CTAs link to
   /// `resume_start_interview` (`career_app/views.py:930`) — the AI Mock
@@ -517,6 +547,8 @@ abstract final class RoutePaths {
     employerHome,
     createResumeBuilder,
     createResumePreview,
+    careerDepartments,
+    careerRoles,
   };
 
   /// Routes gated the same way `jobs_app.views.employer_dashboard` and its

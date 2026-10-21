@@ -384,6 +384,10 @@ Future<void> _pumpLoggedInApp(
     findsOneWidget,
     reason: 'unauthenticated boot must land on the real Home screen',
   );
+  // Landing-page parity phase: Platform Overview/Career Journey/Choose Your
+  // Path now push the Job Seeker portal card's "Login" action further down
+  // the page than this test's fixed viewport — scroll it into view first.
+  await tester.ensureVisible(find.text('Login').first);
   await tester.tap(find.text('Login').first);
   await _settle(tester);
 

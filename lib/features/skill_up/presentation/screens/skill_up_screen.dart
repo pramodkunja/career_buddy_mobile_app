@@ -411,6 +411,8 @@ class _SectionsInDepthTab extends StatelessWidget {
             _SectionInDepthArticle(section: section, onOpenLesson: onOpenLesson),
           ],
           const SizedBox(height: AppSpacing.lg),
+          const _NonItCenterArticle(),
+          const SizedBox(height: AppSpacing.lg),
           const AppFooter(),
         ],
       ),
@@ -545,6 +547,62 @@ class _LessonCard extends StatelessWidget {
   }
 }
 
+/// Phase 47 — the Non-IT Center article (`index.html:3886-3896`'s
+/// `#depth-nonit`, right after Tech Center on the real page). Unlike the 3
+/// sections above, this content is a 2-level department/role drill-down
+/// (21 departments, 202 roles), not a flat lesson list, so it gets its own
+/// dedicated screens (`SkillUpNonItDepartmentsScreen`/`...RolesScreen`)
+/// reached via a single "Browse departments" action instead of inline
+/// lesson cards — exact copy and icon (`engineering`) read directly from
+/// the real header markup.
+class _NonItCenterArticle extends StatelessWidget {
+  const _NonItCenterArticle();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(12)),
+              child: const Icon(Icons.engineering, color: Colors.white, size: 22),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            const Expanded(
+              child: Text('Non-IT Center', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(color: AppColors.accentDark.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(50)),
+              child: const Text('Industry', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.accentDark)),
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        const Text(
+          'Every Non-IT department and the roles inside it — 21 departments, 202 roles, '
+          'each with the skills that role calls for.',
+          style: TextStyle(fontSize: 13, color: AppColors.textMuted, height: 1.4),
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: OutlinedButton(
+            key: const Key('skillup-nonit-browse-departments-button'),
+            onPressed: () => context.push(RoutePaths.skillUpNonIt),
+            child: const Text('Browse departments'),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 // ==================================================================
 // SITEMAP TAB (`#section-sitemap`) — "platform at a glance" + tree
 // ==================================================================
@@ -616,6 +674,8 @@ class _SitemapTabState extends State<_SitemapTab> {
             _SitemapCategory(section: section, matches: _lessonMatches, onOpenLesson: _openLesson),
             const SizedBox(height: AppSpacing.lg),
           ],
+          const _NonItCenterArticle(),
+          const SizedBox(height: AppSpacing.lg),
           const AppFooter(),
         ],
       ),

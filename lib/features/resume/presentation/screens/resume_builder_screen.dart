@@ -639,23 +639,43 @@ class _ResultView extends ConsumerWidget {
                   runSpacing: AppSpacing.sm,
                   alignment: WrapAlignment.center,
                   children: [
-                    if (result.canInterview)
-                      _ActionButton(
+                    // Phase 46 — the real page's own 4-way top action
+                    // (`resume_match_result.html:222-247`, confirmed
+                    // directly): a disabled "locked" badge for the two
+                    // not-yet-eligible paid-plan states, "Try Interview"
+                    // only once genuinely eligible, "Upgrade" only for a
+                    // Free-plan user (not merely "score too low", which
+                    // this phase's own `ResumeInterviewGate` now tells
+                    // apart from "Free plan" — previously conflated).
+                    switch (result.effectiveGate) {
+                      ResumeInterviewGate.roleMismatch => _ActionButton(
+                        label: 'Resume doesn’t match ${result.targetRoleName ?? 'this role'}',
+                        icon: Icons.lock_outline,
+                        color: const Color(0xFF6C757D),
+                        onTap: null,
+                      ),
+                      ResumeInterviewGate.belowThreshold => _ActionButton(
+                        label: 'Interview unlocks at $kAtsInterviewThreshold% ATS score',
+                        icon: Icons.lock_outline,
+                        color: const Color(0xFF6C757D),
+                        onTap: null,
+                      ),
+                      ResumeInterviewGate.eligible => _ActionButton(
                         label: 'Try Interview',
                         icon: Icons.play_circle_outline,
                         color: const Color(0xFF198754),
                         onTap: result.resumeValid == false
                             ? null
                             : () => context.push(RoutePaths.resumeInterviewPlaceholder),
-                      )
-                    else
-                      _ActionButton(
+                      ),
+                      ResumeInterviewGate.planLocked => _ActionButton(
                         label: 'Upgrade for AI Interview',
                         icon: Icons.workspace_premium_outlined,
                         color: const Color(0xFFFFC107),
                         textColor: Colors.black,
                         onTap: () => context.push(RoutePaths.pro),
                       ),
+                    },
                     _ActionButton(
                       label: 'Analyze Another Resume',
                       icon: Icons.refresh,
@@ -717,10 +737,58 @@ class _ResultView extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: AppSpacing.lg),
-          // Complete Interview / Upgrade banner
-          // (`resume_match_result.html:280-310`).
-          if (result.canInterview)
-            _Banner(
+          // Phase 46 — the real page's own 4-way recovery-action banner
+          // (`resume_match_result.html:309-379`, confirmed directly). The
+          // role-mismatch and below-threshold banners both offer "Build
+          // Resume" (→ the existing free-form Create Resume builder,
+          // `home.html`'s own hero-button destination — Phase 39/21) plus
+          // a second action that, on mobile, is the same thing either way:
+          // this screen *is* the upload form (`ResumeBuilderScreen` owns
+          // both bodies — see the class doc comment), so "Upload Another"/
+          // "Analyse Again" both just mean "reset to the upload form",
+          // reusing the exact `reset()` call "Analyze Another Resume"
+          // already makes below.
+          switch (result.effectiveGate) {
+            ResumeInterviewGate.roleMismatch => _Banner(
+              gradient: const [Color(0xFFFEF2F2), Color(0xFFFEE2E2)],
+              border: const Color(0xFFFCA5A5),
+              iconBg: const Color(0xFFDC2626),
+              icon: Icons.person_off_outlined,
+              heading: 'This resume doesn’t match the ${result.targetRoleName ?? 'picked'} role',
+              headingColor: const Color(0xFFB91C1C),
+              body:
+                  'It doesn’t show the skills this role needs, so its ATS score for this role is 0% '
+                  'and the AI Interview is locked. Upload a resume written for this role, or build a new one.',
+              ctaLabel: 'Build Resume',
+              ctaIcon: Icons.edit_note,
+              ctaColor: const Color(0xFF0D6EFD),
+              onTap: () => context.push(RoutePaths.createResumeBuilder),
+              secondaryLabel: 'Upload Another',
+              secondaryIcon: Icons.upload_outlined,
+              secondaryColor: const Color(0xFFDC3545),
+              onSecondaryTap: () => ref.read(resumeBuilderControllerProvider.notifier).reset(),
+            ),
+            ResumeInterviewGate.belowThreshold => _Banner(
+              gradient: const [Color(0xFFFFFBEB), Color(0xFFFEF3C7)],
+              border: const Color(0xFFFCD34D),
+              iconBg: const Color(0xFFF59E0B),
+              icon: Icons.lock_outline,
+              heading: 'Reach $kAtsInterviewThreshold% ATS Score to Unlock the AI Interview',
+              headingColor: const Color(0xFFB45309),
+              body:
+                  'Your resume scored ${analysis.matchPercentage}%. Add the missing skills and follow the '
+                  'advice below, then analyse your resume again.',
+              ctaLabel: 'Build Resume',
+              ctaIcon: Icons.edit_note,
+              ctaColor: const Color(0xFF0D6EFD),
+              onTap: () => context.push(RoutePaths.createResumeBuilder),
+              secondaryLabel: 'Analyse Again',
+              secondaryIcon: Icons.refresh,
+              secondaryColor: const Color(0xFFFFC107),
+              secondaryTextColor: Colors.black,
+              onSecondaryTap: () => ref.read(resumeBuilderControllerProvider.notifier).reset(),
+            ),
+            ResumeInterviewGate.eligible => _Banner(
               gradient: const [Color(0xFFF0FDF4), Color(0xFFDCFCE7)],
               border: const Color(0xFF86EFAC),
               iconBg: const Color(0xFF22C55E),
@@ -728,15 +796,14 @@ class _ResultView extends ConsumerWidget {
               heading: '🎯 Complete the Interview to Unlock Job Recommendations',
               headingColor: const Color(0xFF15803D),
               body:
-                  'Score 70 or above out of 100 in the AI-powered mock interview to get personalised, '
-                  'experience-matched job opportunities.',
+                  'Score $kAtsInterviewThreshold or above out of 100 in the AI-powered mock interview to get '
+                  'personalised, experience-matched job opportunities.',
               ctaLabel: 'Take Interview',
               ctaIcon: Icons.play_arrow,
               ctaColor: const Color(0xFF198754),
               onTap: () => context.push(RoutePaths.resumeInterviewPlaceholder),
-            )
-          else
-            _Banner(
+            ),
+            ResumeInterviewGate.planLocked => _Banner(
               gradient: const [Color(0xFFFFFBEB), Color(0xFFFEF3C7)],
               border: const Color(0xFFFCD34D),
               iconBg: const Color(0xFFF59E0B),
@@ -745,18 +812,20 @@ class _ResultView extends ConsumerWidget {
               headingColor: const Color(0xFFB45309),
               body:
                   'Your Free plan includes Resume Parsing & ATS analysis. Upgrade to Normal (₹499/yr) for the '
-                  '20-question AI mock interview — score 70 or above to unlock 5 experience-matched job opportunities.',
+                  '20-question AI mock interview — score $kAtsInterviewThreshold or above to unlock '
+                  '5 experience-matched job opportunities.',
               ctaLabel: 'View Plans',
               ctaIcon: Icons.workspace_premium_outlined,
               ctaColor: const Color(0xFFFFC107),
               ctaTextColor: Colors.black,
               onTap: () => context.push(RoutePaths.pro),
             ),
+          },
           const SizedBox(height: AppSpacing.lg),
           const _ResumeTemplatesSection(),
           if (analysis.careerAdvice.isNotEmpty) ...[
             const SizedBox(height: AppSpacing.lg),
-            _AdviceCard(advice: analysis.careerAdvice),
+            _AdviceCard(advice: analysis.careerAdvice, showSkillUpAction: result.showSkillUpAction),
           ],
         ],
       ),
@@ -895,6 +964,11 @@ class _Banner extends StatelessWidget {
     required this.ctaColor,
     required this.onTap,
     this.ctaTextColor = Colors.white,
+    this.secondaryLabel,
+    this.secondaryIcon,
+    this.secondaryColor,
+    this.secondaryTextColor = Colors.white,
+    this.onSecondaryTap,
   });
 
   final List<Color> gradient;
@@ -909,6 +983,16 @@ class _Banner extends StatelessWidget {
   final Color ctaColor;
   final Color ctaTextColor;
   final VoidCallback onTap;
+
+  /// Phase 46 — the role-mismatch/below-threshold banners each offer a
+  /// second action ("Upload Another"/"Analyse Again" alongside "Build
+  /// Resume", `resume_match_result.html:319-326,339-346`) — `null` for the
+  /// eligible/planLocked banners, which only ever had the one.
+  final String? secondaryLabel;
+  final IconData? secondaryIcon;
+  final Color? secondaryColor;
+  final Color secondaryTextColor;
+  final VoidCallback? onSecondaryTap;
 
   @override
   Widget build(BuildContext context) {
@@ -949,16 +1033,34 @@ class _Banner extends StatelessWidget {
           const SizedBox(height: AppSpacing.sm),
           Align(
             alignment: Alignment.centerRight,
-            child: ElevatedButton.icon(
-              onPressed: onTap,
-              icon: Icon(ctaIcon, size: 16),
-              label: Text(ctaLabel),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: ctaColor,
-                foregroundColor: ctaTextColor,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                textStyle: const TextStyle(fontWeight: FontWeight.w700),
-              ),
+            child: Wrap(
+              spacing: AppSpacing.sm,
+              runSpacing: AppSpacing.sm,
+              children: [
+                if (secondaryLabel != null)
+                  ElevatedButton.icon(
+                    onPressed: onSecondaryTap,
+                    icon: Icon(secondaryIcon, size: 16),
+                    label: Text(secondaryLabel!),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: secondaryColor,
+                      foregroundColor: secondaryTextColor,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      textStyle: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                ElevatedButton.icon(
+                  onPressed: onTap,
+                  icon: Icon(ctaIcon, size: 16),
+                  label: Text(ctaLabel),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: ctaColor,
+                    foregroundColor: ctaTextColor,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    textStyle: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -968,9 +1070,14 @@ class _Banner extends StatelessWidget {
 }
 
 class _AdviceCard extends StatelessWidget {
-  const _AdviceCard({required this.advice});
+  const _AdviceCard({required this.advice, this.showSkillUpAction = false});
 
   final List<String> advice;
+
+  /// `can_interview and target_role.section and not ats_ok`
+  /// (`resume_match_result.html:560-563`) — see
+  /// [ResumeAnalysisResult.showSkillUpAction]'s doc comment.
+  final bool showSkillUpAction;
 
   @override
   Widget build(BuildContext context) {
@@ -1016,6 +1123,20 @@ class _AdviceCard extends StatelessWidget {
                 ],
               ),
             ),
+          if (showSkillUpAction) ...[
+            const SizedBox(height: AppSpacing.sm),
+            ElevatedButton.icon(
+              onPressed: () => context.push(RoutePaths.skillUpSections),
+              icon: const Icon(Icons.school_outlined, size: 16),
+              label: const Text('Skill up yourself'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF198754),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                textStyle: const TextStyle(fontWeight: FontWeight.w700),
+              ),
+            ),
+          ],
         ],
       ),
     );

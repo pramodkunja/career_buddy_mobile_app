@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../app/router/route_paths.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_spacing.dart';
+import '../../../../shared/widgets/buddy_chatbot_overlay.dart';
 
 /// `<footer id="contact">` (`templates/landing.html:7349-7402`) — the
 /// landing page's **own** footer, not the shared `base.html` one
@@ -20,17 +22,17 @@ import '../../../../app/theme/app_spacing.dart';
 /// earlier plain `var(--navy)`), the same gradient pair already used
 /// elsewhere in this app as [AppColors.primary]/[AppColors.primaryDark].
 ///
-/// Of the real footer's 18 links, 16 map to an existing Flutter
-/// destination and are reproduced below with that exact destination,
-/// unchanged. The remaining 2 — "About Us" (`#why`) and "Ask Buddy"
-/// (`#buddy`) — are anchors to in-page sections with no distinct Flutter
-/// screen; "Ask Buddy" in particular already has a mobile equivalent in
-/// spirit (the persistent [BuddyChatbotOverlay] floating on every screen,
-/// not a separate destination to navigate to), so neither is reproduced as
-/// a link here rather than inventing a destination or a placeholder
-/// screen — see `docs/PHASE_37_LANDING_PAGE_UI_REBUILD_REPORT.md` for the
-/// full link-by-link mapping.
-class HomeLandingFooter extends StatelessWidget {
+/// Of the real footer's 18 links, 17 map to an existing Flutter
+/// destination/action and are reproduced below. "Ask Buddy" (`#buddy`) now
+/// opens [BuddyChatbotOverlay]'s panel directly, matching the real web's own
+/// `onclick="window.openChat()"` — landing-page parity phase, see
+/// `docs/LANDING_PAGE_WEB_MOBILE_PARITY_REPORT.md`. "About Us" (`#why`)
+/// remains unreproduced as a link here: it is an anchor to a page section,
+/// not a distinct screen, and this app has no in-page-scroll mechanism to
+/// jump to it from the footer the way a real anchor would (the section
+/// itself is reproduced in full further up the same scrollable page, via
+/// `HomeAboutSection`).
+class HomeLandingFooter extends ConsumerWidget {
   const HomeLandingFooter({
     required this.onFindJobs,
     required this.onRegister,
@@ -45,7 +47,7 @@ class HomeLandingFooter extends StatelessWidget {
   final VoidCallback onEmployerRegister;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(
@@ -147,6 +149,10 @@ class HomeLandingFooter extends StatelessWidget {
           _FooterColumn(
             title: 'Company',
             links: [
+              _FooterLink(
+                'Ask Buddy',
+                () => ref.read(buddyOverlayOpenRequestProvider.notifier).requestOpen(),
+              ),
               _FooterLink(
                 'CareerBuddy Pro',
                 () => context.push(RoutePaths.pro),

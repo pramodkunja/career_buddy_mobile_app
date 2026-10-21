@@ -182,6 +182,112 @@ void main() {
       expect(tester.takeException(), isNull);
     }
   });
+
+  group('Phase 46 — low-score recovery actions', () {
+    const failedAnalytics = InterviewAnalyticsResult(
+      totalScore: 62,
+      isPassed: false,
+      avgScore: 3.1,
+      answeredCount: 20,
+      totalQuestions: 20,
+      yearsExperience: 2.0,
+      questionResults: [],
+    );
+
+    testWidgets('a passed result shows the pass badge naming the real threshold, no recovery UI', (tester) async {
+      await tester.pumpWidget(wrap(baseAnalytics));
+
+      expect(find.text('Qualified Candidate (Score ≥ 90/100)'), findsOneWidget);
+      expect(find.text('Action Required (Score < 90/100)'), findsNothing);
+      expect(find.text('Skill up yourself'), findsNothing);
+      expect(find.text('Recommended Skill Upgradation Courses'), findsNothing);
+    });
+
+    testWidgets('a failed result shows the fail badge naming the real threshold and the recovery guidance', (
+      tester,
+    ) async {
+      await tester.pumpWidget(wrap(failedAnalytics));
+
+      expect(find.text('Action Required (Score < 90/100)'), findsOneWidget);
+      expect(find.text('Qualified Candidate (Score ≥ 90/100)'), findsNothing);
+      expect(find.text('You should upgrade your skill.'), findsOneWidget);
+      expect(find.text('Skill up yourself'), findsOneWidget);
+      expect(find.text('Recommended Skill Upgradation Courses'), findsOneWidget);
+      expect(find.text('Business Communication & Speaking'), findsOneWidget);
+      expect(find.text('Professional Email & Report Writing'), findsOneWidget);
+      expect(find.text('Negotiation & Technical Discussion'), findsOneWidget);
+      expect(find.text('View All 23 Skill Learning Activities'), findsOneWidget);
+    });
+
+    testWidgets('kInterviewPassingScore is 90, matching the verified current server constant', (tester) async {
+      expect(kInterviewPassingScore, 90);
+    });
+
+    Future<GoRouter> pumpFailedWithRouter(WidgetTester tester) async {
+      tester.view.physicalSize = const Size(400, 3200);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final router = GoRouter(
+        initialLocation: '/',
+        routes: [
+          GoRoute(
+            path: '/',
+            builder: (context, state) => Scaffold(body: MockInterviewResultsView(analytics: failedAnalytics)),
+          ),
+          GoRoute(
+            path: RoutePaths.skillUpSections,
+            builder: (context, state) => const Scaffold(body: Text('Skill Up Sections Screen')),
+          ),
+          GoRoute(
+            path: RoutePaths.activities,
+            builder: (context, state) =>
+                Scaffold(body: Text('Activities Screen: category=${state.uri.queryParameters['category']}')),
+          ),
+        ],
+      );
+      await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+      await tester.pump();
+      return router;
+    }
+
+    testWidgets('the top "Skill up yourself" button navigates to the real Skill Up sections route', (tester) async {
+      await pumpFailedWithRouter(tester);
+
+      await tester.tap(find.byKey(const Key('interview-skill-up-button')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Skill Up Sections Screen'), findsOneWidget);
+    });
+
+    testWidgets('the first "Start Course" button (Speaking) navigates to Activities filtered to its real web category', (
+      tester,
+    ) async {
+      await pumpFailedWithRouter(tester);
+
+      // The 3 course tiles render in the real template's own order
+      // (Speaking, Writing, Negotiation) — the first "Start Course" button
+      // is always the Speaking one.
+      expect(find.text('Start Course'), findsNWidgets(3));
+      await tester.ensureVisible(find.text('Start Course').first);
+      await tester.tap(find.text('Start Course').first);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Activities Screen: category=speaking'), findsOneWidget);
+    });
+
+    testWidgets('"View All 23 Skill Learning Activities" navigates to the unfiltered Activities list', (
+      tester,
+    ) async {
+      await pumpFailedWithRouter(tester);
+
+      await tester.ensureVisible(find.text('View All 23 Skill Learning Activities'));
+      await tester.tap(find.text('View All 23 Skill Learning Activities'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Activities Screen: category=null'), findsOneWidget);
+    });
+  });
 }
 
 extension on InterviewAnalyticsResult {

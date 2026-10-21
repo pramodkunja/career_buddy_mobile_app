@@ -77,10 +77,42 @@ ResumeAnalysisResult parseResumeMatchResultHtml(String html) {
   final yearsNumberMatch = RegExp(r'(\d+(?:\.\d+)?)').firstMatch(yearsText);
   final yearsExperience = yearsNumberMatch == null ? 0.0 : double.tryParse(yearsNumberMatch.group(1)!) ?? 0.0;
 
-  // `can_interview` decides between two literal CTA labels
-  // (`resume_match_result.html:218-227`) — "Try Interview" only ever
-  // renders on the `can_interview: true` branch.
-  final canInterview = html.contains('Try Interview');
+  // Phase 46 — the real "Complete Interview to Unlock Jobs Banner" 4-way
+  // `{% if %}/{% elif %}/{% else %}` chain (`resume_match_result.html:
+  // 309-379`), detected via each branch's own unique heading text rather
+  // than re-deriving `can_interview`/`ats_ok`/`role_fit.ok` independently —
+  // this is the exact signal the server itself already decided, so it
+  // can't drift from what actually rendered. Checked in the template's own
+  // branch order; an unrecognized/abbreviated page (e.g. a test fixture
+  // with no lower banner at all) safely falls through to `planLocked`,
+  // the most conservative state.
+  final ResumeInterviewGate gate;
+  if (html.contains('doesn&rsquo;t match the') && html.contains(' role</h6>')) {
+    gate = ResumeInterviewGate.roleMismatch;
+  } else if (html.contains('ATS Score to Unlock the AI Interview')) {
+    gate = ResumeInterviewGate.belowThreshold;
+  } else if (html.contains('Complete the Interview to Unlock Job Recommendations')) {
+    gate = ResumeInterviewGate.eligible;
+  } else {
+    gate = ResumeInterviewGate.planLocked;
+  }
+  final canInterview = gate != ResumeInterviewGate.planLocked;
+
+  // `{{ target_role.role }}` — tried against the role-mismatch heading
+  // first (`"This resume doesn&rsquo;t match the {role} role"`,
+  // `resume_match_result.html:316`), then the AI Suggestions card's own
+  // role-specific header (`"Skills {role} needs that your resume
+  // doesn&rsquo;t show:"`, line 537), which also covers the belowThreshold
+  // case when a role was picked. `null` when neither is present (no role
+  // picked, or role_fit unknown).
+  final targetRoleName =
+      RegExp(r'This resume doesn&rsquo;t match the ([^<]+?) role</h6>').firstMatch(html)?.group(1) ??
+      RegExp(r'Skills ([^<]+?) needs that your resume doesn&rsquo;t show:').firstMatch(html)?.group(1);
+
+  // `can_interview and target_role.section and not ats_ok`
+  // (`resume_match_result.html:560-563`) — detected the same
+  // signal-not-re-derived way as [gate] above.
+  final showSkillUpAction = html.contains('Skill up yourself');
 
   // `is_ats_only` only ever changes 2 words of copy, never structure
   // (`resume_match_result.html:196,202`) — "ATS Score" (the score-ring
@@ -98,6 +130,9 @@ ResumeAnalysisResult parseResumeMatchResultHtml(String html) {
     isAtsOnly: isAtsOnly,
     yearsExperience: yearsExperience,
     canInterview: canInterview,
+    gate: gate,
+    targetRoleName: targetRoleName == null ? null : _unescape(targetRoleName.trim()),
+    showSkillUpAction: showSkillUpAction,
     resumeValid: resumeValid,
     validationMessage: validationMessage,
   );

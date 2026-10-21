@@ -27,6 +27,43 @@ class ResumeAnalysis {
   final List<String> careerAdvice;
 }
 
+/// Phase 46 — `career_app/views.py:185` `ATS_INTERVIEW_THRESHOLD`,
+/// confirmed directly against the current (`royalStaffing_CB01`) source:
+/// **90**, not the 70 this result screen previously, incorrectly
+/// displayed. The AI-interview passing score (`career_app/views.py:1134`
+/// `PASSING_SCORE`) is a separate server constant that is *also* 90 today
+/// (confirmed no drift) — kept as its own, separately-named constant
+/// (`kInterviewPassingScore`, in `interview_analytics.dart`) rather than
+/// reused here, since the two gate genuinely different things server-side
+/// and could diverge again.
+const int kAtsInterviewThreshold = 90;
+
+/// Phase 46 — the real page's own 4-way branch
+/// (`templates/resume_match_result.html:222-247,309-379`, confirmed
+/// directly), replacing a previous 2-way split that conflated "Free plan"
+/// with "paid plan but below the ATS threshold" and "paid plan but the
+/// picked role doesn't fit" — both of the latter two silently looked like
+/// a Free-plan "Upgrade" prompt before this phase, which was itself wrong
+/// (a paying user doesn't need to upgrade, they need a better score or a
+/// different role).
+enum ResumeInterviewGate {
+  /// `can_interview and role_fit and not role_fit.ok` — the resume doesn't
+  /// show the skills the picked target role needs (its ATS score for that
+  /// role is forced to 0 server-side).
+  roleMismatch,
+
+  /// `can_interview and not ats_ok` — the plan allows the interview, but
+  /// the ATS score hasn't reached [kAtsInterviewThreshold] yet.
+  belowThreshold,
+
+  /// `can_interview` with role fit ok (or no role picked) and the ATS
+  /// score at or above [kAtsInterviewThreshold] — ready for the interview.
+  eligible,
+
+  /// `not can_interview` — Free plan; the interview isn't included at all.
+  planLocked,
+}
+
 /// One full render of `templates/resume_match_result.html` —
 /// `career_app.views.resume_job_match`/`resume_reanalyze`'s success
 /// response. Confirmed by reading the template directly: it never
@@ -44,6 +81,9 @@ class ResumeAnalysisResult {
     required this.isAtsOnly,
     required this.yearsExperience,
     required this.canInterview,
+    this.gate,
+    this.targetRoleName,
+    this.showSkillUpAction = false,
     this.resumeValid,
     this.validationMessage,
   });
@@ -67,6 +107,32 @@ class ResumeAnalysisResult {
   /// enabled/locked state on the result screen.
   final bool canInterview;
 
+  /// Phase 46 — the real 4-way branch this result actually rendered
+  /// (`null` only for pre-Phase-46 test fixtures that predate this field
+  /// and never set it — see [effectiveGate]). Every real, freshly-parsed
+  /// result from [parseResumeMatchResultHtml] always sets this.
+  final ResumeInterviewGate? gate;
+
+  /// `target_role.role`, when a target role was picked
+  /// (`resume_match_result.html:218,225,316-317,537`) — `null` when none
+  /// was. Used for the role-mismatch banner's own message text.
+  final String? targetRoleName;
+
+  /// `can_interview and target_role.section and not ats_ok`
+  /// (`resume_match_result.html:560`) — whether the "Skill up yourself"
+  /// button inside the AI Suggestions card should render.
+  final bool showSkillUpAction;
+
   final bool? resumeValid;
   final String? validationMessage;
+
+  /// [gate], falling back to a 2-way split of [canInterview] for any
+  /// caller that predates Phase 46 and never set [gate] explicitly. Every
+  /// real, freshly-parsed result always sets [gate], making this fallback
+  /// unreachable in production — it exists purely so pre-Phase-46 test
+  /// fixtures that only ever set [canInterview] keep behaving exactly as
+  /// they did before (planLocked for `canInterview: false`, eligible for
+  /// `canInterview: true`), without needing to touch every one of them.
+  ResumeInterviewGate get effectiveGate =>
+      gate ?? (canInterview ? ResumeInterviewGate.eligible : ResumeInterviewGate.planLocked);
 }

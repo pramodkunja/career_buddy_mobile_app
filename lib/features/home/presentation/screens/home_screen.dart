@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -11,6 +13,7 @@ import '../../../../shared/widgets/app_top_bar.dart';
 import '../../../../shared/widgets/buddy_chatbot_overlay.dart';
 import '../widgets/authenticated_home_body.dart';
 import '../widgets/home_landing_footer.dart';
+import '../widgets/home_path_picker_popup.dart';
 import '../widgets/public_home_body.dart';
 
 /// W024 — Home (`templates/landing.html`, `activities/views.py:78 home()`
@@ -46,11 +49,86 @@ import '../widgets/public_home_body.dart';
 /// reachable as before, unchanged, via its own separate entry point (the
 /// Role Picker's "Build Resume" tile) — this phase only corrects what this
 /// one hero/portal CTA itself does.
-class HomeScreen extends ConsumerWidget {
+class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends ConsumerState<HomeScreen> {
+  /// Phase 49 — `templates/landing.html:7575-7584`'s path-picker popup:
+  /// `var t = setTimeout(function () { ... m.showModal() }, 5000);`, fired
+  /// on every landing-page load (confirmed no `localStorage`/cookie
+  /// suppression exists anywhere in that script — reshowing on every fresh
+  /// visit is the real, verified behavior, not an oversight to "fix" with
+  /// invented persistence). `canceled`/`_popupHandled` mirror the web's own
+  /// `clearTimeout(t)` (fired there only by the Non-IT card's click
+  /// handler) and its `if (!document.querySelector('dialog[open]')) `
+  /// guard respectively — the Flutter equivalent of "the page already
+  /// navigated away" is checking the route is still on top, since
+  /// `context.push` (unlike a real page navigation) does not unmount this
+  /// screen or its pending timer.
+  Timer? _popupTimer;
+  bool _popupHandled = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _popupTimer = Timer(const Duration(seconds: 5), _maybeShowPathPicker);
+  }
+
+  @override
+  void dispose() {
+    _popupTimer?.cancel();
+    super.dispose();
+  }
+
+  void _maybeShowPathPicker() {
+    if (_popupHandled || !mounted) return;
+    // Authenticated users render `AuthenticatedHomeBody`, which has no
+    // "Choose Your Path" section to begin with (a pre-existing, separate
+    // scope decision, not this phase's to revisit) — matching that, the
+    // popup only ever applies to the guest branch below.
+    final authState = ref.read(authControllerProvider);
+    if (authState is AuthAuthenticated) return;
+    // Equivalent of the web's "a dialog is already open" guard: if this
+    // screen is no longer the topmost route (the user already pushed
+    // somewhere else, e.g. via a path card), don't pop this up over it.
+    if (ModalRoute.of(context)?.isCurrent != true) return;
+    _popupHandled = true;
+    showDialog<void>(
+      context: context,
+      // Phase 50 — the real `<dialog>` has no backdrop click handler
+      // (confirmed directly: `cpModal`'s own script never listens for a
+      // click on it, and native `<dialog>` does not close on backdrop
+      // click by default either), so tapping outside it does nothing on
+      // the web. `showDialog` defaults to the opposite (`barrierDismissible:
+      // true`); this is the one-line fix for that mismatch. Android system
+      // back is deliberately left at its own default (which still closes
+      // this route) — the closest native match to the real `<dialog>`
+      // closing on Escape, which `cpModal` also never prevents.
+      barrierDismissible: false,
+      builder: (_) => HomePathPickerPopup(
+        onItJobSeeker: () => context.push(RoutePaths.careerDepartments, extra: 'it'),
+        onNonIt: () => context.push(RoutePaths.careerDepartments, extra: 'non-it'),
+      ),
+    );
+  }
+
+  /// Wraps a path-card tap so choosing a path directly (without waiting for
+  /// the popup) also cancels the pending auto-popup — the Flutter
+  /// equivalent of the web's `clearTimeout(t)` on the Non-IT card's click
+  /// handler, applied to both cards since either one means the choice has
+  /// already been made.
+  void _choosePath(VoidCallback navigate) {
+    _popupHandled = true;
+    _popupTimer?.cancel();
+    navigate();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final authState = ref.watch(authControllerProvider);
     final user = authState is AuthAuthenticated ? authState.user : null;
 
@@ -102,6 +180,15 @@ class HomeScreen extends ConsumerWidget {
                         context.push(RoutePaths.employerLogin),
                     onEmployerRegister: () =>
                         context.push(RoutePaths.employerRegister),
+                    onAskBuddy: () => ref
+                        .read(buddyOverlayOpenRequestProvider.notifier)
+                        .requestOpen(),
+                    onItJobSeeker: () => _choosePath(
+                      () => context.push(RoutePaths.careerDepartments, extra: 'it'),
+                    ),
+                    onNonItJobSeeker: () => _choosePath(
+                      () => context.push(RoutePaths.careerDepartments, extra: 'non-it'),
+                    ),
                   ),
                 // Phase 37: `landing.html` has no `{% extends %}` — it is
                 // standalone, with its own `<footer id="contact">`, never
@@ -129,6 +216,15 @@ class HomeScreen extends ConsumerWidget {
                     onEmployerRegister: () =>
                         context.push(RoutePaths.employerRegister),
                   ),
+                // Phase 44: the floating Buddy launcher is fixed to the
+                // *viewport*, not to this scrollable content (see
+                // `BuddyChatbotOverlay`'s own doc comment) — without this,
+                // once a user scrolls all the way down, the last footer
+                // links sit permanently underneath it for as long as they
+                // stay scrolled to the bottom. 140 ≈ the launcher's own
+                // 110px plus its 15px offset plus a small margin, not an
+                // arbitrary number.
+                const SizedBox(height: 140),
               ],
             ),
           ),

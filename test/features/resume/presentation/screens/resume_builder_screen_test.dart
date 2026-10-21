@@ -178,6 +178,16 @@ GoRouter _router() => GoRouter(
       builder: (context, state) =>
           const ComingSoonScreen(title: 'AI Mock Interview', message: 'x'),
     ),
+    GoRoute(
+      path: RoutePaths.createResumeBuilder,
+      builder: (context, state) =>
+          const Scaffold(body: Text('Create Resume Builder Screen')),
+    ),
+    GoRoute(
+      path: RoutePaths.skillUpSections,
+      builder: (context, state) =>
+          const Scaffold(body: Text('Skill Up Sections Screen')),
+    ),
   ],
 );
 
@@ -603,6 +613,222 @@ void main() {
 
           expect(tester.takeException(), isNull);
         }
+      },
+    );
+  });
+
+  group('ResumeBuilderScreen — Phase 46 low-score recovery actions', () {
+    Future<ProviderContainer> pumpWithGate(
+      WidgetTester tester,
+      ResumeInterviewGate gate, {
+      String? targetRoleName,
+      bool showSkillUpAction = false,
+      int matchPercentage = 60,
+    }) {
+      return _pump(
+        tester,
+        uploadResult: Success(
+          ResumeAnalysisResult(
+            analysis: ResumeAnalysis(
+              matchPercentage: matchPercentage,
+              matchingSkills: const ['python'],
+              missingSkills: const ['docker'],
+              summary: 'Summary text.',
+              careerAdvice: const ['Quantify your achievements with numbers.'],
+            ),
+            isAtsOnly: true,
+            yearsExperience: 1.0,
+            canInterview: gate != ResumeInterviewGate.planLocked,
+            gate: gate,
+            targetRoleName: targetRoleName,
+            showSkillUpAction: showSkillUpAction,
+          ),
+        ),
+      );
+    }
+
+    Future<void> uploadAndSettle(WidgetTester tester, ProviderContainer container) async {
+      await container
+          .read(resumeBuilderControllerProvider.notifier)
+          .uploadAndAnalyze(filePath: '/tmp/resume.pdf', fileName: 'resume.pdf');
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 2));
+    }
+
+    testWidgets(
+      'role-mismatch: the top bar shows a disabled lock badge, and the banner offers Build Resume + Upload Another',
+      (tester) async {
+        final container = await pumpWithGate(
+          tester,
+          ResumeInterviewGate.roleMismatch,
+          targetRoleName: 'Backend Developer',
+        );
+        await uploadAndSettle(tester, container);
+
+        expect(find.text('Resume doesn’t match Backend Developer'), findsOneWidget);
+        expect(find.text('Try Interview'), findsNothing);
+        expect(find.text('This resume doesn’t match the Backend Developer role'), findsOneWidget);
+
+        await tester.ensureVisible(find.text('Upload Another'));
+        expect(find.text('Build Resume'), findsOneWidget);
+        expect(find.text('Upload Another'), findsOneWidget);
+
+        // The disabled top-bar badge must be genuinely unpressable, not
+        // just styled differently.
+        final lockButton = tester.widget<ElevatedButton>(
+          find.ancestor(
+            of: find.text('Resume doesn’t match Backend Developer'),
+            matching: find.byType(ElevatedButton),
+          ),
+        );
+        expect(lockButton.onPressed, isNull);
+      },
+    );
+
+    testWidgets(
+      'role-mismatch: tapping Build Resume navigates to the Create Resume builder',
+      (tester) async {
+        final container = await pumpWithGate(
+          tester,
+          ResumeInterviewGate.roleMismatch,
+          targetRoleName: 'Backend Developer',
+        );
+        await uploadAndSettle(tester, container);
+
+        await tester.ensureVisible(find.text('Build Resume'));
+        await tester.tap(find.text('Build Resume'));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 300));
+
+        expect(find.text('Create Resume Builder Screen'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'role-mismatch: tapping Upload Another resets to the upload form, same as Analyze Another Resume',
+      (tester) async {
+        final container = await pumpWithGate(
+          tester,
+          ResumeInterviewGate.roleMismatch,
+          targetRoleName: 'Backend Developer',
+        );
+        await uploadAndSettle(tester, container);
+
+        await tester.ensureVisible(find.text('Upload Another'));
+        await tester.tap(find.text('Upload Another'));
+        await tester.pump();
+
+        expect(find.text('Drag & Drop your resume here'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'below-threshold: the top bar shows the correct ATS-percentage lock badge, and the banner offers Build Resume + Analyse Again',
+      (tester) async {
+        final container = await pumpWithGate(tester, ResumeInterviewGate.belowThreshold, matchPercentage: 60);
+        await uploadAndSettle(tester, container);
+
+        expect(find.text('Interview unlocks at 90% ATS score'), findsOneWidget);
+        expect(find.text('Try Interview'), findsNothing);
+        expect(find.text('Reach 90% ATS Score to Unlock the AI Interview'), findsOneWidget);
+        expect(find.textContaining('Your resume scored 60%'), findsOneWidget);
+
+        await tester.ensureVisible(find.text('Analyse Again'));
+        expect(find.text('Build Resume'), findsOneWidget);
+        expect(find.text('Analyse Again'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'below-threshold: tapping Analyse Again resets to the upload form',
+      (tester) async {
+        final container = await pumpWithGate(tester, ResumeInterviewGate.belowThreshold);
+        await uploadAndSettle(tester, container);
+
+        await tester.ensureVisible(find.text('Analyse Again'));
+        await tester.tap(find.text('Analyse Again'));
+        await tester.pump();
+
+        expect(find.text('Drag & Drop your resume here'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'eligible: the top bar shows an active Try Interview button, unchanged from before this phase',
+      (tester) async {
+        final container = await pumpWithGate(tester, ResumeInterviewGate.eligible, matchPercentage: 95);
+        await uploadAndSettle(tester, container);
+
+        expect(find.text('Try Interview'), findsWidgets);
+        expect(find.text('Build Resume'), findsNothing);
+        expect(find.text('🎯 Complete the Interview to Unlock Job Recommendations'), findsOneWidget);
+        expect(find.textContaining('Score 90 or above out of 100'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'planLocked (Free plan): shows Upgrade for AI Interview, never a lock badge meant for paid users',
+      (tester) async {
+        final container = await pumpWithGate(tester, ResumeInterviewGate.planLocked);
+        await uploadAndSettle(tester, container);
+
+        expect(find.text('Upgrade for AI Interview'), findsOneWidget);
+        expect(find.text('🚀 Upgrade to Unlock the AI Interview & Job Recommendations'), findsOneWidget);
+        expect(find.textContaining('score 90 or above'), findsOneWidget);
+        expect(find.text('Resume doesn’t match Backend Developer'), findsNothing);
+        expect(find.text('Interview unlocks at 90% ATS score'), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'the "Skill up yourself" button renders only when the server actually sent showSkillUpAction, and navigates to Skill Up',
+      (tester) async {
+        final container = await pumpWithGate(
+          tester,
+          ResumeInterviewGate.belowThreshold,
+          showSkillUpAction: true,
+        );
+        await uploadAndSettle(tester, container);
+
+        await tester.ensureVisible(find.text('Skill up yourself'));
+        expect(find.text('Skill up yourself'), findsOneWidget);
+
+        await tester.tap(find.text('Skill up yourself'));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 300));
+
+        expect(find.text('Skill Up Sections Screen'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'no "Skill up yourself" button when the server did not send showSkillUpAction',
+      (tester) async {
+        final container = await pumpWithGate(tester, ResumeInterviewGate.belowThreshold);
+        await uploadAndSettle(tester, container);
+
+        expect(find.text('Skill up yourself'), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'pre-Phase-46 fixtures with no gate set still render correctly via the canInterview fallback',
+      (tester) async {
+        final container = await _pump(
+          tester,
+          uploadResult: const Success(
+            ResumeAnalysisResult(
+              analysis: _analysis,
+              isAtsOnly: true,
+              yearsExperience: 1.0,
+              canInterview: true,
+            ),
+          ),
+        );
+        await uploadAndSettle(tester, container);
+
+        expect(find.text('Try Interview'), findsWidgets);
+        expect(tester.takeException(), isNull);
       },
     );
   });

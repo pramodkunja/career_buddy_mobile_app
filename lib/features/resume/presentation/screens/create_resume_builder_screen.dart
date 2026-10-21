@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../app/router/route_paths.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_spacing.dart';
+import '../../../auth/presentation/controllers/auth_controller.dart';
 import '../../domain/entities/create_resume_state.dart';
 import '../controllers/create_resume_builder_controller.dart';
 import '../controllers/create_resume_pdf_controller.dart';
@@ -45,6 +46,11 @@ class _CreateResumeBuilderScreenState
         controller.startFromDraft(initial);
       } else {
         controller.startBlank();
+        // Phase 45 — fire-and-forget: a guest's local draft (if any) fills
+        // in moments after the blank form first renders, never blocking
+        // this frame. See the controller method's own doc comment for the
+        // full race-safety reasoning.
+        controller.restoreGuestDraftIfAvailable();
       }
     });
   }
@@ -126,6 +132,13 @@ class _WizardBody extends ConsumerWidget {
     final errors = state.serverErrors;
     final pdfState = ref.watch(createResumePdfControllerProvider);
     final pdfGenerating = pdfState is CreateResumePdfGenerating;
+    // Read fresh at render time, not cached on [state] — this is what the
+    // controller's own `_saveAsGuest` doc comment means by "the screen
+    // decides": a save that just completed reflects whichever branch
+    // [CreateResumeBuilderController.save] actually took, and re-reading
+    // auth here keeps that decision correct even if sign-in happens in a
+    // different tab/screen while this one stays open.
+    final isAuthenticated = ref.watch(authControllerProvider) is AuthAuthenticated;
 
     ref.listen(createResumePdfControllerProvider, (previous, next) {
       final messenger = ScaffoldMessenger.of(context);
@@ -161,21 +174,84 @@ class _WizardBody extends ConsumerWidget {
               key: const Key('save-failed-banner'),
               style: const TextStyle(color: AppColors.danger, fontSize: 12),
             ),
-          ),
-        if (state.lastSavedAt != null &&
-            state.saveFailureMessage == null &&
-            !state.saving)
+          )
+        else if (state.lastSavedAt != null && !state.saving)
+          if (isAuthenticated)
+            Container(
+              color: AppColors.success.withValues(alpha: 0.1),
+              padding: const EdgeInsets.all(AppSpacing.sm),
+              child: const Text(
+                'Saved.',
+                key: Key('save-success-banner'),
+                style: TextStyle(
+                  color: AppColors.success,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            )
+          else
+            // Phase 42 — mirrors the real web's own guest-save message
+            // exactly (`static/js/create_resume.js:658`, confirmed
+            // directly): "Draft saved on this device. Sign in to save it
+            // to your account." with the sign-in action right alongside,
+            // never a plain "Saved." that could be mistaken for a saved
+            // server copy the candidate could reopen from another device.
+            Container(
+              key: const Key('save-success-guest-banner'),
+              color: AppColors.success.withValues(alpha: 0.1),
+              padding: const EdgeInsets.all(AppSpacing.sm),
+              child: Row(
+                children: [
+                  const Expanded(
+                    child: Text(
+                      'Draft saved on this device.',
+                      style: TextStyle(
+                        color: AppColors.success,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  TextButton(
+                    key: const Key('save-success-guest-sign-in-button'),
+                    onPressed: () => context.go(RoutePaths.login),
+                    child: const Text('Sign in', style: TextStyle(fontSize: 12)),
+                  ),
+                ],
+              ),
+            )
+        else if (state.restoredFromLocalDraft && !state.saving)
+          // Phase 45 — mirrors the real web's own restore message exactly
+          // (`static/js/create_resume.js:829`, confirmed directly):
+          // "Restored the draft saved on this device. Sign in to save it
+          // to your account." Only ever reachable for a guest —
+          // [CreateResumeBuilderController.restoreGuestDraftIfAvailable]
+          // never runs for an authenticated session — so there is no
+          // authenticated counterpart to this banner the way the save
+          // banners above have one.
           Container(
+            key: const Key('restored-local-draft-banner'),
             color: AppColors.success.withValues(alpha: 0.1),
             padding: const EdgeInsets.all(AppSpacing.sm),
-            child: const Text(
-              'Saved.',
-              key: Key('save-success-banner'),
-              style: TextStyle(
-                color: AppColors.success,
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-              ),
+            child: Row(
+              children: [
+                const Expanded(
+                  child: Text(
+                    'Restored the draft saved on this device.',
+                    style: TextStyle(
+                      color: AppColors.success,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                TextButton(
+                  key: const Key('restored-local-draft-sign-in-button'),
+                  onPressed: () => context.go(RoutePaths.login),
+                  child: const Text('Sign in', style: TextStyle(fontSize: 12)),
+                ),
+              ],
             ),
           ),
         Expanded(
