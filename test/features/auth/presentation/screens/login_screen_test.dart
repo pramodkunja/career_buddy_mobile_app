@@ -125,12 +125,38 @@ void main() {
       await tester.pumpWidget(_buildApp(_FakeAuthRepository()));
       await tester.pump();
 
-      expect(find.text('Career Buddy'), findsOneWidget);
+      // Phase 68 (`UI-A-001`): the real banner wordmark has no space
+      // between "Career" and "Buddy" (`login.html:12`,
+      // `<span>Career<b>Buddy</b></span>`) — confirmed distinct from
+      // `AppTopBar`'s own (differently-sourced) navbar wordmark.
+      expect(find.text('CareerBuddy'), findsOneWidget);
+      expect(find.text('SINCE 2026'), findsOneWidget);
       expect(find.text('Welcome Back!'), findsOneWidget);
-      expect(find.text('20+ Comprehensive Learning Activities'), findsOneWidget);
+      // Phase 68 (`UI-A-002`/`UI-A-003`): wording/spacing corrected to
+      // match the real page exactly (`login.html:17,19`).
+      expect(find.text('Continue your journey to career growth.'), findsOneWidget);
+      expect(find.text('20 + Comprehensive Learning Activities'), findsOneWidget);
       expect(find.text('Interactive Exercises & Speaking Quizzes'), findsOneWidget);
       expect(find.text('AI Resume Matcher & ATS Score Analytics'), findsOneWidget);
       expect(find.text('Direct Recruiter Hiring & Job Applications'), findsOneWidget);
+    });
+
+    // Phase 68 (`UI-A-001`): the generic `Icons.school_outlined` placeholder
+    // is replaced with the real bundled asset the website itself renders
+    // for this banner (`login.html:10`,
+    // `{% static 'img/logo-mark-light.png' %}`).
+    testWidgets('uses the real logo-mark-light.png asset, not a generic icon', (tester) async {
+      _setTallWindow(tester);
+      await tester.pumpWidget(_buildApp(_FakeAuthRepository()));
+      await tester.pump();
+
+      expect(
+        find.byWidgetPredicate(
+          (w) => w is Image && w.image is AssetImage && (w.image as AssetImage).assetName == 'assets/images/logo-mark-light.png',
+        ),
+        findsOneWidget,
+      );
+      expect(find.byIcon(Icons.school_outlined), findsNothing);
     });
 
     testWidgets('lays out as a wide two-pane Row at >=860px and a stacked Column below it', (tester) async {

@@ -112,12 +112,16 @@ class JobPostingSubmission {
 
   final String location;
 
-  /// `education` — one of `kEducationPresets`' values, or `"custom"` when
+  /// `education` — one of `kGeneralEducationPresets`'/`kTechEducationPresets`'
+  /// values (which list applies depends on [jobCategory]/[jobClassification]
+  /// — see those constants' own doc comment), or `"custom"` when
   /// [educationOther] was typed instead of picked.
   final String educationPreset;
 
-  /// `education_other` — free text; only meaningful when [educationPreset]
-  /// is `"custom"`.
+  /// `education_other` — free text, normalised the same way the server's
+  /// own `normalise_education_text` does (whitespace collapsed and
+  /// trimmed) before being sent; only meaningful when [educationPreset] is
+  /// `"custom"`.
   final String educationOther;
 
   /// `functional_skills` — free text, Non-IT + Non-Technical only.
@@ -201,8 +205,10 @@ class JobPostingSubmission {
   /// [interviewMode] is `"others"`.
   final String interviewModeOther;
 
-  /// `work_mode` — `kWorkModeOptions`' values, Non-IT only (the Non-IT
-  /// counterpart of [workEnvironment]).
+  /// `work_mode` — `kTechWorkModeOptions`/`kNonTechWorkModeOptions`' values
+  /// (a different allowed set per [jobClassification] — see those
+  /// constants' own doc comment), Non-IT only (the Non-IT counterpart of
+  /// [workEnvironment]).
   final String workMode;
 
   /// `joining_requirement` — `kJoiningRequirementOptions`' values, Non-IT +

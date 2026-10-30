@@ -8,6 +8,7 @@ import '../../../../app/router/route_paths.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_radius.dart';
 import '../../../../app/theme/app_spacing.dart';
+import '../../../../core/errors/failures.dart';
 import '../../../../core/utils/result.dart';
 import '../../../../shared/widgets/app_error_view.dart';
 import '../../../../shared/widgets/app_loader.dart';
@@ -247,6 +248,28 @@ class _RoleActionSheetState extends ConsumerState<_RoleActionSheet> {
   bool _isSaving = false;
   String? _error;
 
+  /// Phase 67 (UI-R-002): the real `#roleAct` dialog's "Skills" card
+  /// (`landing.html:7596-7603`) is a real, always-enabled action for every
+  /// role shown through it — `pickRole()`'s own comment states this
+  /// explicitly ("Skills uses the role modal when the role has skills
+  /// data, otherwise Skill Up"), and for a catalog role (this sheet's own
+  /// kind — `raIdx != null`, `landing.html:8744-8749`) it always opens the
+  /// real role modal (`openRole()`), never a "coming soon" state. This
+  /// sheet was the one place in the app that still hardcoded Skills as
+  /// permanently disabled, even though the data it needs
+  /// (`ResumeRole.fields` — this role's own skill-group checkboxes) was
+  /// already being parsed and used elsewhere (`manual_resume_career_step
+  /// .dart`). Mirrors `CareerRoleActionSheet._openSkills()`'s already-
+  /// correct pattern for the department-tree sibling sheet.
+  void _openSkills() {
+    Navigator.of(context).pop();
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => _RoleSkillsView(role: widget.role),
+    );
+  }
+
   Future<void> _confirm() async {
     if (_isSaving) {
       return; // prevents a duplicate submission while one is in flight
@@ -267,6 +290,13 @@ class _RoleActionSheetState extends ConsumerState<_RoleActionSheet> {
     switch (result) {
       case Success(value: final selection):
         Navigator.of(context).pop(selection);
+      case Failed(failure: final failure) when failure is ResumeBuilderSignInRequiredFailure:
+        // Matches live production (confirmed directly): a guest here is
+        // redirected straight to the login page, with no error message of
+        // any kind — the same clean redirect "Build Resume" already gives
+        // a logged-out user, not a "session expired" text.
+        Navigator.of(context).pop();
+        context.push(RoutePaths.login);
       case Failed(failure: final failure):
         setState(() {
           _isSaving = false;
@@ -302,8 +332,9 @@ class _RoleActionSheetState extends ConsumerState<_RoleActionSheet> {
             _ActionTile(
               icon: Icons.checklist_outlined,
               title: 'Skills',
-              subtitle: 'Coming soon',
-              enabled: false,
+              subtitle: 'See the skills this role needs.',
+              enabled: true,
+              onTap: _openSkills,
             ),
             const SizedBox(height: AppSpacing.sm),
             _ActionTile(
@@ -413,6 +444,138 @@ class _ActionTile extends StatelessWidget {
               const Icon(Icons.chevron_right, color: AppColors.textMuted),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Phase 67 (UI-R-002) — the catalog-role equivalent of
+/// `CareerRoleSkillsView`, same visual structure ("Skills this role
+/// requires." + one card per skill group + "Explore Skill Up" CTA), fed by
+/// [ResumeRole.fields] instead of `CareerRole.skillGroups` — the real
+/// `openRole()` role modal's own skill data for a catalog role
+/// (`landing.html:7596-7603`'s "Skills" action).
+class _RoleSkillsView extends StatelessWidget {
+  const _RoleSkillsView({required this.role});
+
+  final ResumeRole role;
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: DraggableScrollableSheet(
+        initialChildSize: 0.75,
+        minChildSize: 0.4,
+        maxChildSize: 0.95,
+        expand: false,
+        builder: (context, scrollController) {
+          return Padding(
+            padding: const EdgeInsets.all(AppSpacing.lg),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  role.categoryLabel,
+                  style: const TextStyle(color: AppColors.textMuted, fontSize: 12),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  role.title,
+                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+                ),
+                const SizedBox(height: 4),
+                const Text(
+                  'Skills this role requires.',
+                  style: TextStyle(color: AppColors.textMuted),
+                ),
+                const SizedBox(height: AppSpacing.md),
+                Expanded(
+                  child: ListView(
+                    controller: scrollController,
+                    children: [
+                      for (final field in role.fields)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: AppSpacing.md),
+                          child: _RoleSkillFieldCard(field: field),
+                        ),
+                      if (role.fields.isEmpty)
+                        const Text(
+                          'Skills coming soon.',
+                          style: TextStyle(color: AppColors.textMuted),
+                        ),
+                    ],
+                  ),
+                ),
+                SizedBox(
+                  width: double.infinity,
+                  height: 50,
+                  child: FilledButton.icon(
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                      context.push(RoutePaths.skillUpSections);
+                    },
+                    icon: const Icon(Icons.arrow_forward, size: 17),
+                    label: const Text('Explore Skill Up'),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: AppColors.action,
+                      foregroundColor: Colors.white,
+                      textStyle: const TextStyle(fontWeight: FontWeight.w700),
+                      shape: const StadiumBorder(),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _RoleSkillFieldCard extends StatelessWidget {
+  const _RoleSkillFieldCard({required this.field});
+
+  final ResumeRoleSkillField field;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: AppRadius.mdRadius,
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            field.label,
+            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              for (final skill in field.options)
+                Chip(
+                  label: Text(skill, style: const TextStyle(fontSize: 12)),
+                  backgroundColor: AppColors.background,
+                  side: const BorderSide(color: AppColors.border),
+                  padding: EdgeInsets.zero,
+                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+              if (field.options.isEmpty)
+                const Text(
+                  'Skills coming soon',
+                  style: TextStyle(color: AppColors.textMuted, fontSize: 12),
+                ),
+            ],
+          ),
+        ],
       ),
     );
   }

@@ -137,6 +137,17 @@ class CreateResumePersonalStep extends ConsumerWidget {
           errorText: _errorFor('website'),
           onChanged: (v) => update((p) => p.copyWith(website: v)),
         ),
+        const SizedBox(height: AppSpacing.md),
+        // Phase 70 — `personal.profile_url` ("Professional profile URL",
+        // `static/js/create_resume.js:354`), right after `website`, matching
+        // the real field order exactly. Previously missing entirely — see
+        // `CreateResumePersonalInfo.profileUrl`'s own doc comment.
+        ManualResumeTextField(
+          label: 'Professional profile URL (optional)',
+          value: personal.profileUrl,
+          errorText: _errorFor('profile_url'),
+          onChanged: (v) => update((p) => p.copyWith(profileUrl: v)),
+        ),
       ],
     );
   }

@@ -151,29 +151,57 @@ class _SkillUpLessonScreenState extends ConsumerState<SkillUpLessonScreen> {
     _loadLesson();
   }
 
+  /// Phase 75 — confirmed, reproducible gap: several real lesson pages link
+  /// to sibling pages within the same `WebView` (e.g. `Vocabulary/
+  /// Basicindex.html`'s own "Vocabulary Hub" links to all 10
+  /// `phonics-0*.html` pages, both already reachable from this app's own
+  /// catalog). Before this phase, Android back always popped this whole
+  /// screen — a tap on such an internal link, followed by back, left the
+  /// lesson entirely instead of returning to the page just left, unlike any
+  /// real browser tab or the web's own in-page navigation. `canPop: false`
+  /// plus an explicit [WebViewController.canGoBack]/`goBack` check (checked
+  /// unconditionally — it reflects the WebView's own navigation history
+  /// regardless of which overlay, if any, is currently shown) fixes this
+  /// without touching fullscreen/error/locked state, which this phase found
+  /// no evidence of a defect in.
+  Future<void> _handleBack(BuildContext context) async {
+    if (await _controller.canGoBack()) {
+      await _controller.goBack();
+      return;
+    }
+    if (context.mounted) Navigator.of(context).pop();
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.args.title, overflow: TextOverflow.ellipsis),
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
-      ),
-      body: Stack(
-        children: [
-          if (_locked)
-            SkillUpLockedView(onViewPlans: () => context.push(RoutePaths.pro))
-          else if (_error != null)
-            AppErrorView(message: _error!, onRetry: _retry)
-          else
-            Stack(
-              children: [
-                WebViewWidget(controller: _controller),
-                if (_loading) const Center(child: CircularProgressIndicator()),
-              ],
-            ),
-          const BuddyChatbotOverlay(),
-        ],
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) return;
+        await _handleBack(context);
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(widget.args.title, overflow: TextOverflow.ellipsis),
+          backgroundColor: AppColors.primary,
+          foregroundColor: Colors.white,
+        ),
+        body: Stack(
+          children: [
+            if (_locked)
+              SkillUpLockedView(onViewPlans: () => context.push(RoutePaths.pro))
+            else if (_error != null)
+              AppErrorView(message: _error!, onRetry: _retry)
+            else
+              Stack(
+                children: [
+                  WebViewWidget(controller: _controller),
+                  if (_loading) const Center(child: CircularProgressIndicator()),
+                ],
+              ),
+            const BuddyChatbotOverlay(),
+          ],
+        ),
       ),
     );
   }

@@ -21,7 +21,7 @@ import '../../../../support/fake_open_file_platform.dart';
 import '../../../../support/fake_path_provider_platform.dart';
 
 class _FakeCreateResumeRepository implements CreateResumeRepository {
-  _FakeCreateResumeRepository({this.pdfResult, this.pdfCompleter});
+  _FakeCreateResumeRepository({this.pdfResult}) : pdfCompleter = null;
 
   Result<CreateResumePdfOutcome>? pdfResult;
   Completer<Result<CreateResumePdfOutcome>>? pdfCompleter;

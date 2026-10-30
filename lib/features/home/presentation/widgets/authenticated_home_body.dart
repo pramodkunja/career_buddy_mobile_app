@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_spacing.dart';
+import 'home_about_section.dart';
+import 'home_choose_path.dart';
 import 'home_hero.dart';
+import 'home_tutorials_section.dart';
 import 'portal_hero_card.dart';
 
 /// The authenticated branch of `{% block content %}`.
@@ -32,6 +35,28 @@ import 'portal_hero_card.dart';
 /// student (deliberately not `/users/register/`, since re-registering a
 /// logged-in user would make no sense — the task that commissioned this
 /// change is explicit on this point).
+///
+/// Phase 72 — the student branch also renders [HomeChoosePath],
+/// [HomeAboutSection], and [HomeTutorialsSection] below the hero, closing a
+/// gap Phase 71's audit flagged: the nav drawer's "Industries"/"About
+/// Us"/"Resources → Tutorials" items navigate here and scroll to these
+/// exact sections, but until this phase this branch never rendered them —
+/// the scroll had nothing to land on. Confirmed directly from the updated
+/// Django source (`activities/views.py`'s `home()`, read in full) that
+/// this is a real content gap, not a deliberate site difference: `home()`
+/// redirects only an **employer** session away (to `job_home`); every
+/// other authenticated (student) session renders the exact same
+/// `landing.html` a guest sees, the view's own comment stating plainly
+/// that "the same markup serves signed-in and anonymous visitors." These 3
+/// sections are reused as-is from [PublicHomeBody]'s own imports — no
+/// content was duplicated or invented, and no other guest-only section
+/// (Platform Overview, Career Journey, the portal story cards, Meet Buddy,
+/// Resume Maker Teaser, Testimonials) was added here: those aren't targets
+/// of any nav item this phase's audit named, and adding them would be
+/// unrelated content-parity work for the whole Home screen, not the
+/// narrow navigation fix this phase scopes. The employer branch is
+/// untouched — out of this phase's scope (`home()`'s own redirect means an
+/// employer never reaches any of this content on the real site either).
 class AuthenticatedHomeBody extends StatelessWidget {
   const AuthenticatedHomeBody({
     required this.isEmployer,
@@ -40,6 +65,11 @@ class AuthenticatedHomeBody extends StatelessWidget {
     required this.onCreateResume,
     required this.onEmployerDashboard,
     required this.onFindCandidates,
+    required this.onItJobSeeker,
+    required this.onNonItJobSeeker,
+    this.aboutSectionKey,
+    this.choosePathSectionKey,
+    this.tutorialsSectionKey,
     super.key,
   });
 
@@ -49,6 +79,21 @@ class AuthenticatedHomeBody extends StatelessWidget {
   final VoidCallback onCreateResume;
   final VoidCallback onEmployerDashboard;
   final VoidCallback onFindCandidates;
+
+  /// Same destinations [PublicHomeBody]'s own [HomeChoosePath] already
+  /// uses (`RoutePaths.careerDepartments`, track `'it'`/`'non-it'`) —
+  /// [RoutePaths.careerDepartments] is a member of
+  /// [RoutePaths.universalRoutes], so this flow is already just as valid
+  /// for an authenticated student as for a guest.
+  final VoidCallback onItJobSeeker;
+  final VoidCallback onNonItJobSeeker;
+
+  /// See [HomeScrollRequestController]'s own doc comment — `null` unless
+  /// [HomeScreen] is wiring up a pending scroll target. Only used in the
+  /// non-employer branch below.
+  final Key? aboutSectionKey;
+  final Key? choosePathSectionKey;
+  final Key? tutorialsSectionKey;
 
   @override
   Widget build(BuildContext context) {
@@ -97,10 +142,24 @@ class AuthenticatedHomeBody extends StatelessWidget {
 
     return Padding(
       padding: const EdgeInsets.all(AppSpacing.md),
-      child: HomeHero(
-        onGetStarted: onGetStarted,
-        onFindJobs: onFindJobs,
-        onCreateResume: onCreateResume,
+      child: Column(
+        children: [
+          HomeHero(
+            onGetStarted: onGetStarted,
+            onFindJobs: onFindJobs,
+            onCreateResume: onCreateResume,
+          ),
+          const SizedBox(height: AppSpacing.xl),
+          HomeChoosePath(
+            key: choosePathSectionKey,
+            onItJobSeeker: onItJobSeeker,
+            onNonItJobSeeker: onNonItJobSeeker,
+          ),
+          const SizedBox(height: AppSpacing.xl),
+          HomeAboutSection(key: aboutSectionKey),
+          const SizedBox(height: AppSpacing.xl),
+          HomeTutorialsSection(key: tutorialsSectionKey),
+        ],
       ),
     );
   }

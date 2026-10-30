@@ -46,15 +46,28 @@ class SubscriptionPlan {
 
 /// Static catalog of all three plans — `templates/pro.html:140-360`.
 abstract final class SubscriptionCatalog {
+  // Phase 67 (UI-E-001/002/004/007/008): every feature line below was
+  // re-verified directly against `templates/pro.html:140-335` — several had
+  // drifted from the real page (a factually wrong "Unlimited" resume-parse
+  // count on Free instead of the real "4", a "70 or above" mock-interview
+  // threshold that the website actually says is "90" on both Normal and
+  // Pro, a fabricated "Grammar & Vocabulary Practice Exercises" bullet on
+  // Normal that doesn't exist on the real card, and a missing real bullet
+  // in its place). The 2 "not included" bullets Free's real card also shows
+  // (red X icon, `feature-item disabled` CSS class) are intentionally still
+  // not reproduced here — `PlanCard` has no disabled/excluded visual
+  // treatment at all yet, and showing them with the same green check-circle
+  // every other bullet uses would be more misleading than omitting them;
+  // left for a future phase alongside that UI work.
   static const free = SubscriptionPlan(
     tier: PlanTier.free,
     label: 'Free Plan',
     tagline: 'Essential access to begin learning Business English.',
     basePriceRupees: 0,
     features: [
-      'Access to Grammar Module',
-      'Access to any only 1 Activity',
-      'Unlimited Resume Parsing & ATS Score Analysis',
+      'Skill Up English & Vocabulary and Grammar',
+      'Access to only 1 Activity (the first one you open)',
+      '4 Resume Parsing & ATS Score Analyses',
     ],
   );
 
@@ -65,11 +78,11 @@ abstract final class SubscriptionCatalog {
     basePriceRupees: 499,
     features: [
       'Full access to Activities Section (Speaking, Writing, Negotiation, Roleplay)',
+      'Full Skill Up access (English, Aptitude, Tech Center & Non-IT Center) with certificates for scoring 70 or above',
       'Access to Student Dashboard & learning analytics',
-      'Grammar & Vocabulary Practice Exercises',
-      'Unlimited Resume Parsing & ATS Score Analysis',
-      'AI Technical Mock Interviews',
-      '5 Matched Job Recommendations (unlocked by scoring 70 or above in the mock interview)',
+      'Unlimited Resume Parsing & ATS Score Analysis (Extract text, density & format check)',
+      'AI Mock Interviews (open when your resume scores 90% or above in ATS)',
+      '5 Matched Job Recommendations (unlocked by scoring 90 or above in the mock interview)',
     ],
   );
 
@@ -79,11 +92,11 @@ abstract final class SubscriptionCatalog {
     tagline: 'Complete suite for resume parsing, AI mock interviews and job matching.',
     basePriceRupees: 999,
     features: [
-      'Everything in Normal Plan (Activities Section & Dashboard)',
-      'Unlimited Resume Parsing & ATS Score Analysis',
+      'Everything in Normal Plan (Skill Up, Activities, Certificates & Dashboard)',
+      'Unlimited Resume Parsing & ATS Score Analysis (Extract text, density & format check)',
       'AI Mock Interviews (Voice/Non-Voice/Service Desk + Technical)',
       'Score Evaluation with AI feedback',
-      'Unlimited Matched Job Recommendations (unlocked by scoring 70 or above in the mock interview)',
+      'Unlimited Matched Job Recommendations (unlocked by scoring 90 or above in the mock interview)',
       'Direct Job Applications with auto-attached PDF/DOCX resumes',
     ],
   );

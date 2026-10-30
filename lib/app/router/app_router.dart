@@ -83,9 +83,13 @@ import '../../features/mock_interview/presentation/screens/mock_interview_screen
 import '../../features/roleplay/presentation/screens/roleplay_home_screen.dart';
 import '../../features/skill_up/presentation/screens/skill_up_screen.dart';
 import '../../features/skill_up/presentation/screens/skill_up_lesson_screen.dart';
+import '../../features/skill_up/domain/entities/tech_center_catalog.dart';
 import '../../features/skill_up/presentation/screens/skill_up_nonit_departments_screen.dart';
 import '../../features/skill_up/presentation/screens/skill_up_nonit_roles_screen.dart';
+import '../../features/skill_up/presentation/screens/tech_center_departments_screen.dart';
+import '../../features/skill_up/presentation/screens/tech_center_roles_screen.dart';
 import '../../features/skill_up/presentation/skill_up_lesson_route_args.dart';
+import 'skill_up_sections_route.dart';
 import '../../features/splash/presentation/screens/splash_screen.dart';
 import '../../features/subscription/presentation/screens/subscription_screen.dart';
 import '../../shared/widgets/coming_soon_screen.dart';
@@ -260,10 +264,20 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: RoutePaths.sitemap,
         builder: (context, state) => const SkillUpScreen(initialTabIndex: 2),
       ),
-      // See `RoutePaths.skillUpSections`'s doc comment.
+      // See `RoutePaths.skillUpSections`/`skillUpSectionsFor`'s doc
+      // comments. `?section=` mirrors the real site's own query param
+      // exactly (`core/navigation.py`'s `NAV_MAP`) — an unrecognized or
+      // missing value is handled by `SkillUpScreen` itself simply not
+      // scrolling, the same safe fallback the real site's own
+      // `ALLOWED_SECTIONS` check gives an invalid id.
+      //
+      // Phase 79 — `?section=` also covers 4 Tech Center/Non-IT department
+      // and role ids beyond `depth-*`; see `buildSkillUpSectionsScreen`'s
+      // own doc comment for the full contract and fallback behavior.
       GoRoute(
         path: RoutePaths.skillUpSections,
-        builder: (context, state) => const SkillUpScreen(initialTabIndex: 1),
+        builder: (context, state) =>
+            buildSkillUpSectionsScreen(state.uri.queryParameters['section']),
       ),
       // See `RoutePaths.skillUpCertifications`'s doc comment.
       GoRoute(
@@ -281,8 +295,19 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: RoutePaths.skillUpNonItRoles,
-        builder: (context, state) =>
-            SkillUpNonItRolesScreen(department: state.extra! as CareerDepartment),
+        builder: (context, state) => SkillUpNonItRolesScreen(
+          department: state.extra! as CareerDepartment,
+        ),
+      ),
+      GoRoute(
+        path: RoutePaths.techCenterDepartments,
+        builder: (context, state) => const TechCenterDepartmentsScreen(),
+      ),
+      GoRoute(
+        path: RoutePaths.techCenterRoles,
+        builder: (context, state) => TechCenterRolesScreen(
+          department: state.extra! as TechCenterDepartment,
+        ),
       ),
       GoRoute(
         path: RoutePaths.resumeBuilder,

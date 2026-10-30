@@ -8,6 +8,7 @@ import '../../../../app/theme/app_spacing.dart';
 import '../../../../core/validators/validators.dart';
 import '../../../../shared/widgets/app_button.dart';
 import '../../../../shared/widgets/app_text_field.dart';
+import '../../../../shared/widgets/auth_branding_pane.dart';
 import '../../../../shared/widgets/buddy_chatbot_overlay.dart';
 import '../controllers/auth_controller.dart';
 
@@ -32,10 +33,9 @@ import '../controllers/auth_controller.dart';
 /// styling (`app_theme.dart`'s `elevatedButtonTheme`), which is navy for
 /// exactly this reason.
 ///
-/// Registration, password-reset, and employer-portal screens don't exist
-/// in the Flutter app yet, so those links navigate to a `ComingSoonScreen`
-/// placeholder until those flows are built — they are real navigation, not
-/// no-ops.
+/// Registration, password-reset, and employer-portal screens are all real,
+/// fully-built screens — these links are genuine navigation to them, not
+/// placeholders.
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
 
@@ -49,7 +49,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _passwordController = TextEditingController();
 
   static const _blue = Color(0xFF185ADB);
-  static const _blueDark = Color(0xFF1D4ED8);
   static const _fieldFill = Color(0xFFF8FAFC);
   static const _fieldBorder = Color(0xFFCBD5E1);
 
@@ -130,7 +129,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                         CrossAxisAlignment.stretch,
                                     children: [
                                       const Expanded(
-                                        child: _BrandingPane(compact: false),
+                                        child: _LoginBrandingPane(compact: false),
                                       ),
                                       SizedBox(
                                         width: 460,
@@ -151,7 +150,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                 )
                               : Column(
                                   children: [
-                                    const _BrandingPane(compact: true),
+                                    const _LoginBrandingPane(compact: true),
                                     _FormPane(
                                       formKey: _formKey,
                                       usernameController: _usernameController,
@@ -178,116 +177,33 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 }
 
-/// `.auth-banner-left` (`style.css:2055-2114`): blue gradient, brand mark,
-/// "Welcome Back!", and the 4-item feature checklist.
-class _BrandingPane extends StatelessWidget {
-  const _BrandingPane({required this.compact});
+/// `templates/users/login.html:7-23` — the student sign-in page's own copy
+/// for the shared [AuthBrandingPane] shell.
+///
+/// Phase 68 (`UI-A-001`/`UI-A-002`/`UI-A-003`): the subtitle previously
+/// read "Continue your journey to Business English mastery and career
+/// growth." — the real page says "Continue your journey to career
+/// growth." (no "Business English mastery and"); the first feature line
+/// previously read "20+ Comprehensive..." where the real page literally
+/// has a space before the `+` ("20 + Comprehensive...", `login.html:19`).
+/// Both corrected to match source exactly, however the live wording looks.
+class _LoginBrandingPane extends StatelessWidget {
+  const _LoginBrandingPane({required this.compact});
 
   final bool compact;
 
-  static const _features = [
-    '20+ Comprehensive Learning Activities',
-    'Interactive Exercises & Speaking Quizzes',
-    'AI Resume Matcher & ATS Score Analytics',
-    'Direct Recruiter Hiring & Job Applications',
-  ];
-
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      // `.auth-banner-left`: desktop `padding:3.5rem 3rem` = 56px/48px
-      // (`style.css:2065`); mobile override `2.5rem 2rem` = 40px/32px
-      // (`style.css:2192-2195`) — both edges 40px vertically, not 32.
-      padding: compact
-          ? const EdgeInsets.fromLTRB(32, 40, 32, 40)
-          : const EdgeInsets.fromLTRB(48, 56, 48, 56),
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          colors: [_LoginScreenState._blue, _LoginScreenState._blueDark],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 30,
-                height: 30,
-                alignment: Alignment.center,
-                // Web's inline logo SVG (`login.html:10-16`) is a navy
-                // square with a white icon — not the reverse.
-                decoration: BoxDecoration(
-                  color: const Color(0xFF14213D),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: const Icon(
-                  Icons.school_outlined,
-                  color: Colors.white,
-                  size: 18,
-                ),
-              ),
-              const SizedBox(width: 10),
-              const Flexible(
-                child: Text(
-                  'Career Buddy',
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 20,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.lg),
-          Text(
-            'Welcome Back!',
-            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-              color: Colors.white,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          Text(
-            'Continue your journey to Business English mastery and career growth.',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: Colors.white.withValues(alpha: 0.85),
-              height: 1.6,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.lg),
-          for (final feature in _features)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Icon(
-                    Icons.check_circle,
-                    color: Color(0xFF34D399),
-                    size: 18,
-                  ),
-                  const SizedBox(width: AppSpacing.sm),
-                  Expanded(
-                    child: Text(
-                      feature,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-        ],
-      ),
+    return AuthBrandingPane(
+      compact: compact,
+      heading: 'Welcome Back!',
+      subtitle: 'Continue your journey to career growth.',
+      features: const [
+        '20 + Comprehensive Learning Activities',
+        'Interactive Exercises & Speaking Quizzes',
+        'AI Resume Matcher & ATS Score Analytics',
+        'Direct Recruiter Hiring & Job Applications',
+      ],
     );
   }
 }

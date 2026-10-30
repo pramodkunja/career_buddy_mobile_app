@@ -75,7 +75,7 @@ class _FakeManualResumeDraftRepository implements ManualResumeDraftRepository {
 }
 
 class _FakeResumeRepository implements ResumeRepository {
-  _FakeResumeRepository({this.rolesResult, this.levelCommonResult, this.previewResult});
+  _FakeResumeRepository({this.rolesResult}) : levelCommonResult = null, previewResult = null;
 
   Result<List<ResumeRole>>? rolesResult;
   Result<Map<String, LevelCommonSuggestions>>? levelCommonResult;

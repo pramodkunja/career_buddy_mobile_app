@@ -18,22 +18,27 @@ import '../../../../app/theme/app_spacing.dart';
 /// match (they are two genuinely different, if similar, strings on the
 /// real page).
 class HomePathPickerPopup extends StatefulWidget {
-  const HomePathPickerPopup({required this.onItJobSeeker, required this.onNonIt, super.key});
+  const HomePathPickerPopup({
+    required this.onItJobSeeker,
+    required this.onNonItTechnical,
+    required this.onNonItNonTechnical,
+    super.key,
+  });
 
   /// `<a href="{% url 'career_path' 'it' %}">` — a plain link on the web,
   /// reused here as the existing `RoutePaths.careerDepartments` (track
   /// `'it'`) destination `HomeChoosePath`'s own IT card already uses.
   final VoidCallback onItJobSeeker;
 
-  /// Step 2's "Technical"/"Non-Technical" links
-  /// (`{% url 'career_path' 'technical' %}`/`'non-technical'`) both land on
-  /// one Flutter destination — `RoutePaths.careerDepartments` (track
-  /// `'non-it'`) — the same simplification `HomeChoosePath`'s own Non-IT
-  /// card and Phase 43's `CareerDepartmentsScreen` already use (that screen
-  /// shows both Non-IT groups together, so there is no separate
-  /// technical-only/non-technical-only destination to point at without
-  /// inventing one — out of this phase's scope).
-  final VoidCallback onNonIt;
+  /// Step 2's "Technical" card (`{% url 'career_path' 'technical' %}`) —
+  /// `RoutePaths.careerDepartments` with track `'technical'`, showing only
+  /// the Non-IT Technical group (Phase 66; previously collapsed into the
+  /// combined `'non-it'` destination both cards used).
+  final VoidCallback onNonItTechnical;
+
+  /// Step 2's "Non-Technical" card (`{% url 'career_path' 'non-technical'
+  /// %}`) — `RoutePaths.careerDepartments` with track `'non-technical'`.
+  final VoidCallback onNonItNonTechnical;
 
   @override
   State<HomePathPickerPopup> createState() => _HomePathPickerPopupState();
@@ -138,7 +143,7 @@ class _HomePathPickerPopupState extends State<HomePathPickerPopup> {
       description: 'Engineering, EPC, PMC, HSE, shutdowns, plant O&M, renewables and HR-tech platforms.',
       onTap: () {
         Navigator.of(context).pop();
-        widget.onNonIt();
+        widget.onNonItTechnical();
       },
     ),
     const SizedBox(height: AppSpacing.sm),
@@ -149,7 +154,7 @@ class _HomePathPickerPopupState extends State<HomePathPickerPopup> {
       description: 'Managed staffing, RPO, global mobility, payroll, executive search, skill development.',
       onTap: () {
         Navigator.of(context).pop();
-        widget.onNonIt();
+        widget.onNonItNonTechnical();
       },
     ),
   ];

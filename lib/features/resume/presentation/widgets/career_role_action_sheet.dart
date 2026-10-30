@@ -6,6 +6,7 @@ import '../../../../app/router/route_paths.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_radius.dart';
 import '../../../../app/theme/app_spacing.dart';
+import '../../../../core/errors/failures.dart';
 import '../../../../core/utils/result.dart';
 import '../../domain/entities/career_department.dart';
 import '../../domain/entities/resume_role.dart';
@@ -100,6 +101,13 @@ class _CareerRoleActionSheetState extends ConsumerState<CareerRoleActionSheet> {
         ref.read(resumeBuilderControllerProvider.notifier).setTargetRole(selection);
         Navigator.of(context).pop();
         context.push(RoutePaths.resumeBuilder);
+      case Failed(failure: final failure) when failure is ResumeBuilderSignInRequiredFailure:
+        // Matches live production (confirmed directly): a guest here is
+        // redirected straight to the login page, with no error message of
+        // any kind — the same clean redirect "Build Resume"/"Find Jobs"
+        // already give a logged-out user, not a "session expired" text.
+        Navigator.of(context).pop();
+        context.push(RoutePaths.login);
       case Failed(failure: final failure):
         setState(() {
           _isSaving = false;

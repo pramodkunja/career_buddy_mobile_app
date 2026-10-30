@@ -216,7 +216,12 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     final isLoading = authState is AuthRefreshing;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Create Account')),
+      // Phase 68 (`UI-A-004`): no AppBar title text — the real page's own
+      // header (icon box + "Candidate Registration" + subtitle,
+      // `templates/users/register.html:131-135`) is reproduced in-body
+      // below instead, so a separate "Create Account" bar title would just
+      // duplicate it. The bar itself is kept for its back button.
+      appBar: AppBar(),
       body: Stack(
         children: [
           SingleChildScrollView(
@@ -226,6 +231,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  const RegisterHeader(),
+                  const SizedBox(height: AppSpacing.lg),
                   _section(context, 'Account', [
                     AppTextField(
                       label: 'First Name',
@@ -574,6 +581,22 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     );
   }
 
+  /// Phase 69: `isExpanded: true` makes the closed field (and, since the
+  /// popup menu's width derives from the button's own width, the opened
+  /// menu too) fill the field's actual available width instead of sizing
+  /// itself to the single widest `DropdownMenuItem` among **every** option
+  /// — the real, confirmed cause of a `RenderFlex` overflow for the 3 of
+  /// this helper's 5 call sites whose option lists include a long label
+  /// ("Under-Graduate / Degree" for both Education dropdowns,
+  /// "Agriculture & Food Processing" for Industry — reproduced directly,
+  /// see `docs/PHASE_69_REGISTRATION_DROPDOWN_FIX_REPORT.md`). `maxLines: 1`
+  /// + `overflow: ellipsis` on the item text is the companion half of this
+  /// fix: `isExpanded` alone only guarantees the *button* fits its parent;
+  /// without a line/overflow limit a still-too-long label would just wrap
+  /// instead of overflowing horizontally, which still breaks the fixed-
+  /// height item row (both the closed selection display and each opened
+  /// menu row use this same `DropdownMenuItem` text). No label text was
+  /// shortened — every real option string is unchanged.
   Widget _dropdown(
     String hint,
     String value,
@@ -582,10 +605,14 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   ) {
     return DropdownButtonFormField<String>(
       initialValue: value.isEmpty ? null : value,
+      isExpanded: true,
       decoration: InputDecoration(labelText: hint, isDense: true),
       items: [
         for (final o in options)
-          DropdownMenuItem(value: o.value, child: Text(o.label)),
+          DropdownMenuItem(
+            value: o.value,
+            child: Text(o.label, maxLines: 1, overflow: TextOverflow.ellipsis),
+          ),
       ],
       onChanged: (v) => onChanged(v ?? ''),
     );
@@ -616,6 +643,56 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         DropdownMenuItem(value: false, child: Text('No')),
       ],
       onChanged: onChanged,
+    );
+  }
+}
+
+/// `.reg-header` (`templates/users/register.html:11-26`): a centered
+/// 72×72 blue-gradient icon box, "Candidate Registration", and a
+/// descriptive subtitle — confirmed from the real page's own inline
+/// `<style>` block (`register.html:1-26`), added this phase (`UI-A-004`)
+/// to replace the previous bare `AppBar` title with no in-body header.
+class RegisterHeader extends StatelessWidget {
+  const RegisterHeader({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Container(
+          width: 72,
+          height: 72,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFF185ADB), Color(0xFF1D4ED8)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: const [
+              BoxShadow(color: Color(0x4D185ADB), blurRadius: 32, offset: Offset(0, 8)),
+            ],
+          ),
+          child: const Icon(Icons.person_add_outlined, color: Colors.white, size: 32),
+        ),
+        const SizedBox(height: AppSpacing.md),
+        Text(
+          'Candidate Registration',
+          textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+            color: const Color(0xFF0F172A),
+            fontWeight: FontWeight.w800,
+            letterSpacing: -1,
+          ),
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        Text(
+          'Create your account to access learning activities, resume builder & job matching',
+          textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: const Color(0xFF64748B)),
+        ),
+      ],
     );
   }
 }

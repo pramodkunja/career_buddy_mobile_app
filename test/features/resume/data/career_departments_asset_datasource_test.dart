@@ -94,5 +94,41 @@ void main() {
       // — the comma inside "(Workday/Bullhorn)" must not split that phrase.
       expect(skills.any((s) => s.contains('Workday/Bullhorn')), isTrue);
     });
+
+    // Phase 66 — the website's own single-group tracks (`career_path`'s
+    // `'technical'`/`'non-technical'`, `landing.html:6746-6752`'s panel
+    // visibility), previously unreachable since `load()` treated any
+    // non-'it' string identically to `'non-it'`.
+    test('"technical" track returns only the Technical group, matching the combined "non-it" load\'s first group', () async {
+      final combined = await dataSource.load('non-it');
+      final technical = await dataSource.load('technical');
+
+      expect(technical, hasLength(1));
+      expect(technical.single.label, 'Non-IT · Technical');
+      expect(technical.single.departments, hasLength(15));
+      expect(technical.single.departments, combined[0].departments);
+    });
+
+    test('"non-technical" track returns only the Non-Technical group, matching the combined "non-it" load\'s second group', () async {
+      final combined = await dataSource.load('non-it');
+      final nonTechnical = await dataSource.load('non-technical');
+
+      expect(nonTechnical, hasLength(1));
+      expect(nonTechnical.single.label, 'Non-IT · Non-Technical');
+      expect(nonTechnical.single.departments, hasLength(6));
+      expect(nonTechnical.single.departments, combined[1].departments);
+    });
+
+    test('switching between "technical" and "non-technical" always returns the correct, non-overlapping list', () async {
+      final technical = await dataSource.load('technical');
+      final nonTechnical = await dataSource.load('non-technical');
+      final technicalAgain = await dataSource.load('technical');
+
+      final technicalNames = technical.single.departments.map((d) => d.name).toSet();
+      final nonTechnicalNames = nonTechnical.single.departments.map((d) => d.name).toSet();
+
+      expect(technicalNames.intersection(nonTechnicalNames), isEmpty);
+      expect(technicalAgain.single.departments.map((d) => d.name).toSet(), technicalNames);
+    });
   });
 }

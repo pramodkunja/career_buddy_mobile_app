@@ -230,7 +230,7 @@ void main() {
     });
 
     testWidgets(
-      'tapping a role opens the action sheet with Skills honestly disabled, Build Resume enabled',
+      'tapping a role opens the action sheet with all 3 actions enabled',
       (tester) async {
         await _pump(tester, rolesResult: const Success([_softwareDev]));
 
@@ -240,18 +240,56 @@ void main() {
         expect(find.text('Resume Parsing & Interview'), findsOneWidget);
         expect(find.text('Skills'), findsOneWidget);
         expect(find.text('Build Resume'), findsOneWidget);
-        expect(
-          find.text('Coming soon'),
-          findsOneWidget,
-        ); // Skills only, as of Phase 25
+        expect(find.text('See the skills this role needs.'), findsOneWidget);
+        expect(find.text('Coming soon'), findsNothing);
+      },
+    );
 
-        // The disabled action must not be tappable into any destination at all.
+    // Phase 67 (UI-R-002): the real `#roleAct` dialog's "Skills" action is
+    // never disabled for any role (`landing.html:7596-7603`,
+    // `pickRole()`'s own comment) — it was only ever hardcoded that way in
+    // this one sheet, even though the sibling `CareerRoleActionSheet`
+    // already showed real skills correctly.
+    testWidgets(
+      'tapping Skills opens a real skills view fed by this role\'s own fields, not "Coming soon"',
+      (tester) async {
+        const roleWithSkills = ResumeRole(
+          slug: 'software-developer',
+          title: 'Software Developer',
+          category: 'it',
+          categoryLabel: 'IT Role',
+          subtitle: 'Frontend, backend, full-stack',
+          fields: [
+            ResumeRoleSkillField(key: 'core-languages', label: 'Core Languages', options: ['Python', 'Java']),
+          ],
+        );
+        await _pump(tester, rolesResult: const Success([roleWithSkills]));
+
+        await tester.tap(find.text('Software Developer'));
+        await tester.pumpAndSettle();
         await tester.tap(find.text('Skills'));
         await tester.pumpAndSettle();
-        expect(
-          find.text('Resume Parsing & Interview'),
-          findsOneWidget,
-        ); // sheet still open, nothing navigated
+
+        expect(find.text('Skills this role requires.'), findsOneWidget);
+        expect(find.text('Core Languages'), findsOneWidget);
+        expect(find.text('Python'), findsOneWidget);
+        expect(find.text('Java'), findsOneWidget);
+        expect(find.text('Explore Skill Up'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'Skills honestly shows "coming soon" for a role with no field data, rather than fabricating skills',
+      (tester) async {
+        await _pump(tester, rolesResult: const Success([_softwareDev]));
+
+        await tester.tap(find.text('Software Developer'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Skills'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Skills this role requires.'), findsOneWidget);
+        expect(find.text('Skills coming soon.'), findsOneWidget);
       },
     );
 
@@ -416,6 +454,53 @@ void main() {
         // The sheet (and the picker beneath it) are both still showing — a
         // failure must never silently close anything or imply success.
         expect(find.text('Resume Parsing & Interview'), findsOneWidget);
+      },
+    );
+
+    // Phase 66: confirmed directly against the live site that a guest (or
+    // signed-out visitor) tapping "Resume Parsing & Interview" is
+    // redirected straight to the login page (a real 302 to
+    // `/users/login/...`) — so this shows no error text at all, matching
+    // "Build Resume"'s own clean redirect.
+    testWidgets(
+      'a sign-in-required selection redirects straight to the login screen, no error shown',
+      (tester) async {
+        tester.view.physicalSize = const Size(400, 800);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.reset);
+        const failure = ResumeBuilderSignInRequiredFailure('Please sign in to use Resume Parsing & Interview.');
+        final repo = _FakeResumeRepository(
+          rolesResult: const Success([_softwareDev]),
+          selectTargetRoleResult: const Failed(failure),
+        );
+        final router = GoRouter(
+          initialLocation: RoutePaths.resumeRolePicker,
+          routes: [
+            GoRoute(
+              path: RoutePaths.resumeRolePicker,
+              builder: (context, state) => const RolePickerScreen(),
+            ),
+            GoRoute(
+              path: RoutePaths.login,
+              builder: (context, state) => const Scaffold(body: Text('Job Seeker Login Screen')),
+            ),
+          ],
+        );
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [resumeRepositoryProvider.overrideWithValue(repo)],
+            child: MaterialApp.router(routerConfig: router),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.text('Software Developer'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Resume Parsing & Interview'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Job Seeker Login Screen'), findsOneWidget);
+        expect(find.text(failure.message), findsNothing);
       },
     );
 

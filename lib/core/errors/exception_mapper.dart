@@ -19,6 +19,7 @@ abstract final class ExceptionMapper {
         EmployerProfileIncompleteException(message: final msg) => EmployerProfileIncompleteFailure(msg),
         CameraRequiredException(message: final msg) => CameraRequiredFailure(msg),
         MalpracticeTerminatedException(message: final msg) => MalpracticeTerminatedFailure(msg),
+        ResumeBuilderSignInRequiredException(message: final msg) => ResumeBuilderSignInRequiredFailure(msg),
       };
     }
     return const UnexpectedFailure();

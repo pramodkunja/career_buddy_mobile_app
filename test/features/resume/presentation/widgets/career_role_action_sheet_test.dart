@@ -125,6 +125,10 @@ Future<_FakeResumeRepository> _pump(
           body: Text('Manual Resume Builder: ${(state.extra! as ResumeRole).title}'),
         ),
       ),
+      GoRoute(
+        path: RoutePaths.login,
+        builder: (context, state) => const Scaffold(body: Text('Job Seeker Login Screen')),
+      ),
     ],
   );
   await tester.pumpWidget(
@@ -194,7 +198,7 @@ void main() {
     );
 
     testWidgets(
-      'a failed Resume Parsing attempt (e.g. a guest/expired session) shows the real error and never navigates',
+      'a generic failed Resume Parsing attempt shows the plain error text and never navigates',
       (tester) async {
         await _pump(
           tester,
@@ -205,6 +209,27 @@ void main() {
         await tester.pumpAndSettle();
 
         expect(find.text(const UnauthorizedFailure().message), findsOneWidget);
+        expect(find.text('Resume Builder Screen'), findsNothing);
+      },
+    );
+
+    // Phase 66: confirmed directly against the live site that a guest (or
+    // signed-out visitor) tapping "Resume Parsing & Interview" is
+    // redirected straight to the login page (a real 302 to
+    // `/users/login/...`) — so this shows no error text at all, matching
+    // "Build Resume"'s own clean redirect, instead of any "session
+    // expired"-style message.
+    testWidgets(
+      'a sign-in-required Resume Parsing attempt redirects straight to the login screen, no error shown',
+      (tester) async {
+        const failure = ResumeBuilderSignInRequiredFailure('Please sign in to use Resume Parsing & Interview.');
+        await _pump(tester, selectTargetRoleResult: const Failed(failure));
+
+        await tester.tap(find.byKey(const Key('career-role-action-resume-parsing')));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Job Seeker Login Screen'), findsOneWidget);
+        expect(find.text(failure.message), findsNothing);
         expect(find.text('Resume Builder Screen'), findsNothing);
       },
     );

@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
@@ -6,7 +7,7 @@ import 'package:dio/dio.dart';
 /// so datasource/repository tests can exercise the real [Dio] pipeline
 /// (including [ApiExceptionsInterceptor]) without a network call.
 class FakeHttpClientAdapter implements HttpClientAdapter {
-  FakeHttpClientAdapter({required this.statusCode, this.body = '', this.headers, this.onRequest});
+  FakeHttpClientAdapter({required this.statusCode, this.body = '', this.headers, this.onRequest, this.finalUri});
 
   final int statusCode;
   final String body;
@@ -17,6 +18,17 @@ class FakeHttpClientAdapter implements HttpClientAdapter {
   /// call.
   final void Function(RequestOptions options)? onRequest;
 
+  /// Simulates landing on a different URL than the one requested, the way
+  /// Dio's real adapter does after auto-following a server redirect
+  /// (`response.realUri` becomes the redirect's own location, confirmed
+  /// directly against `package:dio`'s own `Response.realUri` getter: it
+  /// reads the last entry of `ResponseBody.redirects` when non-empty). Used
+  /// to test a data source's own `response.realUri.path` checks (e.g.
+  /// `ResumeRemoteDataSource.selectTargetRole`,
+  /// `EmployerDashboardRemoteDataSource.getDashboard`) without a real
+  /// network call.
+  final Uri? finalUri;
+
   @override
   Future<ResponseBody> fetch(
     RequestOptions options,
@@ -24,7 +36,12 @@ class FakeHttpClientAdapter implements HttpClientAdapter {
     Future<void>? cancelFuture,
   ) async {
     onRequest?.call(options);
-    return ResponseBody.fromString(body, statusCode, headers: headers);
+    return ResponseBody(
+      Stream.value(Uint8List.fromList(utf8.encode(body))),
+      statusCode,
+      headers: headers ?? {},
+      redirects: finalUri == null ? null : [RedirectRecord(302, options.method, finalUri!)],
+    );
   }
 
   @override

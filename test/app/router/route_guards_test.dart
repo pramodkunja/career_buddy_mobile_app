@@ -715,11 +715,176 @@ void main() {
                 matchedLocation: route,
               ),
               RoutePaths.login,
-              reason: '$route must still redirect an anonymous visitor to login',
+              reason:
+                  '$route must still redirect an anonymous visitor to login',
             );
           }
         },
       );
     });
+
+    // Phase 77 — explicit coverage for Phase 76's 2 new Tech Center routes,
+    // confirmed not in `publicRoutes`/`universalRoutes`/
+    // `employerProtectedRoutes` so each inherits the same default-protected
+    // behavior as every other Skill Up destination (`skillUpNonIt`/
+    // `skillUpNonItRoles` included) — matching the real site's own
+    // `SkillUpAccessMiddleware`/login-required gating for this content.
+    group('Phase 77 — Tech Center routes', () {
+      test(
+        'neither techCenterDepartments nor techCenterRoles is in any special route list',
+        () {
+          for (final route in [
+            RoutePaths.techCenterDepartments,
+            RoutePaths.techCenterRoles,
+          ]) {
+            expect(RoutePaths.publicRoutes.contains(route), isFalse);
+            expect(RoutePaths.universalRoutes.contains(route), isFalse);
+            expect(RoutePaths.employerProtectedRoutes.contains(route), isFalse);
+          }
+        },
+      );
+
+      test(
+        'an unauthenticated hit on either Tech Center route bounces to the student login',
+        () {
+          for (final route in [
+            RoutePaths.techCenterDepartments,
+            RoutePaths.techCenterRoles,
+          ]) {
+            expect(
+              computeRedirect(
+                authState: const AuthUnauthenticated(),
+                matchedLocation: route,
+              ),
+              RoutePaths.login,
+              reason: '$route must redirect an anonymous visitor to login',
+            );
+          }
+        },
+      );
+
+      test(
+        'an authenticated candidate reaches both Tech Center routes without any redirect',
+        () {
+          const candidate = AuthAuthenticated(AuthUser(username: 'jane'));
+          for (final route in [
+            RoutePaths.techCenterDepartments,
+            RoutePaths.techCenterRoles,
+          ]) {
+            expect(
+              computeRedirect(authState: candidate, matchedLocation: route),
+              isNull,
+              reason:
+                  '$route should be reachable while authenticated, with no redirect',
+            );
+          }
+        },
+      );
+    });
+
+    // Phase 78 — closes the coverage gap Phase 77 itself flagged: the 6
+    // older Skill Up routes had no dedicated route-guard test at all before
+    // this phase (only the 2 newest, `techCenterDepartments`/
+    // `techCenterRoles`, did). All 8 share one real, confirmed policy —
+    // `riya_bot.skillup_views.skillup_hub` (`royalStaffing_CB01`) is plain
+    // `@login_required` with no `login_url=` override and no
+    // employer-specific branch anywhere in its body (read in full this
+    // phase): every one of these 8 Flutter routes is reached only by
+    // navigating within or from that one real page, so every one of them
+    // gets the same default-protected treatment here — bounced to the
+    // student login when signed out, reachable by *either* role once
+    // authenticated. A single well-structured, loop-based group covers all
+    // 8 without 6 near-duplicate copies of the group above; it also
+    // re-confirms the 2 Tech Center routes against a dimension Phase 77
+    // never tested (employer access).
+    group(
+      'Phase 78 — the 6 older Skill Up routes (and a re-check of the 2 Tech Center ones)',
+      () {
+        const allSkillUpRoutes = [
+          RoutePaths.skillUp,
+          RoutePaths.skillUpSections,
+          RoutePaths.skillUpCertifications,
+          RoutePaths.skillUpLesson,
+          RoutePaths.skillUpNonIt,
+          RoutePaths.skillUpNonItRoles,
+          RoutePaths.techCenterDepartments,
+          RoutePaths.techCenterRoles,
+        ];
+
+        test('none of the 8 Skill Up routes is in any special route list', () {
+          for (final route in allSkillUpRoutes) {
+            expect(
+              RoutePaths.publicRoutes.contains(route),
+              isFalse,
+              reason: '$route should not be public',
+            );
+            expect(
+              RoutePaths.universalRoutes.contains(route),
+              isFalse,
+              reason: '$route should not be universal',
+            );
+            expect(
+              RoutePaths.employerProtectedRoutes.contains(route),
+              isFalse,
+              reason:
+                  '$route should not be employer-only — the real skillup_hub view has no employer branch',
+            );
+          }
+        });
+
+        test(
+          'an unauthenticated hit on any of the 8 routes bounces to the student login, not the employer one',
+          () {
+            for (final route in allSkillUpRoutes) {
+              expect(
+                computeRedirect(
+                  authState: const AuthUnauthenticated(),
+                  matchedLocation: route,
+                ),
+                RoutePaths.login,
+                reason:
+                    '$route must redirect an anonymous visitor to the student login '
+                    '(matches LOGIN_URL — no custom login_url= on the real view)',
+              );
+            }
+          },
+        );
+
+        test(
+          'an authenticated candidate reaches all 8 routes without any redirect',
+          () {
+            const candidate = AuthAuthenticated(AuthUser(username: 'jane'));
+            for (final route in allSkillUpRoutes) {
+              expect(
+                computeRedirect(authState: candidate, matchedLocation: route),
+                isNull,
+                reason:
+                    '$route should be reachable by a candidate, with no redirect',
+              );
+            }
+          },
+        );
+
+        test(
+          'an authenticated employer also reaches all 8 routes without any redirect — the real skillup_hub '
+          'view has no employer-specific block (confirmed directly in source: plain @login_required, no '
+          'portal/role branch anywhere in the view body), so an employer session must not be bounced away '
+          'from candidate learning content it is actually allowed to see on the real site',
+          () {
+            const employer = AuthAuthenticated(
+              AuthUser(username: 'acme', isEmployer: true),
+            );
+            for (final route in allSkillUpRoutes) {
+              expect(
+                computeRedirect(authState: employer, matchedLocation: route),
+                isNull,
+                reason:
+                    '$route should be reachable by an employer session too, with no redirect',
+              );
+            }
+          },
+        );
+      },
+    );
   });
 }

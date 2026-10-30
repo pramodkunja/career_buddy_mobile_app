@@ -107,6 +107,134 @@ void main() {
 
       await expectLater(datasource.submit(_submission), throwsA(isA<ServerException>()));
     });
+
+    // Phase 55 — `experience_plus`/`experience_years_max` reached this
+    // datasource already correctly wired (`'True'`/`'False'` literal
+    // strings, not JSON booleans — matching the real page's own hidden
+    // `<input>` values); these were previously untested because the UI
+    // always sent `false`/`''`. Confirms the serialization layer itself
+    // needed no change this phase.
+    test('sends experience_plus as the literal string "True" (not a JSON bool) when "10+" is chosen', () async {
+      RequestOptions? captured;
+      final dio = Dio(BaseOptions(baseUrl: 'https://example.test'))
+        ..httpClientAdapter = GetPrimesCsrfAdapter(postStatusCode: 302, onPostRequest: (o) => captured = o);
+      final datasource = JobPostingRemoteDataSource(ApiClient.forTesting(dio));
+      final submission = JobPostingSubmission(
+        jobCategory: _submission.jobCategory,
+        jobClassification: _submission.jobClassification,
+        department: _submission.department,
+        departmentFunction: _submission.departmentFunction,
+        designation: _submission.designation,
+        industrySector: _submission.industrySector,
+        title: _submission.title,
+        jobType: _submission.jobType,
+        contractDurationMonths: _submission.contractDurationMonths,
+        employmentType: _submission.employmentType,
+        experiencePreset: 'custom',
+        experienceYears: '10',
+        experiencePlus: true,
+        experienceYearsMax: '',
+        location: _submission.location,
+        educationPreset: _submission.educationPreset,
+        educationOther: _submission.educationOther,
+        functionalSkills: _submission.functionalSkills,
+        industryExperience: _submission.industryExperience,
+        workingHours: _submission.workingHours,
+        salaryFormat: _submission.salaryFormat,
+        salaryMin: _submission.salaryMin,
+        salaryMax: _submission.salaryMax,
+        openings: _submission.openings,
+        perks: _submission.perks,
+        description: _submission.description,
+        requirements: _submission.requirements,
+        responsibilities: _submission.responsibilities,
+        certifications: _submission.certifications,
+        softwareSkills: _submission.softwareSkills,
+        languageRequirements: _submission.languageRequirements,
+        keywords: _submission.keywords,
+        applicationContact: _submission.applicationContact,
+        skills: _submission.skills,
+        mandatorySkills: _submission.mandatorySkills,
+        deadline: _submission.deadline,
+        status: _submission.status,
+        workEnvironment: _submission.workEnvironment,
+        interviewMode: _submission.interviewMode,
+        interviewModeOther: _submission.interviewModeOther,
+        workMode: _submission.workMode,
+        joiningRequirement: _submission.joiningRequirement,
+        noticePeriod: _submission.noticePeriod,
+        noticePeriodOther: _submission.noticePeriodOther,
+        genderPreference: _submission.genderPreference,
+        ageLimit: _submission.ageLimit,
+      );
+
+      await expectLater(datasource.submit(submission), completes);
+      final body = captured!.data as Map<String, dynamic>;
+      expect(body['experience_years'], '10');
+      expect(body['experience_plus'], 'True');
+      expect(body['experience_years_max'], '');
+    });
+
+    test('sends a supplied experience_years_max, with experience_plus as "False"', () async {
+      RequestOptions? captured;
+      final dio = Dio(BaseOptions(baseUrl: 'https://example.test'))
+        ..httpClientAdapter = GetPrimesCsrfAdapter(postStatusCode: 302, onPostRequest: (o) => captured = o);
+      final datasource = JobPostingRemoteDataSource(ApiClient.forTesting(dio));
+      final submission = JobPostingSubmission(
+        jobCategory: _submission.jobCategory,
+        jobClassification: _submission.jobClassification,
+        department: _submission.department,
+        departmentFunction: _submission.departmentFunction,
+        designation: _submission.designation,
+        industrySector: _submission.industrySector,
+        title: _submission.title,
+        jobType: _submission.jobType,
+        contractDurationMonths: _submission.contractDurationMonths,
+        employmentType: _submission.employmentType,
+        experiencePreset: 'custom',
+        experienceYears: '2',
+        experiencePlus: false,
+        experienceYearsMax: '5',
+        location: _submission.location,
+        educationPreset: _submission.educationPreset,
+        educationOther: _submission.educationOther,
+        functionalSkills: _submission.functionalSkills,
+        industryExperience: _submission.industryExperience,
+        workingHours: _submission.workingHours,
+        salaryFormat: _submission.salaryFormat,
+        salaryMin: _submission.salaryMin,
+        salaryMax: _submission.salaryMax,
+        openings: _submission.openings,
+        perks: _submission.perks,
+        description: _submission.description,
+        requirements: _submission.requirements,
+        responsibilities: _submission.responsibilities,
+        certifications: _submission.certifications,
+        softwareSkills: _submission.softwareSkills,
+        languageRequirements: _submission.languageRequirements,
+        keywords: _submission.keywords,
+        applicationContact: _submission.applicationContact,
+        skills: _submission.skills,
+        mandatorySkills: _submission.mandatorySkills,
+        deadline: _submission.deadline,
+        status: _submission.status,
+        workEnvironment: _submission.workEnvironment,
+        interviewMode: _submission.interviewMode,
+        interviewModeOther: _submission.interviewModeOther,
+        workMode: _submission.workMode,
+        joiningRequirement: _submission.joiningRequirement,
+        noticePeriod: _submission.noticePeriod,
+        noticePeriodOther: _submission.noticePeriodOther,
+        genderPreference: _submission.genderPreference,
+        ageLimit: _submission.ageLimit,
+      );
+
+      await expectLater(datasource.submit(submission), completes);
+      final body = captured!.data as Map<String, dynamic>;
+      expect(body['experience_years'], '2');
+      expect(body['experience_years_max'], '5');
+      expect(body['experience_plus'], 'False');
+    });
   });
 
   group('JobPostingRemoteDataSource.submitEdit', () {

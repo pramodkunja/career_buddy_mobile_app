@@ -57,3 +57,9 @@ final class CameraRequiredFailure extends Failure {
 final class MalpracticeTerminatedFailure extends Failure {
   const MalpracticeTerminatedFailure(super.message);
 }
+
+/// See `ResumeBuilderSignInRequiredException`'s doc comment. Its message is
+/// never actually shown — the UI redirects to sign-in silently instead.
+final class ResumeBuilderSignInRequiredFailure extends Failure {
+  const ResumeBuilderSignInRequiredFailure(super.message);
+}

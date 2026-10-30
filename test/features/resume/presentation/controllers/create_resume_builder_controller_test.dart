@@ -329,6 +329,190 @@ void main() {
           );
         },
       );
+
+      test(
+        'addProject()/removeProject()/updateProject() manage the list correctly',
+        () async {
+          final container = await buildContainer();
+          final controller = container.read(
+            createResumeBuilderControllerProvider.notifier,
+          )..startBlank();
+
+          controller.addProject();
+          controller.addProject();
+          controller.updateProject(0, (e) => e.copyWith(title: 'Tracker'));
+          final state =
+              container.read(createResumeBuilderControllerProvider)
+                  as CreateResumeBuilderReady;
+          expect(state.form.projects, hasLength(2));
+          expect(state.form.projects[0].title, 'Tracker');
+
+          controller.removeProject(1);
+          expect(
+            (container.read(createResumeBuilderControllerProvider)
+                    as CreateResumeBuilderReady)
+                .form
+                .projects,
+            hasLength(1),
+          );
+        },
+      );
+
+      test(
+        'addCertification()/removeCertification()/updateCertification() manage the list correctly',
+        () async {
+          final container = await buildContainer();
+          final controller = container.read(
+            createResumeBuilderControllerProvider.notifier,
+          )..startBlank();
+
+          controller.addCertification();
+          controller.updateCertification(0, (e) => e.copyWith(name: 'AWS SAA'));
+          final state =
+              container.read(createResumeBuilderControllerProvider)
+                  as CreateResumeBuilderReady;
+          expect(state.form.certifications.single.name, 'AWS SAA');
+
+          controller.removeCertification(0);
+          expect(
+            (container.read(createResumeBuilderControllerProvider)
+                    as CreateResumeBuilderReady)
+                .form
+                .certifications,
+            isEmpty,
+          );
+        },
+      );
+
+      test(
+        'addAchievement()/removeAchievement()/updateAchievement() manage the list correctly',
+        () async {
+          final container = await buildContainer();
+          final controller = container.read(
+            createResumeBuilderControllerProvider.notifier,
+          )..startBlank();
+
+          controller.addAchievement();
+          controller.updateAchievement(0, (e) => e.copyWith(title: 'Hackathon'));
+          final state =
+              container.read(createResumeBuilderControllerProvider)
+                  as CreateResumeBuilderReady;
+          expect(state.form.achievements.single.title, 'Hackathon');
+
+          controller.removeAchievement(0);
+          expect(
+            (container.read(createResumeBuilderControllerProvider)
+                    as CreateResumeBuilderReady)
+                .form
+                .achievements,
+            isEmpty,
+          );
+        },
+      );
+
+      test(
+        'addInternship()/removeInternship()/updateInternship() manage the list correctly',
+        () async {
+          final container = await buildContainer();
+          final controller = container.read(
+            createResumeBuilderControllerProvider.notifier,
+          )..startBlank();
+
+          controller.addInternship();
+          controller.updateInternship(0, (e) => e.copyWith(organization: 'Acme'));
+          final state =
+              container.read(createResumeBuilderControllerProvider)
+                  as CreateResumeBuilderReady;
+          expect(state.form.internships.single.organization, 'Acme');
+
+          controller.removeInternship(0);
+          expect(
+            (container.read(createResumeBuilderControllerProvider)
+                    as CreateResumeBuilderReady)
+                .form
+                .internships,
+            isEmpty,
+          );
+        },
+      );
+
+      test(
+        'addVolunteering()/removeVolunteering()/updateVolunteering() manage the list correctly, '
+        'independently of the internships list sharing this same wizard step',
+        () async {
+          final container = await buildContainer();
+          final controller = container.read(
+            createResumeBuilderControllerProvider.notifier,
+          )..startBlank();
+
+          controller.addInternship();
+          controller.addVolunteering();
+          controller.updateVolunteering(0, (e) => e.copyWith(organization: 'Red Cross'));
+          final state =
+              container.read(createResumeBuilderControllerProvider)
+                  as CreateResumeBuilderReady;
+          expect(state.form.volunteering.single.organization, 'Red Cross');
+          expect(
+            state.form.internships.single.organization,
+            isEmpty,
+            reason: 'updating volunteering must never touch the internships list',
+          );
+
+          controller.removeVolunteering(0);
+          final afterRemove =
+              container.read(createResumeBuilderControllerProvider)
+                  as CreateResumeBuilderReady;
+          expect(afterRemove.form.volunteering, isEmpty);
+          expect(
+            afterRemove.form.internships,
+            hasLength(1),
+            reason: 'removing a volunteering entry must never remove an internship entry',
+          );
+        },
+      );
+
+      test(
+        'addLanguage()/removeLanguage()/updateLanguage() manage the list correctly',
+        () async {
+          final container = await buildContainer();
+          final controller = container.read(
+            createResumeBuilderControllerProvider.notifier,
+          )..startBlank();
+
+          controller.addLanguage();
+          controller.updateLanguage(
+            0,
+            (e) => e.copyWith(name: 'Spanish', proficiency: 'Native'),
+          );
+          final state =
+              container.read(createResumeBuilderControllerProvider)
+                  as CreateResumeBuilderReady;
+          expect(state.form.languages.single.name, 'Spanish');
+          expect(state.form.languages.single.proficiency, 'Native');
+
+          controller.removeLanguage(0);
+          expect(
+            (container.read(createResumeBuilderControllerProvider)
+                    as CreateResumeBuilderReady)
+                .form
+                .languages,
+            isEmpty,
+          );
+        },
+      );
+
+      test('updateAdditional() updates the flat Additional Information fields', () async {
+        final container = await buildContainer();
+        final controller = container.read(
+          createResumeBuilderControllerProvider.notifier,
+        )..startBlank();
+
+        controller.updateAdditional((a) => a.copyWith(hobbies: 'Chess'));
+        final state =
+            container.read(createResumeBuilderControllerProvider)
+                as CreateResumeBuilderReady;
+        expect(state.form.additional.hobbies, 'Chess');
+      });
     });
 
     group('save() — authenticated', () {
@@ -614,6 +798,45 @@ void main() {
         expect(controller.hasUnsavedContent, isFalse);
         controller.updateExperience(0, (e) => e.copyWith(company: 'Acme'));
         expect(controller.hasUnsavedContent, isTrue);
+      });
+
+      test('is true once a non-blank Phase 70 section entry exists', () async {
+        for (final mutate
+            in <void Function(CreateResumeBuilderController)>[
+              (c) {
+                c.addProject();
+                c.updateProject(0, (e) => e.copyWith(title: 'Tracker'));
+              },
+              (c) {
+                c.addCertification();
+                c.updateCertification(0, (e) => e.copyWith(name: 'AWS SAA'));
+              },
+              (c) {
+                c.addAchievement();
+                c.updateAchievement(0, (e) => e.copyWith(title: 'Hackathon'));
+              },
+              (c) {
+                c.addInternship();
+                c.updateInternship(0, (e) => e.copyWith(organization: 'Acme'));
+              },
+              (c) {
+                c.addVolunteering();
+                c.updateVolunteering(0, (e) => e.copyWith(organization: 'Red Cross'));
+              },
+              (c) {
+                c.addLanguage();
+                c.updateLanguage(0, (e) => e.copyWith(name: 'Spanish'));
+              },
+              (c) => c.updateAdditional((a) => a.copyWith(hobbies: 'Chess')),
+            ]) {
+          final container = await buildContainer();
+          final controller = container.read(
+            createResumeBuilderControllerProvider.notifier,
+          )..startBlank();
+          expect(controller.hasUnsavedContent, isFalse);
+          mutate(controller);
+          expect(controller.hasUnsavedContent, isTrue);
+        }
       });
     });
 

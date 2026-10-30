@@ -10,17 +10,27 @@ import '../../domain/entities/create_resume_state.dart';
 import '../controllers/create_resume_builder_controller.dart';
 import '../controllers/create_resume_pdf_controller.dart';
 import '../providers/resume_providers.dart';
+import '../widgets/create_resume_achievements_step.dart';
+import '../widgets/create_resume_certifications_step.dart';
 import '../widgets/create_resume_education_step.dart';
 import '../widgets/create_resume_experience_step.dart';
+import '../widgets/create_resume_internships_volunteering_step.dart';
+import '../widgets/create_resume_languages_additional_step.dart';
 import '../widgets/create_resume_personal_step.dart';
+import '../widgets/create_resume_projects_step.dart';
 import '../widgets/create_resume_skills_step.dart';
 import '../widgets/create_resume_summary_step.dart';
 
-/// Phase 39 — the free-form Create Resume builder's own 5-step wizard shell
-/// (Personal/Summary/Skills/Experience/Education — the sections this phase
-/// implements; see this feature's own doc comments for the remaining ones
-/// not yet editable here). [initialForm] is the already-loaded state from
-/// [CreateResumeDraftsScreen]'s "Open" action, or `null` to start blank.
+/// Phase 39/70 — the free-form Create Resume builder's own 10-step wizard
+/// shell, matching the real site's own 10 tabs exactly (confirmed directly
+/// against `static/js/create_resume.js`'s `SECTIONS` array): Personal,
+/// Summary, Skills, Experience, Education, Projects, Certifications,
+/// Achievements, "Internships & Volunteering" (one combined tab — see
+/// [CreateResumeInternshipsVolunteeringStep]'s own doc comment) and
+/// "Languages & Additional Information" (another combined tab — see
+/// [CreateResumeLanguagesAdditionalStep]'s own doc comment). [initialForm]
+/// is the already-loaded state from [CreateResumeDraftsScreen]'s "Open"
+/// action, or `null` to start blank.
 class CreateResumeBuilderScreen extends ConsumerStatefulWidget {
   const CreateResumeBuilderScreen({this.initialForm, super.key});
 
@@ -272,8 +282,30 @@ class _WizardBody extends ConsumerWidget {
               entries: form.experience,
               serverErrors: errors,
             ),
-            _ => CreateResumeEducationStep(
+            5 => CreateResumeEducationStep(
               entries: form.education,
+              serverErrors: errors,
+            ),
+            6 => CreateResumeProjectsStep(
+              entries: form.projects,
+              serverErrors: errors,
+            ),
+            7 => CreateResumeCertificationsStep(
+              entries: form.certifications,
+              serverErrors: errors,
+            ),
+            8 => CreateResumeAchievementsStep(
+              entries: form.achievements,
+              serverErrors: errors,
+            ),
+            9 => CreateResumeInternshipsVolunteeringStep(
+              internships: form.internships,
+              volunteering: form.volunteering,
+              serverErrors: errors,
+            ),
+            _ => CreateResumeLanguagesAdditionalStep(
+              languages: form.languages,
+              additional: form.additional,
               serverErrors: errors,
             ),
           },
@@ -373,30 +405,40 @@ class _StepIndicator extends StatelessWidget {
   final int currentStep;
   final void Function(int) onTap;
 
+  // Phase 70 — the step count doubled from 5 to 10 (see
+  // [CreateResumeBuilderScreen]'s own doc comment), so the previous
+  // `Expanded`-per-dot row would squeeze every label to illegibility on a
+  // phone-width screen. A horizontally scrollable row of fixed-width dots
+  // keeps every label readable while still fitting any viewport; the
+  // active dot is visually distinct regardless of which page is in view.
+  static const double _dotWidth = 76;
+  static const double _lineWidth = 20;
+
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.md,
-        vertical: AppSpacing.sm,
-      ),
-      child: Row(
-        children: [
-          for (var i = 0; i < kCreateResumeStepLabels.length; i++) ...[
-            if (i > 0)
-              Expanded(child: Container(height: 2, color: AppColors.border)),
-            Expanded(
-              flex: 2,
-              child: InkWell(
-                onTap: () => onTap(i + kCreateResumeFirstStep),
-                child: _StepDot(
-                  label: kCreateResumeStepLabels[i],
-                  active: i + kCreateResumeFirstStep == currentStep,
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+        child: Row(
+          children: [
+            for (var i = 0; i < kCreateResumeStepLabels.length; i++) ...[
+              if (i > 0)
+                Container(width: _lineWidth, height: 2, color: AppColors.border),
+              SizedBox(
+                width: _dotWidth,
+                child: InkWell(
+                  onTap: () => onTap(i + kCreateResumeFirstStep),
+                  child: _StepDot(
+                    label: kCreateResumeStepLabels[i],
+                    active: i + kCreateResumeFirstStep == currentStep,
+                  ),
                 ),
               ),
-            ),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }

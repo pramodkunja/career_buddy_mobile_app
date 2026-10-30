@@ -61,7 +61,7 @@ class _FakeManualResumeDraftRepository implements ManualResumeDraftRepository {
 }
 
 class _FakeResumeRepository implements ResumeRepository {
-  _FakeResumeRepository({this.pdfResult, this.pdfCompleter});
+  _FakeResumeRepository({this.pdfResult}) : pdfCompleter = null;
 
   Result<ManualResumePdfOutcome>? pdfResult;
 

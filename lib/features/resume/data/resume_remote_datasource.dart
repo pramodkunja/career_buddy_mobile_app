@@ -318,11 +318,22 @@ class ResumeRemoteDataSource {
   /// mechanism the real landing page's role-picker modal uses. Confirms
   /// success by checking the response actually echoes this selection back
   /// (`parseTargetRoleBadge`) rather than assuming a 200 status means the
-  /// role was saved: an anonymous/expired session is redirected to the
-  /// login page by this same view's own `@login_required` before the
-  /// badge could ever render, which this treats as [UnauthorizedException]
-  /// — the same failure an unrelated unexpected-page-shape would also
-  /// produce, since both mean "the selection was not confirmed."
+  /// role was saved.
+  ///
+  /// Phase 66: a direct, read-only request against the live site confirmed
+  /// a guest hitting `resume_builder_home` is redirected (302) to
+  /// `/users/login/...` — Dio's default `followRedirects: true` lands this
+  /// call on that final login page, exactly like
+  /// `EmployerDashboardRemoteDataSource.getDashboard`'s own
+  /// `response.realUri.path` check. [isResumeParsingLockedPage] is kept as
+  /// a secondary check for the "updated" Django reference repo's own
+  /// `resume_locked.html` (a subscription-upsell page `career_app/
+  /// views.py:815-820` would render for a guest, no `@login_required`
+  /// involved) in case that page is ever actually served instead. Either
+  /// way this is reported as [ResumeBuilderSignInRequiredException], not
+  /// [UnauthorizedException] — the real website shows no "session expired"
+  /// message here, so the UI redirects straight to sign-in instead of
+  /// displaying one.
   Future<ResumeRoleSelection> selectTargetRole({
     required String role,
     required String dept,
@@ -332,14 +343,15 @@ class ResumeRemoteDataSource {
       final response = await _apiClient.dio.get<String>(
         ApiEndpoints.resumeBuilderHome,
         queryParameters: {'role': role, 'dept': dept, 'track': track},
-        options: Options(
-          responseType: ResponseType.plain,
-          validateStatus: (_) => true,
-        ),
+        options: Options(responseType: ResponseType.plain),
       );
-      final echoed = parseTargetRoleBadge(response.data ?? '');
+      final html = response.data ?? '';
+      if (response.realUri.path.contains('/login') || isResumeParsingLockedPage(html)) {
+        throw const ResumeBuilderSignInRequiredException();
+      }
+      final echoed = parseTargetRoleBadge(html);
       if (echoed == null || echoed.role != role || echoed.dept != dept) {
-        throw const UnauthorizedException();
+        throw const UnexpectedResponseException();
       }
       return echoed;
     } on DioException catch (e) {

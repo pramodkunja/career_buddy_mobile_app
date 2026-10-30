@@ -146,7 +146,11 @@ void main() {
       await _settle(tester);
 
       expect(find.text('Home'), findsOneWidget);
-      expect(find.text('Activities'), findsOneWidget);
+      // Phase 71 — "Activities" moved from a flat drawer item into the
+      // Resources submenu; "Resources" itself is still a reliable
+      // top-level, always-visible marker that the drawer rendered real
+      // content, not a blank/broken one.
+      expect(find.text('Resources'), findsOneWidget);
     },
   );
 }

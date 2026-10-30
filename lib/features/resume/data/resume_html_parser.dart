@@ -172,6 +172,15 @@ String? parseFlashedErrorMessage(String html) {
   return (role: role, dept: dept);
 }
 
+/// `templates/resume_locked.html` (`resume_builder_home`'s own response for
+/// `!_can_access_resume(user)`, i.e. any guest or signed-out visitor) — a
+/// 200 OK subscription-upsell page, distinct in markup from both the real
+/// builder form and a genuine error page: `<h1>Resume Parsing Locked</h1>`
+/// is unique to it. Phase 66: this page has no "Target role" badge, so
+/// without this check [parseTargetRoleBadge] returning `null` for it was
+/// being misread as an expired/unauthorized session.
+bool isResumeParsingLockedPage(String html) => html.contains('Resume Parsing Locked');
+
 /// `resume_builder_home`'s Free-plan usage badge (`resume_builder.html:
 /// 191-195`): `<i class="fas fa-file-lines"></i> Free plan: {{ parses_left
 /// }} of {{ parse_limit }} resume analyses left`. That whole `<span>` is

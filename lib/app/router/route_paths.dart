@@ -319,13 +319,34 @@ abstract final class RoutePaths {
   static const String sitemap = '/sitemap';
 
   /// Opens the same hub pre-selected to its "Sections in depth" tab — the
-  /// nav drawer's "English & Vocabulary"/"Aptitude"/"Tech"/"Browse All"
-  /// items all mirror web anchors (`#depth-english`/`#depth-aptitude`/
-  /// `#depth-tech`/`#section-depth`) that are sub-anchors *within* this one
-  /// section, not 4 distinct sections — so all 4 open this same tab, not 4
-  /// different ones (a prior version of the drawer sent all 4 to [skillUp]
-  /// itself, landing on the Home tab instead — fixed here).
+  /// nav drawer's "English Learning"/"Vocabulary & Idioms"/"Aptitude"/
+  /// "Tech" items all mirror web anchors (`#depth-english`/`#depth-aptitude`/
+  /// `#depth-tech`) that are sub-articles *within* this one tab, not 4
+  /// distinct pages — so all 4 open this same tab (a prior version of the
+  /// drawer sent all 4 to [skillUp] itself, landing on the Home tab
+  /// instead — fixed before this phase).
+  ///
+  /// Phase 72 — the real site's own `?section=` query param (confirmed via
+  /// `core/navigation.py`'s `NAV_MAP` and `riya_bot/skillup_views.py`'s
+  /// `skillup_hub` view) is a **client-side hash-scroll instruction**, not
+  /// a server content filter: `english-learning`/`vocabulary` both resolve
+  /// to `depth-english` (confirmed identical on the real site itself —
+  /// deliberate, not a bug to "improve" with a more granular target),
+  /// `aptitude` to `depth-aptitude`, `tech` to `depth-tech`. [sectionFor]
+  /// carries that same id through to [SkillUpScreen], which scrolls its
+  /// "Sections in depth" tab to the matching [SkillUpSection.id] — the
+  /// Flutter-side equivalent of the real site turning this query param
+  /// into a URL hash before its own on-load router scrolls to it.
   static const String skillUpSections = '/skill-up/sections';
+
+  /// See [skillUpSections]'s own doc comment. `sectionId` is one of
+  /// [SkillUpSection.id]'s real values (`depth-english`/`depth-aptitude`/
+  /// `depth-tech`) — an unrecognized or missing id is handled the same
+  /// safe way the real site's own view does (`ALLOWED_SECTIONS` rejects
+  /// anything else): [SkillUpScreen] simply doesn't scroll, landing on the
+  /// tab's own top, identical to [skillUpSections] with no query at all.
+  static String skillUpSectionsFor(String sectionId) =>
+      '$skillUpSections?section=$sectionId';
 
   /// See [skillUp]'s doc comment — opens the same hub pre-selected to its
   /// Certifications tab, matching the web's `#section-certifications`
@@ -357,6 +378,20 @@ abstract final class RoutePaths {
   /// `deptView()`). `extra` carries the selected `CareerDepartment`, the
   /// same threading pattern [careerRoles] already uses.
   static const String skillUpNonItRoles = '/skill-up/non-it/roles';
+
+  /// Phase 76 — the Tech Center's own department browsing screen
+  /// (`index.html`'s `#depth-tech` article, the `<div class="sub"
+  /// id="grp-tech-*">` department groups that follow the already-transcribed
+  /// flat lesson cards). No `extra` — lists all 10 departments from
+  /// `kTechCenterDepartments`, the same "list everything on one screen"
+  /// simplification [skillUpNonIt] already uses for the structurally
+  /// identical Non-IT departments.
+  static const String techCenterDepartments = '/skill-up/tech-center';
+
+  /// The role list inside one Tech Center department. `extra` carries the
+  /// selected `TechCenterDepartment`, the same threading pattern
+  /// [skillUpNonItRoles] already uses for `CareerDepartment`.
+  static const String techCenterRoles = '/skill-up/tech-center/roles';
 
   /// Grammar (`subject_views.subject_home`, `templates/subject/home.html`)
   /// — the 9-topic index.

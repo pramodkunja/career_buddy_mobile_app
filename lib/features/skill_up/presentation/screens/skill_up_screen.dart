@@ -39,11 +39,20 @@ typedef _OpenLesson = void Function(String relativePath, String displayTitle);
 ///  - `3` — Certifications (`#section-certifications` on the web); see
 ///    `CertificationsSection`.
 class SkillUpScreen extends ConsumerStatefulWidget {
-  const SkillUpScreen({this.initialTabIndex = 0, super.key});
+  const SkillUpScreen({this.initialTabIndex = 0, this.initialSectionId, super.key});
 
   /// Which tab is pre-selected. See the class doc comment for the index
   /// mapping.
   final int initialTabIndex;
+
+  /// Phase 72 — one of `SkillUpSection.id`'s real values (`depth-english`/
+  /// `depth-aptitude`/`depth-tech`), carried here from
+  /// `RoutePaths.skillUpSectionsFor`'s own doc comment. `null` (the
+  /// default — every pre-existing caller of this screen) means "just open
+  /// the tab, don't scroll further," unchanged from before this phase. An
+  /// id that doesn't match any section is handled the same safe way: no
+  /// scroll, same as `null`.
+  final String? initialSectionId;
 
   @override
   ConsumerState<SkillUpScreen> createState() => _SkillUpScreenState();
@@ -113,7 +122,11 @@ class _SkillUpScreenState extends ConsumerState<SkillUpScreen> with SingleTicker
                   controller: _tabController,
                   children: [
                     _HomeTab(onOpenLesson: _openLesson, onViewSitemap: () => _goToTab(2)),
-                    _SectionsInDepthTab(onOpenLesson: _openLesson, onJumpToSitemap: () => _goToTab(2)),
+                    _SectionsInDepthTab(
+                      onOpenLesson: _openLesson,
+                      onJumpToSitemap: () => _goToTab(2),
+                      initialSectionId: widget.initialSectionId,
+                    ),
                     const _SitemapTab(),
                     const _CertificationsTab(),
                   ],
@@ -377,11 +390,49 @@ class _SectionEyebrow extends StatelessWidget {
 // SECTIONS IN DEPTH TAB (`#section-depth`) — the 3 major sections
 // ==================================================================
 
-class _SectionsInDepthTab extends StatelessWidget {
-  const _SectionsInDepthTab({required this.onOpenLesson, required this.onJumpToSitemap});
+class _SectionsInDepthTab extends StatefulWidget {
+  const _SectionsInDepthTab({
+    required this.onOpenLesson,
+    required this.onJumpToSitemap,
+    this.initialSectionId,
+  });
 
   final _OpenLesson onOpenLesson;
   final VoidCallback onJumpToSitemap;
+  final String? initialSectionId;
+
+  @override
+  State<_SectionsInDepthTab> createState() => _SectionsInDepthTabState();
+}
+
+class _SectionsInDepthTabState extends State<_SectionsInDepthTab> {
+  /// One key per real section id (`depth-english`/`depth-aptitude`/
+  /// `depth-tech`) — the Flutter equivalent of the real site's own
+  /// `id="depth-..."` HTML anchors, already present as `SkillUpSection.id`
+  /// before this phase (this screen just didn't use it for scrolling yet).
+  final Map<String, GlobalKey> _sectionKeys = {
+    for (final section in SkillUpData.sections) section.id: GlobalKey(),
+  };
+
+  @override
+  void initState() {
+    super.initState();
+    final target = widget.initialSectionId;
+    if (target == null) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final targetContext = _sectionKeys[target]?.currentContext;
+      // An unrecognized id (or one with no matching key) is left as a
+      // silent no-op — the same safe fallback the real site's own
+      // `ALLOWED_SECTIONS` check gives an invalid `?section=` value.
+      if (targetContext == null) return;
+      Scrollable.ensureVisible(
+        targetContext,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -404,11 +455,15 @@ class _SectionsInDepthTab extends StatelessWidget {
           const SizedBox(height: AppSpacing.sm),
           Align(
             alignment: Alignment.centerLeft,
-            child: OutlinedButton(onPressed: onJumpToSitemap, child: const Text(SkillUpData.depthJumpToSitemapLabel)),
+            child: OutlinedButton(onPressed: widget.onJumpToSitemap, child: const Text(SkillUpData.depthJumpToSitemapLabel)),
           ),
           for (final section in SkillUpData.sections) ...[
             const SizedBox(height: AppSpacing.lg),
-            _SectionInDepthArticle(section: section, onOpenLesson: onOpenLesson),
+            _SectionInDepthArticle(
+              key: _sectionKeys[section.id],
+              section: section,
+              onOpenLesson: widget.onOpenLesson,
+            ),
           ],
           const SizedBox(height: AppSpacing.lg),
           const _NonItCenterArticle(),
@@ -421,7 +476,7 @@ class _SectionsInDepthTab extends StatelessWidget {
 }
 
 class _SectionInDepthArticle extends StatelessWidget {
-  const _SectionInDepthArticle({required this.section, required this.onOpenLesson});
+  const _SectionInDepthArticle({required this.section, required this.onOpenLesson, super.key});
 
   final SkillUpSection section;
   final _OpenLesson onOpenLesson;
@@ -442,6 +497,26 @@ class _SectionInDepthArticle extends StatelessWidget {
             _LessonCard(lesson: lesson, onTap: () => onOpenLesson(lesson.relativePath, lesson.displayTitle)),
             const SizedBox(height: AppSpacing.sm),
           ],
+        ],
+        // Phase 76 — `index.html`'s own `#depth-tech` article doesn't stop
+        // at the flat cards above: it continues straight into the
+        // department/role grid (`grp-tech-*`) covering the other 383 real
+        // lesson pages Phase 75 confirmed had no Flutter entry point. This
+        // mirrors that same placement — within this section, after its
+        // existing subsections — rather than as a separate top-level
+        // article, and reuses [_NonItCenterArticle]'s own
+        // "Browse ___" button convention for the structurally identical
+        // department/role drill-down.
+        if (section.id == 'depth-tech') ...[
+          const SizedBox(height: AppSpacing.md),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: OutlinedButton(
+              key: const Key('skillup-techcenter-browse-departments-button'),
+              onPressed: () => context.push(RoutePaths.techCenterDepartments),
+              child: const Text('Browse departments & roles'),
+            ),
+          ),
         ],
       ],
     );

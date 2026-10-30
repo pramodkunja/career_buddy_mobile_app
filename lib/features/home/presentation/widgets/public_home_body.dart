@@ -46,8 +46,20 @@ class PublicHomeBody extends StatelessWidget {
     required this.onAskBuddy,
     required this.onItJobSeeker,
     required this.onNonItJobSeeker,
+    this.aboutSectionKey,
+    this.choosePathSectionKey,
+    this.tutorialsSectionKey,
     super.key,
   });
+
+  /// Phase 71 — lets [HomeScreen] scroll straight to these 3 sections on
+  /// behalf of [AppNavDrawer]'s "About Us"/"Industries"/"Tutorials: How
+  /// CareerBuddy Works" items (`homeScrollRequestProvider`'s own doc
+  /// comment has the full reasoning). `null` outside of that flow — every
+  /// other caller of this widget keeps working unchanged.
+  final Key? aboutSectionKey;
+  final Key? choosePathSectionKey;
+  final Key? tutorialsSectionKey;
 
   final VoidCallback onGetStarted;
   final VoidCallback onFindJobs;
@@ -106,6 +118,7 @@ class PublicHomeBody extends StatelessWidget {
           const HomeCareerJourney(),
           const SizedBox(height: AppSpacing.xl),
           HomeChoosePath(
+            key: choosePathSectionKey,
             onItJobSeeker: onItJobSeeker,
             onNonItJobSeeker: onNonItJobSeeker,
           ),
@@ -248,11 +261,11 @@ class PublicHomeBody extends StatelessWidget {
           const SizedBox(height: AppSpacing.xl),
           HomeMeetBuddySection(onAskBuddy: onAskBuddy),
           const SizedBox(height: AppSpacing.xl),
-          const HomeAboutSection(),
+          HomeAboutSection(key: aboutSectionKey),
           const SizedBox(height: AppSpacing.xl),
           HomeResumeMakerTeaser(onCreateResume: onCreateResume),
           const SizedBox(height: AppSpacing.xl),
-          const HomeTutorialsSection(),
+          HomeTutorialsSection(key: tutorialsSectionKey),
           const SizedBox(height: AppSpacing.xl),
           const HomeTestimonialsSection(),
         ],

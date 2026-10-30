@@ -16,6 +16,7 @@ class EmployerProfileFormData {
     required this.maskedPan,
     required this.hrContactE164,
     required this.hrMail,
+    this.companyLogoUrl,
   });
 
   final String companyName;
@@ -34,6 +35,17 @@ class EmployerProfileFormData {
   final String maskedPan;
   final String hrContactE164;
   final String hrMail;
+
+  /// Phase 74 — this page (`employer/profile_form.html`) extends
+  /// `employer_base.html`, so the same response this class already parses
+  /// also carries that layout's own sidebar identity block
+  /// (`:198-213`'s `<img src="{{ ...company_logo.url }}" alt="Company
+  /// Logo">`, rendered only when `employer_profile.company_logo` is set —
+  /// absent/`null` otherwise, matching the template's own `{% if %}`/`{%
+  /// else %}` icon fallback). A server-relative path (the common case for
+  /// anything under `MEDIA_URL`) — resolve with `resolveMediaUrl` before
+  /// use, same as every other server-rendered media URL in this app.
+  final String? companyLogoUrl;
 }
 
 /// POST payload for both `employer_profile_create` and

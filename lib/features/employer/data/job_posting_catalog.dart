@@ -99,7 +99,22 @@ const List<(String value, String label)> kExperiencePresets = [
 
 /// `id_education` presets — "Enter manually" (`custom`) reveals
 /// `education_other` instead.
-const List<(String value, String label)> kEducationPresets = [
+///
+/// Phase 54 — the updated web form offers a genuinely different preset list
+/// per category/classification, not one shared list: `job_form.html`'s
+/// education combo menu shows only its `data-it` items when not on the
+/// NON-IT Technical sheet, and only its `data-tech` items
+/// (`form.tech_education_choices`) when it is (`job_form.html`'s
+/// `applyFieldMode`: `li.hidden = tech ? !li.hasAttribute('data-tech') :
+/// !li.hasAttribute('data-it')`, where `tech` is `isNonItTech()`). IT and
+/// NON-IT×Non-Technical share the same list (both are "not dept_mode"
+/// server-side — `forms.py`'s `clean()` rejects `TECH_ONLY_EDUCATION_KEYS`
+/// for either); only NON-IT×Technical gets the narrower preset sheet.
+/// Labels/values are unchanged from the single list this replaces.
+///
+/// IT and NON-IT×Non-Technical's shared list (`JobPosting.EDUCATION_CHOICES`
+/// minus `custom` minus `TECH_ONLY_EDUCATION_KEYS` — `models.py`).
+const List<(String value, String label)> kGeneralEducationPresets = [
   ('below_10th', 'Below 10th Standard'),
   ('10th', '10th / SSLC'),
   ('11th', '11th Standard'),
@@ -108,7 +123,15 @@ const List<(String value, String label)> kEducationPresets = [
   ('diploma', 'Diploma'),
   ('ug', 'Under-Graduate / Degree'),
   ('pg', 'Post-Graduate'),
+];
+
+/// NON-IT×Technical's own qualification sheet (`JobPosting.
+/// TECH_EDUCATION_KEYS`, in the order `tech_education_choices` returns
+/// them — `models.py`/`forms.py`).
+const List<(String value, String label)> kTechEducationPresets = [
   ('degree', 'Degree'),
+  ('diploma', 'Diploma'),
+  ('iti', 'ITI'),
   ('certification', 'Certification'),
 ];
 
@@ -126,11 +149,27 @@ const List<(String value, String label)> kJobStatusOptions = [
 ];
 
 /// `id_work_mode` — Non-IT only ("Work Mode").
-const List<(String value, String label)> kWorkModeOptions = [
+/// Phase 52 — `work_mode`'s allowed set is **not** one shared list: the
+/// server (`jobs_app/forms.py`'s `WORK_MODE_OPTIONS` dict, enforced in
+/// `clean()`: `allowed_modes = dict(self.WORK_MODE_OPTIONS[classification])`)
+/// validates against a different set per Job Classification —
+/// `JobPosting.TECH_WORK_MODE_CHOICES` for Technical, `NONTECH_WORK_MODE_
+/// CHOICES` for Non-Technical — confirmed directly against current
+/// `jobs_app/models.py`. The 2 lists overlap but are not identical
+/// (Technical has "Plant", not "Hybrid"; Non-Technical has "Hybrid", not
+/// "Plant") — a single flat 5-option list let an employer pick a choice
+/// the server then rejected with "Select a work mode from the list.".
+const List<(String value, String label)> kTechWorkModeOptions = [
   ('onsite', 'On-site'),
   ('field', 'Field'),
   ('plant', 'Plant'),
   ('office', 'Office'),
+];
+
+const List<(String value, String label)> kNonTechWorkModeOptions = [
+  ('onsite', 'On-site'),
+  ('office', 'Office'),
+  ('field', 'Field'),
   ('hybrid', 'Hybrid'),
 ];
 
@@ -141,7 +180,8 @@ const List<(String value, String label)> kJoiningRequirementOptions = [
 ];
 
 /// `id_work_environment` radio group — IT only (relabeled "Work Mode" with
-/// different options on Non-IT, see [kWorkModeOptions]).
+/// different, classification-specific options on Non-IT, see
+/// [kTechWorkModeOptions]/[kNonTechWorkModeOptions]).
 const List<(String value, String label)> kWorkEnvironmentOptions = [
   ('wfh', 'Work From Home'),
   ('hybrid', 'Hybrid'),
@@ -412,3 +452,10 @@ const int kMandatorySkillsMax = 4;
 /// digits and ` .&/()'+#-` only, at most 40 characters, no commas.
 final RegExp kCustomSkillPattern = RegExp(r"^[A-Za-z0-9 .&/()'+#-]+$");
 const int kCustomSkillMaxLength = 40;
+
+/// Django's own second condition on a custom skill
+/// (`jobs_app/forms.py:custom_skill_error`): `len(re.findall(r'[A-Za-z]',
+/// skill)) < 1` — a skill must contain at least one letter, so a
+/// digits/punctuation-only value like `"12345"` is rejected even though it
+/// matches [kCustomSkillPattern]'s character class.
+final RegExp kCustomSkillLetterPattern = RegExp('[A-Za-z]');

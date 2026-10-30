@@ -11,6 +11,7 @@ import '../../../../shared/widgets/app_footer.dart';
 import '../../../../shared/widgets/app_nav_drawer.dart';
 import '../../../../shared/widgets/app_top_bar.dart';
 import '../../../../shared/widgets/buddy_chatbot_overlay.dart';
+import '../providers/home_scroll_request_provider.dart';
 import '../widgets/authenticated_home_body.dart';
 import '../widgets/home_landing_footer.dart';
 import '../widgets/home_path_picker_popup.dart';
@@ -72,16 +73,57 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   Timer? _popupTimer;
   bool _popupHandled = false;
 
+  // Phase 71 — targets for [homeScrollRequestProvider]; see that provider's
+  // own doc comment. Only [PublicHomeBody]'s 3 keys are ever attached when
+  // the authenticated branch renders instead (it has no "Choose Your Path"/
+  // About/Tutorials content of its own — a pre-existing, separate scope
+  // decision, not this phase's to revisit), so [_scrollToTarget] below
+  // guards for a `null` `currentContext` rather than assuming every target
+  // is always reachable.
+  final _aboutSectionKey = GlobalKey();
+  final _choosePathSectionKey = GlobalKey();
+  final _tutorialsSectionKey = GlobalKey();
+  final _contactSectionKey = GlobalKey();
+
   @override
   void initState() {
     super.initState();
     _popupTimer = Timer(const Duration(seconds: 5), _maybeShowPathPicker);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final pending = ref.read(homeScrollRequestProvider);
+      if (pending != null) _scrollToTarget(pending);
+    });
   }
 
   @override
   void dispose() {
     _popupTimer?.cancel();
     super.dispose();
+  }
+
+  void _scrollToTarget(HomeScrollTarget target) {
+    ref.read(homeScrollRequestProvider.notifier).clear();
+    final key = switch (target) {
+      HomeScrollTarget.about => _aboutSectionKey,
+      HomeScrollTarget.choosePath => _choosePathSectionKey,
+      HomeScrollTarget.tutorials => _tutorialsSectionKey,
+      HomeScrollTarget.contact => _contactSectionKey,
+    };
+    final targetContext = key.currentContext;
+    if (targetContext == null) return;
+    Scrollable.ensureVisible(
+      targetContext,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+      // The footer is taller than most viewports, so the default
+      // top-alignment (0.0) would bring its *top* on screen while its own
+      // copyright/contact line at the *bottom* stays below the fold —
+      // bottom-aligning (1.0) instead is what actually makes "Contact Us"
+      // land on something visible. Every other target's own content sits
+      // near its section's top, where the default alignment already works.
+      alignment: target == HomeScrollTarget.contact ? 1.0 : 0.0,
+    );
   }
 
   void _maybeShowPathPicker() {
@@ -111,7 +153,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       barrierDismissible: false,
       builder: (_) => HomePathPickerPopup(
         onItJobSeeker: () => context.push(RoutePaths.careerDepartments, extra: 'it'),
-        onNonIt: () => context.push(RoutePaths.careerDepartments, extra: 'non-it'),
+        onNonItTechnical: () => context.push(RoutePaths.careerDepartments, extra: 'technical'),
+        onNonItNonTechnical: () => context.push(RoutePaths.careerDepartments, extra: 'non-technical'),
       ),
     );
   }
@@ -131,6 +174,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   Widget build(BuildContext context) {
     final authState = ref.watch(authControllerProvider);
     final user = authState is AuthAuthenticated ? authState.user : null;
+
+    // Covers the case [initState]'s one-shot post-frame check can't: the
+    // drawer is tapped again while this screen is already mounted (no new
+    // `HomeScreen` instance, so `initState` never re-runs).
+    ref.listen(homeScrollRequestProvider, (previous, next) {
+      if (next != null) _scrollToTarget(next);
+    });
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -159,9 +209,26 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         context.go(RoutePaths.employerDashboard),
                     onFindCandidates: () =>
                         context.push(RoutePaths.employerSearchCandidates),
+                    // Same destinations/tracks the guest branch's own
+                    // `HomeChoosePath` already uses below — no popup to
+                    // cancel here (`_maybeShowPathPicker` already never
+                    // fires once authenticated), so these are plain
+                    // closures, not wrapped in `_choosePath`.
+                    onItJobSeeker: () =>
+                        context.push(RoutePaths.careerDepartments, extra: 'it'),
+                    onNonItJobSeeker: () => context.push(
+                      RoutePaths.careerDepartments,
+                      extra: 'non-it',
+                    ),
+                    aboutSectionKey: _aboutSectionKey,
+                    choosePathSectionKey: _choosePathSectionKey,
+                    tutorialsSectionKey: _tutorialsSectionKey,
                   )
                 else
                   PublicHomeBody(
+                    aboutSectionKey: _aboutSectionKey,
+                    choosePathSectionKey: _choosePathSectionKey,
+                    tutorialsSectionKey: _tutorialsSectionKey,
                     onGetStarted: () => context.push(RoutePaths.register),
                     // Both of these push a route that requires a session —
                     // `RoutePaths.dashboard`/`resumeBuilder` are neither in
@@ -201,20 +268,34 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 if (user != null && user.isEmployer)
                   const AppFooter()
                 else
-                  HomeLandingFooter(
-                    // Same distinction as each branch's own hero above:
-                    // `go` (replace) once authenticated, `push` as a guest —
-                    // not a new rule invented for the footer.
-                    onFindJobs: () => user != null
-                        ? context.go(RoutePaths.dashboard)
-                        : context.push(RoutePaths.dashboard),
-                    onRegister: () => user != null
-                        ? context.go(RoutePaths.dashboard)
-                        : context.push(RoutePaths.register),
-                    onEmployerLogin: () =>
-                        context.push(RoutePaths.employerLogin),
-                    onEmployerRegister: () =>
-                        context.push(RoutePaths.employerRegister),
+                  // Phase 71 — `#contact` (`site_nav.html:242`) is an anchor
+                  // to this exact footer, not a distinct contact page/form
+                  // (confirmed directly: the real footer has no email/
+                  // phone/form either, just these same link columns plus a
+                  // copyright line — see `HomeScrollTarget`'s own doc
+                  // comment). `KeyedSubtree` wraps it rather than passing a
+                  // `key` straight to [HomeLandingFooter] because this
+                  // branch is also reachable from the employer `if` above,
+                  // and the key must resolve from the same stable tree
+                  // position either way for `Scrollable.ensureVisible` to
+                  // find it reliably.
+                  KeyedSubtree(
+                    key: _contactSectionKey,
+                    child: HomeLandingFooter(
+                      // Same distinction as each branch's own hero above:
+                      // `go` (replace) once authenticated, `push` as a guest
+                      // — not a new rule invented for the footer.
+                      onFindJobs: () => user != null
+                          ? context.go(RoutePaths.dashboard)
+                          : context.push(RoutePaths.dashboard),
+                      onRegister: () => user != null
+                          ? context.go(RoutePaths.dashboard)
+                          : context.push(RoutePaths.register),
+                      onEmployerLogin: () =>
+                          context.push(RoutePaths.employerLogin),
+                      onEmployerRegister: () =>
+                          context.push(RoutePaths.employerRegister),
+                    ),
                   ),
                 // Phase 44: the floating Buddy launcher is fixed to the
                 // *viewport*, not to this scrollable content (see

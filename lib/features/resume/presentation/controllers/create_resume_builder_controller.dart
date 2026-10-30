@@ -7,18 +7,28 @@ import '../../domain/entities/create_resume_state.dart';
 import '../../domain/entities/create_resume_validation_error.dart';
 import '../providers/resume_providers.dart';
 
-/// Phase 39. The 5 sections this phase implements, in the order
-/// `create_resume.py`'s own `SECTIONS` tuple lists them — display labels
-/// only, [CreateResumeBuilderReady.currentStep] stores the numeric index.
+/// Phase 39 implemented the first 5 of these; Phase 70 adds the remaining
+/// 5, in the order `create_resume.py`'s own `SECTIONS` tuple lists them
+/// (confirmed directly) — display labels only,
+/// [CreateResumeBuilderReady.currentStep] stores the numeric index.
+/// "Internships & Volunteering" and "Languages & Additional Info" are each
+/// one step/tab covering 2 real sections, matching the real site's own
+/// combined tabs exactly (`static/js/create_resume.js`'s `SECTIONS` array)
+/// — not an invented grouping.
 const List<String> kCreateResumeStepLabels = [
   'Personal',
   'Summary',
   'Skills',
   'Experience',
   'Education',
+  'Projects',
+  'Certifications',
+  'Achievements',
+  'Internships & Volunteering',
+  'Languages & Additional Info',
 ];
 const int kCreateResumeFirstStep = 1;
-const int kCreateResumeLastStep = 5;
+const int kCreateResumeLastStep = 10;
 
 sealed class CreateResumeBuilderState {
   const CreateResumeBuilderState();
@@ -230,6 +240,132 @@ class CreateResumeBuilderController extends Notifier<CreateResumeBuilderState> {
     });
   }
 
+  void addProject() => updateForm(
+    (f) => f.copyWith(projects: [...f.projects, const CreateResumeProjectEntry()]),
+  );
+
+  void removeProject(int index) =>
+      updateForm((f) => f.copyWith(projects: [...f.projects]..removeAt(index)));
+
+  void updateProject(
+    int index,
+    CreateResumeProjectEntry Function(CreateResumeProjectEntry) update,
+  ) {
+    updateForm((f) {
+      final list = [...f.projects];
+      list[index] = update(list[index]);
+      return f.copyWith(projects: list);
+    });
+  }
+
+  void addCertification() => updateForm(
+    (f) => f.copyWith(
+      certifications: [...f.certifications, const CreateResumeCertificationEntry()],
+    ),
+  );
+
+  void removeCertification(int index) => updateForm(
+    (f) => f.copyWith(certifications: [...f.certifications]..removeAt(index)),
+  );
+
+  void updateCertification(
+    int index,
+    CreateResumeCertificationEntry Function(CreateResumeCertificationEntry) update,
+  ) {
+    updateForm((f) {
+      final list = [...f.certifications];
+      list[index] = update(list[index]);
+      return f.copyWith(certifications: list);
+    });
+  }
+
+  void addAchievement() => updateForm(
+    (f) => f.copyWith(
+      achievements: [...f.achievements, const CreateResumeAchievementEntry()],
+    ),
+  );
+
+  void removeAchievement(int index) => updateForm(
+    (f) => f.copyWith(achievements: [...f.achievements]..removeAt(index)),
+  );
+
+  void updateAchievement(
+    int index,
+    CreateResumeAchievementEntry Function(CreateResumeAchievementEntry) update,
+  ) {
+    updateForm((f) {
+      final list = [...f.achievements];
+      list[index] = update(list[index]);
+      return f.copyWith(achievements: list);
+    });
+  }
+
+  void addInternship() => updateForm(
+    (f) => f.copyWith(
+      internships: [...f.internships, const CreateResumeInternshipEntry()],
+    ),
+  );
+
+  void removeInternship(int index) => updateForm(
+    (f) => f.copyWith(internships: [...f.internships]..removeAt(index)),
+  );
+
+  void updateInternship(
+    int index,
+    CreateResumeInternshipEntry Function(CreateResumeInternshipEntry) update,
+  ) {
+    updateForm((f) {
+      final list = [...f.internships];
+      list[index] = update(list[index]);
+      return f.copyWith(internships: list);
+    });
+  }
+
+  void addVolunteering() => updateForm(
+    (f) => f.copyWith(
+      volunteering: [...f.volunteering, const CreateResumeVolunteeringEntry()],
+    ),
+  );
+
+  void removeVolunteering(int index) => updateForm(
+    (f) => f.copyWith(volunteering: [...f.volunteering]..removeAt(index)),
+  );
+
+  void updateVolunteering(
+    int index,
+    CreateResumeVolunteeringEntry Function(CreateResumeVolunteeringEntry) update,
+  ) {
+    updateForm((f) {
+      final list = [...f.volunteering];
+      list[index] = update(list[index]);
+      return f.copyWith(volunteering: list);
+    });
+  }
+
+  void addLanguage() => updateForm(
+    (f) => f.copyWith(languages: [...f.languages, const CreateResumeLanguageEntry()]),
+  );
+
+  void removeLanguage(int index) =>
+      updateForm((f) => f.copyWith(languages: [...f.languages]..removeAt(index)));
+
+  void updateLanguage(
+    int index,
+    CreateResumeLanguageEntry Function(CreateResumeLanguageEntry) update,
+  ) {
+    updateForm((f) {
+      final list = [...f.languages];
+      list[index] = update(list[index]);
+      return f.copyWith(languages: list);
+    });
+  }
+
+  void updateAdditional(
+    CreateResumeAdditionalInfo Function(CreateResumeAdditionalInfo) update,
+  ) {
+    updateForm((f) => f.copyWith(additional: update(f.additional)));
+  }
+
   /// Free navigation between steps — this builder has no step-blocking
   /// validation of its own (unlike the Manual builder's `nextStep`): since
   /// every field-level rule lives server-side only (see this class's own
@@ -404,6 +540,13 @@ class CreateResumeBuilderController extends Notifier<CreateResumeBuilderState> {
         f.skills.soft.isNotEmpty ||
         f.skills.tools.isNotEmpty ||
         f.experience.any((e) => !e.isBlank) ||
-        f.education.any((e) => !e.isBlank);
+        f.education.any((e) => !e.isBlank) ||
+        f.projects.any((e) => !e.isBlank) ||
+        f.certifications.any((e) => !e.isBlank) ||
+        f.achievements.any((e) => !e.isBlank) ||
+        f.internships.any((e) => !e.isBlank) ||
+        f.volunteering.any((e) => !e.isBlank) ||
+        f.languages.any((e) => !e.isBlank) ||
+        !f.additional.isBlank;
   }
 }

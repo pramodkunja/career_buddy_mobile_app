@@ -271,21 +271,26 @@ void main() {
       expect(result.dept, 'Health, Safety & Environment');
     });
 
-    test('never claims success when the badge is absent — e.g. an anonymous/expired session redirected to login',
-        () async {
-      final dio = Dio(BaseOptions(baseUrl: 'http://test'))
-        ..httpClientAdapter = FakeHttpClientAdapter(
-          statusCode: 200,
-          // A login page's HTML has no "Target role" badge at all.
-          body: '<form><input name="username"></form>',
-        );
-      final ds = ResumeRemoteDataSource(ApiClient.forTesting(dio));
+    test(
+      'never claims success when the badge is absent and the response neither redirected to login nor is '
+      'the real locked page (Phase 66: a genuinely unexpected page shape, not an expired session)',
+      () async {
+        final dio = Dio(BaseOptions(baseUrl: 'http://test'))
+          ..httpClientAdapter = FakeHttpClientAdapter(
+            // No `finalUri` override — lands at the originally-requested
+            // path, same as a plain, un-redirected 200 with unrelated
+            // content.
+            statusCode: 200,
+            body: '<form><input name="username"></form>',
+          );
+        final ds = ResumeRemoteDataSource(ApiClient.forTesting(dio));
 
-      await expectLater(
-        ds.selectTargetRole(role: 'Software Developer', dept: 'Frontend, backend, full-stack', track: 'tech'),
-        throwsA(isA<UnauthorizedException>()),
-      );
-    });
+        await expectLater(
+          ds.selectTargetRole(role: 'Software Developer', dept: 'Frontend, backend, full-stack', track: 'tech'),
+          throwsA(isA<UnexpectedResponseException>()),
+        );
+      },
+    );
 
     test('never claims success when the echoed role/dept mismatches what was sent', () async {
       final dio = Dio(BaseOptions(baseUrl: 'http://test'))
@@ -298,9 +303,51 @@ void main() {
 
       await expectLater(
         ds.selectTargetRole(role: 'Software Developer', dept: 'Frontend, backend, full-stack', track: 'tech'),
-        throwsA(isA<UnauthorizedException>()),
+        throwsA(isA<UnexpectedResponseException>()),
       );
     });
+
+    test(
+      'Phase 66: a guest (or signed-out) visitor is redirected to the login page — reported as '
+      'ResumeBuilderSignInRequiredException, not an expired session '
+      '(confirmed directly against the live site: an anonymous GET to /resume-builder/ 302s to /users/login/...)',
+      () async {
+        final dio = Dio(BaseOptions(baseUrl: 'http://test'))
+          ..httpClientAdapter = FakeHttpClientAdapter(
+            statusCode: 200,
+            // Simulates Dio's default `followRedirects: true` landing on
+            // the final login page after the server's real 302 — no
+            // "Target role" badge on this page either.
+            body: '<html><body><form><input name="username"></form></body></html>',
+            finalUri: Uri.parse('https://test/users/login/'),
+          );
+        final ds = ResumeRemoteDataSource(ApiClient.forTesting(dio));
+
+        await expectLater(
+          ds.selectTargetRole(role: 'Software Developer', dept: 'Frontend, backend, full-stack', track: 'tech'),
+          throwsA(isA<ResumeBuilderSignInRequiredException>()),
+        );
+      },
+    );
+
+    test(
+      'Phase 66 (secondary/defensive check): the "updated" Django reference repo\'s own resume_locked.html '
+      '(no login gate of its own, served straight at the requested URL) is also reported as '
+      'ResumeBuilderSignInRequiredException',
+      () async {
+        final dio = Dio(BaseOptions(baseUrl: 'http://test'))
+          ..httpClientAdapter = FakeHttpClientAdapter(
+            statusCode: 200,
+            body: '<h1>Resume Parsing Locked</h1><a href="/pro/">Upgrade to Unlock</a>',
+          );
+        final ds = ResumeRemoteDataSource(ApiClient.forTesting(dio));
+
+        await expectLater(
+          ds.selectTargetRole(role: 'Software Developer', dept: 'Frontend, backend, full-stack', track: 'tech'),
+          throwsA(isA<ResumeBuilderSignInRequiredException>()),
+        );
+      },
+    );
 
     test('a genuine request failure is thrown as an AppException, not reported as success', () async {
       final dio = Dio(BaseOptions(baseUrl: 'http://test'))

@@ -14,6 +14,10 @@ import 'package:career_buddy_lms/features/dashboard/domain/entities/dashboard_st
 import 'package:career_buddy_lms/features/dashboard/domain/repositories/dashboard_repository.dart';
 import 'package:career_buddy_lms/features/dashboard/presentation/controllers/dashboard_controller.dart';
 import 'package:career_buddy_lms/features/dashboard/presentation/providers/dashboard_providers.dart';
+import 'package:career_buddy_lms/features/employer/domain/entities/employer_profile_form.dart';
+import 'package:career_buddy_lms/features/employer/domain/repositories/employer_profile_repository.dart';
+import 'package:career_buddy_lms/features/employer/presentation/controllers/employer_profile_controller.dart';
+import 'package:career_buddy_lms/features/employer/presentation/providers/employer_profile_providers.dart';
 import 'package:career_buddy_lms/features/resume/domain/entities/manual_resume_draft.dart';
 import 'package:career_buddy_lms/features/resume/domain/entities/resume_analysis.dart';
 import 'package:career_buddy_lms/features/resume/domain/entities/resume_history_item.dart';
@@ -120,6 +124,38 @@ class _FakeDashboardRepository implements DashboardRepository {
         paymentHistory: const [],
       ),
     );
+  }
+}
+
+class _FakeEmployerProfileRepository implements EmployerProfileRepository {
+  _FakeEmployerProfileRepository(this.companyName);
+
+  final String companyName;
+  int callCount = 0;
+
+  @override
+  Future<Result<EmployerProfileFormData>> getProfileForm({required bool isCreate}) async {
+    callCount++;
+    return Success(
+      EmployerProfileFormData(
+        companyName: companyName,
+        companyWebsite: '',
+        industry: '',
+        companySize: '',
+        location: '',
+        description: '',
+        companyAddress: '',
+        companyGst: '',
+        maskedPan: '',
+        hrContactE164: '',
+        hrMail: '',
+      ),
+    );
+  }
+
+  @override
+  Future<Result<void>> updateProfile(EmployerProfileSubmission data, {required bool isCreate}) async {
+    throw UnimplementedError();
   }
 }
 
@@ -475,6 +511,68 @@ void main() {
               'Dashboard must refetch for the new account, not serve User A\'s cached data',
         );
         expect(secondFetch.stats.completedCount, 2);
+      },
+    );
+
+    test(
+      'Phase 74 — logout() then a new loginEmployer() invalidates the cached employer company '
+      'profile (now also read by the nav drawer\'s identity tile), so a different employer account '
+      'never sees the previous one\'s company name/logo',
+      () async {
+        final profileRepoA = _FakeEmployerProfileRepository('Acme Talent Solutions');
+        final container = ProviderContainer(
+          overrides: [
+            authRepositoryProvider.overrideWithValue(_FakeAuthRepository()),
+            employerAuthRepositoryProvider.overrideWithValue(
+              _FakeEmployerAuthRepository(
+                loginResult: const Success(AuthUser(username: 'acmehr', isEmployer: true)),
+              ),
+            ),
+            employerProfileRepositoryProvider.overrideWithValue(profileRepoA),
+          ],
+        );
+        addTearDown(container.dispose);
+
+        await container
+            .read(authControllerProvider.notifier)
+            .loginEmployer(usernameOrEmail: 'acmehr', password: 'secret');
+
+        final firstFetch = await container.read(
+          employerProfileControllerProvider(false).future,
+        );
+        expect(firstFetch.companyName, 'Acme Talent Solutions');
+        expect(profileRepoA.callCount, 1);
+
+        await container.read(authControllerProvider.notifier).logout();
+
+        // Employer B logs in with a different company profile. The drawer's
+        // identity tile must show the new company, never Acme's leftover
+        // name — a straight re-read without invalidation would otherwise
+        // keep serving `profileRepoA`'s cached data.
+        final profileRepoB = _FakeEmployerProfileRepository('Beta Staffing Co');
+        container.updateOverrides([
+          authRepositoryProvider.overrideWithValue(_FakeAuthRepository()),
+          employerAuthRepositoryProvider.overrideWithValue(
+            _FakeEmployerAuthRepository(
+              loginResult: const Success(AuthUser(username: 'betahr', isEmployer: true)),
+            ),
+          ),
+          employerProfileRepositoryProvider.overrideWithValue(profileRepoB),
+        ]);
+        await container
+            .read(authControllerProvider.notifier)
+            .loginEmployer(usernameOrEmail: 'betahr', password: 'secret');
+
+        final secondFetch = await container.read(
+          employerProfileControllerProvider(false).future,
+        );
+        expect(
+          secondFetch.companyName,
+          'Beta Staffing Co',
+          reason: 'The identity tile must refetch for the new employer, not serve the previous '
+              'company\'s cached profile',
+        );
+        expect(profileRepoB.callCount, 1);
       },
     );
 

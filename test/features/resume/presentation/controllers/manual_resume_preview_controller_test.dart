@@ -56,7 +56,7 @@ class _FakeManualResumeDraftRepository implements ManualResumeDraftRepository {
 }
 
 class _FakeResumeRepository implements ResumeRepository {
-  _FakeResumeRepository({this.previewResult, this.previewCompleter});
+  _FakeResumeRepository({this.previewResult}) : previewCompleter = null;
 
   Result<ManualResumePreviewOutcome>? previewResult;
 

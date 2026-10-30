@@ -48,7 +48,6 @@ import 'package:career_buddy_lms/features/resume/domain/entities/manual_resume_p
 import 'package:career_buddy_lms/features/resume/domain/entities/resume_role.dart';
 import 'package:career_buddy_lms/features/resume/domain/repositories/resume_repository.dart';
 import 'package:career_buddy_lms/features/resume/presentation/providers/resume_providers.dart';
-import 'package:career_buddy_lms/features/resume/presentation/screens/resume_builder_screen.dart';
 import 'package:career_buddy_lms/features/roleplay/presentation/screens/roleplay_home_screen.dart';
 import 'package:career_buddy_lms/features/skill_up/presentation/screens/skill_up_screen.dart';
 import 'package:career_buddy_lms/features/subscription/presentation/screens/subscription_screen.dart';
@@ -415,8 +414,13 @@ void main() {
     (tester) async {
       await _pumpLoggedInApp(tester);
 
-      // ── Dashboard -> drawer -> Activities -> Activity Detail -> Back -> Back ──
+      // ── Dashboard -> drawer -> Resources (expand) -> Activities -> Activity Detail -> Back -> Back ──
+      // Phase 71 — "Activities" moved from a flat drawer item into the
+      // Resources submenu, matching the real site's own nav structure
+      // (`site_nav.html:227-232`).
       await tester.tap(find.byIcon(Icons.menu));
+      await _settle(tester, times: 2);
+      await tester.tap(find.text('Resources'));
       await _settle(tester, times: 2);
       await tester.tap(find.text('Activities'));
       await _settle(tester);
@@ -458,8 +462,13 @@ void main() {
     (tester) async {
       await _pumpLoggedInApp(tester);
 
-      // ── Dashboard -> drawer -> Grammar -> Back ──────────────────────────
+      // ── Dashboard -> drawer -> Skill Up (expand) -> Grammar -> Back ──────
+      // Phase 71 — "Grammar" moved from a flat drawer item into the Skill
+      // Up submenu, matching the real site's own nav structure
+      // (`site_nav.html:211-220`).
       await tester.tap(find.byIcon(Icons.menu));
+      await _settle(tester, times: 2);
+      await tester.tap(find.text('Skill Up'));
       await _settle(tester, times: 2);
       await tester.tap(find.text('Grammar'));
       await tester.runAsync(() async {});
@@ -471,16 +480,40 @@ void main() {
       await _settle(tester);
       expect(find.byType(DashboardScreen), findsOneWidget);
 
-      // ── Dashboard -> drawer -> Skill Up (expand) -> Browse All -> Certifications tab -> Back ──
+      // ── Dashboard -> drawer -> Skill Up (expand) -> English Learning -> Certifications tab -> Back ──
+      // Phase 71 — "Browse All" no longer exists as its own item; the real
+      // site's own Skill Up submenu has no such entry either. "English
+      // Learning" opens the same "Sections in depth" tab "Browse All" used
+      // to (`RoutePaths.skillUpSections`'s own doc comment).
+      //
+      // Phase 72 — also confirms, through the real app router (not an
+      // isolated test router), that "English Learning" actually scrolls to
+      // its own `depth-english` article rather than just opening the tab
+      // at its top. A realistic phone height (not the default 2200, which
+      // would make nearly the whole tab already fit without any scroll)
+      // makes this a genuine test of scrolling, not a tautology.
+      tester.view.physicalSize = const Size(400, 800);
+      await tester.pump();
       await tester.tap(find.byIcon(Icons.menu));
       await _settle(tester, times: 2);
       await tester.tap(find.text('Skill Up'));
       await _settle(tester, times: 2);
-      await tester.tap(find.text('Browse All'));
+      await tester.tap(find.text('English Learning'));
       await _settle(tester);
       expect(find.byType(SkillUpScreen), findsOneWidget);
       expect(tester.takeException(), isNull);
+      expect(
+        tester.getTopLeft(find.text('Elementary · A1')).dy,
+        lessThan(800),
+        reason: '"English Learning" should land with its own first lesson already on screen',
+      );
 
+      // The `TabBar` is `isScrollable: true` — at this narrower width its
+      // own horizontal `Scrollable` can leave a later tab's label outside
+      // the tappable area, same reasoning as `skill_up_screen_test.dart`'s
+      // own `_tapTab` helper.
+      await tester.ensureVisible(find.text('Certifications'));
+      await tester.pump();
       await tester.tap(find.text('Certifications'));
       await _settle(tester);
       expect(tester.takeException(), isNull);
@@ -488,6 +521,47 @@ void main() {
       await _systemBack(tester);
       await _settle(tester);
       expect(find.byType(DashboardScreen), findsOneWidget);
+
+      // ── Dashboard -> drawer -> Skill Up (expand) -> Aptitude -> Back ─────
+      // Phase 72 — confirms "Aptitude" scrolls to its own distinct
+      // `depth-aptitude` article (not the same `depth-english` content
+      // "English Learning" just landed on above), through the real router.
+      await tester.tap(find.byIcon(Icons.menu));
+      await _settle(tester, times: 2);
+      await tester.tap(find.text('Skill Up'));
+      await _settle(tester, times: 2);
+      await tester.tap(find.text('Aptitude'));
+      await _settle(tester);
+      expect(find.byType(SkillUpScreen), findsOneWidget);
+      expect(tester.takeException(), isNull);
+      expect(
+        tester.getTopLeft(find.text('Quant aptitude coach')).dy,
+        lessThan(800),
+        reason: '"Aptitude" should land with its own first lesson already on screen',
+      );
+      // Both articles are always present in this eagerly-built scroll view
+      // (`SingleChildScrollView`'s `Column`, not a lazy `ListView`) — the
+      // real assertion that Aptitude's destination differs from English
+      // Learning's is that English & Vocabulary's own first lesson is
+      // off-screen here (it comes *before* Aptitude in section order, so
+      // scrolling down to Aptitude pushes it above the fold, not below —
+      // either way, outside [0, 800]), not that it's absent from the tree.
+      final englishMarkerY = tester.getTopLeft(find.text('Elementary · A1')).dy;
+      expect(
+        englishMarkerY < 0 || englishMarkerY > 800,
+        isTrue,
+        reason: 'Aptitude\'s destination must not be the English & Vocabulary article',
+      );
+
+      await _systemBack(tester);
+      await _settle(tester);
+      expect(find.byType(DashboardScreen), findsOneWidget);
+
+      // Restore the original, taller viewport for the rest of this test —
+      // the Phase 72 assertions above are the only part that needed a
+      // realistic phone height to make scrolling meaningful.
+      tester.view.physicalSize = const Size(800, 2200);
+      await tester.pump();
 
       // ── Dashboard -> Mock Tests entry card -> Back ───────────────────────
       await tester.tap(find.text('Mock Tests'));
@@ -577,32 +651,47 @@ void main() {
   );
 
   testWidgets(
-    'Dashboard -> Resume Parsing -> Back, ARIA, Profile -> Back, Logout',
+    'Dashboard -> Resources (Sitemap) -> Back, ARIA, Profile -> Back, Logout',
     (tester) async {
       await _pumpLoggedInApp(tester);
 
-      // ── Dashboard -> drawer -> Resume Parsing -> Back ───────────────────
+      // ── Dashboard -> drawer -> Resources (expand) -> Sitemap -> Back ────
+      // Phase 71 — "Resume Parsing" no longer appears in the drawer at
+      // all, matching the real site's own current nav
+      // (`site_nav.html:192-258` has no such link anymore; confirmed it's
+      // reachable only via the page footer today, not the nav menu).
+      // "Sitemap" replaces it here: previously a flat drawer item, it's
+      // now nested in Resources, so this keeps covering "a real screen
+      // opens, not ComingSoon" for an item whose position in the drawer
+      // genuinely changed this phase.
       await tester.tap(find.byIcon(Icons.menu));
       await _settle(tester, times: 2);
-      await tester.tap(find.text('Resume Parsing'));
+      await tester.tap(find.text('Resources'));
+      await _settle(tester, times: 2);
+      await tester.tap(find.text('Sitemap'));
       await _settle(tester);
-      expect(find.byType(ResumeBuilderScreen), findsOneWidget);
+      expect(find.byType(SkillUpScreen), findsOneWidget);
       expect(tester.takeException(), isNull);
 
       await _systemBack(tester);
       await _settle(tester);
       expect(find.byType(DashboardScreen), findsOneWidget);
 
-      // ── Dashboard -> drawer -> Pro -> Back ───────────────────────────────
+      // ── Dashboard -> drawer -> Resources (expand) -> CareerBuddy Pro -> Back ──
       // Phase 5 — cross-feature regression: confirms the real
       // `appRouterProvider`/`app_router.dart` wiring (not an isolated test
       // router mirroring it, as `subscription_screen_test.dart` and
       // `buddy_chatbot_overlay_test.dart` each use on their own) actually
       // reaches the real `SubscriptionScreen` from a genuine in-app entry
       // point, now that Phase 3 replaced its `ComingSoonScreen` mapping.
+      // Phase 71 — "Pro" moved from a flat, specially-styled drawer item
+      // into the Resources submenu as "CareerBuddy Pro", matching the real
+      // site's own nav structure (`site_nav.html:227-232`).
       await tester.tap(find.byIcon(Icons.menu));
       await _settle(tester, times: 2);
-      await tester.tap(find.text('Pro'));
+      await tester.tap(find.text('Resources'));
+      await _settle(tester, times: 2);
+      await tester.tap(find.text('CareerBuddy Pro'));
       await _settle(tester);
       expect(
         find.byType(SubscriptionScreen),

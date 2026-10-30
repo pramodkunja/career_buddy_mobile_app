@@ -138,10 +138,22 @@ dev_dependencies:
   # wall-clock minutes.
   fake_async: ^1.3.3
 
+  # Phase 76 — a real DOM parser for `tool/generate_tech_center_catalog
+  # .dart`, which reads the Django reference's own `index.html` to generate
+  # `lib/features/skill_up/data/tech_center_catalog.g.dart`. Build-time only
+  # (never imported by anything under `lib/`) — otherwise a
+  # transitive-only dependency.
+  html: ^0.15.7
+
   # Lets the Grammar video-viewer tests fake `video_player`'s platform
   # channel (`FakeVideoPlayerPlatform` in `test/features/grammar/
   # grammar_test_doubles.dart`) — otherwise a transitive-only dependency.
   video_player_platform_interface: ^6.9.0
+  # Phase 75 — lets the Skill Up lesson-screen test fake `webview_flutter`'s
+  # platform channel (`_FakeWebViewPlatform` in `test/features/skill_up/
+  # presentation/screens/skill_up_lesson_screen_test.dart`) — otherwise a
+  # transitive-only dependency.
+  webview_flutter_platform_interface: ^2.15.1
 
   # Lets the protected-media/certificate/CSV download controller tests fake
   # `open_file`'s platform channel (`FakeOpenFilePlatform` in

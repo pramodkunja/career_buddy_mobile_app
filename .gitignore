@@ -32,6 +32,8 @@ migrate_working_dir/
 .pub/
 /build/
 /coverage/
+/android/build/
+/android/app/build/
 
 # Symbolication related
 app.*.symbols
@@ -46,3 +48,12 @@ app.*.map.json
 
 # Machine-local SDK paths, not portable across machines
 /android/local.properties
+
+# Keystore signing credentials - never commit
+/android/key.properties
+*.jks
+*.keystore
+
+# Local backup directories created during package-rename work - not source
+/android_package_backup/
+/ios_bundle_backup/

@@ -171,5 +171,69 @@ void main() {
 
       expect(find.text('Login Screen'), findsOneWidget);
     });
+
+    // Phase 68 (`UI-A-006`): this screen previously had no branding banner
+    // at all — the real template (`employer_login/login.html:17-34`) has
+    // the same shared banner shell the student login uses, with this
+    // page's own "Welcome Back!"/hiring copy.
+    group('branding banner (Phase 68)', () {
+      testWidgets('shows the real banner heading, subtitle, logo, and 4-item feature list', (tester) async {
+        await _pump(tester);
+
+        expect(find.text('CareerBuddy'), findsOneWidget);
+        expect(find.text('SINCE 2026'), findsOneWidget);
+        expect(find.text('Welcome Back!'), findsOneWidget);
+        expect(find.text('Hire talent, manage applications, and grow your team.'), findsOneWidget);
+        expect(find.text('AI-Powered Candidate Screening & Scoring'), findsOneWidget);
+        expect(find.text('Post Jobs & Manage Applications'), findsOneWidget);
+        expect(find.text('Direct Access to Top Talent'), findsOneWidget);
+        expect(find.text('Build Your Dream Team Faster'), findsOneWidget);
+        expect(
+          find.byWidgetPredicate(
+            (w) => w is Image && w.image is AssetImage && (w.image as AssetImage).assetName == 'assets/images/logo-mark-light.png',
+          ),
+          findsOneWidget,
+        );
+      });
+
+      testWidgets('renders as a wide two-pane layout at >=860px with no overflow', (tester) async {
+        tester.view.physicalSize = const Size(1100, 1200);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.reset);
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              authRepositoryProvider.overrideWithValue(_FakeAuthRepository()),
+              employerAuthRepositoryProvider.overrideWithValue(_FakeEmployerAuthRepository()),
+            ],
+            child: MaterialApp.router(routerConfig: _router()),
+          ),
+        );
+        await tester.pump();
+
+        expect(find.byType(Row), findsWidgets);
+        expect(find.text('Welcome Back!'), findsOneWidget);
+        expect(find.text('Employer Login'), findsOneWidget);
+        expect(tester.takeException(), isNull);
+      });
+
+      testWidgets('renders without overflow at a narrow phone width', (tester) async {
+        tester.view.physicalSize = const Size(360, 1600);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.reset);
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              authRepositoryProvider.overrideWithValue(_FakeAuthRepository()),
+              employerAuthRepositoryProvider.overrideWithValue(_FakeEmployerAuthRepository()),
+            ],
+            child: MaterialApp.router(routerConfig: _router()),
+          ),
+        );
+        await tester.pump();
+
+        expect(tester.takeException(), isNull);
+      });
+    });
   });
 }

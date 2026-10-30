@@ -4,6 +4,7 @@ import 'package:career_buddy_lms/features/auth/domain/entities/auth_user.dart';
 import 'package:career_buddy_lms/features/auth/domain/repositories/auth_repository.dart';
 import 'package:career_buddy_lms/features/auth/domain/entities/student_registration_data.dart';
 import 'package:career_buddy_lms/features/auth/presentation/providers/auth_providers.dart';
+import 'package:career_buddy_lms/features/home/presentation/providers/home_scroll_request_provider.dart';
 import 'package:career_buddy_lms/features/home/presentation/screens/home_screen.dart';
 import 'package:career_buddy_lms/shared/widgets/coming_soon_screen.dart';
 import 'package:flutter/material.dart';
@@ -177,6 +178,51 @@ Future<void> _pump(
 Future<void> _pumpAfterTap(WidgetTester tester) async {
   await tester.pump();
   await tester.pump(const Duration(milliseconds: 400));
+}
+
+/// Phase 71 — same as [_pump], but exposes the [ProviderContainer] so a
+/// test can set [homeScrollRequestProvider] either before this first pump
+/// (simulating [AppNavDrawer] requesting a scroll on its way to a not-yet-
+/// mounted `HomeScreen`) or after (simulating the drawer being tapped
+/// again while `HomeScreen` is already on screen). A short, phone-realistic
+/// viewport is used (unlike [_pump]'s deliberately very tall one, which
+/// would make every section already visible without any scrolling at all,
+/// defeating the point of this test).
+Future<ProviderContainer> _pumpWithContainer(
+  WidgetTester tester, {
+  AuthUser? user,
+  Size size = const Size(400, 800),
+  HomeScrollTarget? initialScrollTarget,
+}) async {
+  tester.view.physicalSize = size;
+  tester.view.devicePixelRatio = 1.0;
+  addTearDown(tester.view.reset);
+
+  final container = ProviderContainer(
+    overrides: [
+      authRepositoryProvider.overrideWithValue(
+        _FakeAuthRepository(restoredUser: user),
+      ),
+    ],
+  );
+  addTearDown(container.dispose);
+  // Set *before* the first pump — mirrors `AppNavDrawer` calling
+  // `request()` just before navigating to a not-yet-mounted `HomeScreen`,
+  // which then has to pick this up in `initState`'s own post-frame check
+  // rather than via `ref.listen` (which only fires on a *change* observed
+  // after it starts listening, i.e. after this screen already exists).
+  if (initialScrollTarget != null) {
+    container.read(homeScrollRequestProvider.notifier).request(initialScrollTarget);
+  }
+
+  await tester.pumpWidget(
+    UncontrolledProviderScope(
+      container: container,
+      child: MaterialApp.router(routerConfig: _router()),
+    ),
+  );
+  await tester.pump();
+  return container;
 }
 
 void main() {
@@ -565,7 +611,7 @@ void main() {
       expect(find.text('Which path suits you?'), findsOneWidget);
     });
 
-    testWidgets('step 2 "Technical" navigates to the Non-IT career browsing screen and dismisses the popup', (
+    testWidgets('step 2 "Technical" navigates to the Technical-only career browsing screen and dismisses the popup', (
       tester,
     ) async {
       await _pump(tester);
@@ -577,11 +623,11 @@ void main() {
       await tester.tap(find.byKey(const Key('path-picker-technical-card')));
       await _pumpAfterTap(tester);
 
-      expect(find.text('Career Departments Screen: non-it'), findsOneWidget);
+      expect(find.text('Career Departments Screen: technical'), findsOneWidget);
       expect(find.text('Which path suits you?'), findsNothing);
     });
 
-    testWidgets('step 2 "Non-Technical" navigates to the same Non-IT career browsing screen', (tester) async {
+    testWidgets('step 2 "Non-Technical" navigates to the Non-Technical-only career browsing screen', (tester) async {
       await _pump(tester);
       await tester.pump(const Duration(seconds: 5));
       await tester.pump();
@@ -591,7 +637,7 @@ void main() {
       await tester.tap(find.byKey(const Key('path-picker-nontechnical-card')));
       await _pumpAfterTap(tester);
 
-      expect(find.text('Career Departments Screen: non-it'), findsOneWidget);
+      expect(find.text('Career Departments Screen: non-technical'), findsOneWidget);
     });
 
     testWidgets(
@@ -855,6 +901,172 @@ void main() {
           );
           expect(tester.takeException(), isNull);
         }
+      },
+    );
+  });
+
+  group('HomeScreen — Phase 71/72 scroll-to-anchor (AppNavDrawer\'s About Us/Industries/Tutorials/Contact Us)', () {
+    bool isWithinViewport(WidgetTester tester, Finder finder, double viewportHeight) {
+      final rect = tester.getRect(finder);
+      return rect.top >= 0 && rect.bottom <= viewportHeight;
+    }
+
+    testWidgets(
+      'a scroll request already pending when HomeScreen first mounts scrolls to the About section',
+      (tester) async {
+        const viewport = Size(400, 800);
+        final container = await _pumpWithContainer(
+          tester,
+          size: viewport,
+          initialScrollTarget: HomeScrollTarget.about,
+        );
+        await _pumpAfterTap(tester);
+
+        expect(isWithinViewport(tester, find.text('Career-Focused Learning'), viewport.height), isTrue);
+        // Consumed — a later, unrelated rebuild must not re-trigger it.
+        expect(container.read(homeScrollRequestProvider), isNull);
+      },
+    );
+
+    testWidgets(
+      'a scroll request while already on Home scrolls there too, via ref.listen',
+      (tester) async {
+        const viewport = Size(400, 800);
+        final container = await _pumpWithContainer(tester, size: viewport);
+        await _pumpAfterTap(tester);
+        expect(
+          isWithinViewport(tester, find.text('Choose Your Path'), viewport.height),
+          isFalse,
+          reason: 'sanity check: Choose Your Path is genuinely off-screen before scrolling',
+        );
+
+        container.read(homeScrollRequestProvider.notifier).request(HomeScrollTarget.choosePath);
+        await _pumpAfterTap(tester);
+
+        expect(isWithinViewport(tester, find.text('Choose Your Path'), viewport.height), isTrue);
+      },
+    );
+
+    testWidgets('a tutorials scroll request scrolls to the Tutorials section', (tester) async {
+      const viewport = Size(400, 800);
+      final container = await _pumpWithContainer(tester, size: viewport);
+      await _pumpAfterTap(tester);
+
+      container.read(homeScrollRequestProvider.notifier).request(HomeScrollTarget.tutorials);
+      await _pumpAfterTap(tester);
+
+      expect(isWithinViewport(tester, find.text('Learn How CareerBuddy Works'), viewport.height), isTrue);
+    });
+
+    testWidgets('a contact scroll request scrolls to the footer', (tester) async {
+      const viewport = Size(400, 800);
+      final container = await _pumpWithContainer(tester, size: viewport);
+      await _pumpAfterTap(tester);
+      expect(
+        isWithinViewport(tester, find.text('© 2026 CareerBuddy. All rights reserved.'), viewport.height),
+        isFalse,
+        reason: 'sanity check: the footer is genuinely off-screen before scrolling',
+      );
+
+      container.read(homeScrollRequestProvider.notifier).request(HomeScrollTarget.contact);
+      await _pumpAfterTap(tester);
+
+      expect(
+        isWithinViewport(tester, find.text('© 2026 CareerBuddy. All rights reserved.'), viewport.height),
+        isTrue,
+      );
+    });
+
+    // Phase 72 — closes the gap Phase 71's own audit flagged: `home()`
+    // (`activities/views.py`, confirmed directly) renders the identical
+    // `landing.html` for a guest and an authenticated non-employer
+    // candidate alike (only an employer session is redirected away, to
+    // `job_home`), so these 3 sections now render — and these 3 scroll
+    // targets now resolve to something real — for an authenticated
+    // candidate too, not just a guest.
+    for (final MapEntry(key: label, value: target) in {
+      'About Us': HomeScrollTarget.about,
+      'Industries': HomeScrollTarget.choosePath,
+      'Tutorials': HomeScrollTarget.tutorials,
+    }.entries) {
+      testWidgets(
+        'for an authenticated (non-employer) session, the $label scroll target now resolves to a real section',
+        (tester) async {
+          const viewport = Size(400, 800);
+          final container = await _pumpWithContainer(
+            tester,
+            user: const AuthUser(username: 'jane'),
+            size: viewport,
+          );
+          await _pumpAfterTap(tester);
+
+          container.read(homeScrollRequestProvider.notifier).request(target);
+          await _pumpAfterTap(tester);
+
+          final marker = switch (target) {
+            HomeScrollTarget.about => 'Career-Focused Learning',
+            HomeScrollTarget.choosePath => 'Choose Your Path',
+            HomeScrollTarget.tutorials => 'Learn How CareerBuddy Works',
+            HomeScrollTarget.contact => '© 2026 CareerBuddy. All rights reserved.',
+          };
+          expect(isWithinViewport(tester, find.text(marker), viewport.height), isTrue);
+        },
+      );
+    }
+
+    testWidgets(
+      'for an authenticated session, the contact/footer anchor still resolves (the footer renders for both)',
+      (tester) async {
+        const viewport = Size(400, 800);
+        final container = await _pumpWithContainer(
+          tester,
+          user: const AuthUser(username: 'jane'),
+          size: viewport,
+        );
+        await _pumpAfterTap(tester);
+
+        container.read(homeScrollRequestProvider.notifier).request(HomeScrollTarget.contact);
+        await _pumpAfterTap(tester);
+
+        expect(
+          isWithinViewport(tester, find.text('© 2026 CareerBuddy. All rights reserved.'), viewport.height),
+          isTrue,
+        );
+      },
+    );
+
+    testWidgets(
+      'for an authenticated EMPLOYER session, a scroll request with no matching section is still a harmless '
+      'no-op (the employer branch never renders these 3 sections — confirmed: home() redirects an employer '
+      'away from landing.html entirely on the real site, so this combination genuinely has nothing to scroll to)',
+      (tester) async {
+        const viewport = Size(400, 800);
+        final container = await _pumpWithContainer(
+          tester,
+          user: const AuthUser(username: 'acmehr', isEmployer: true),
+          size: viewport,
+        );
+        await _pumpAfterTap(tester);
+
+        container.read(homeScrollRequestProvider.notifier).request(HomeScrollTarget.about);
+        await _pumpAfterTap(tester);
+
+        expect(tester.takeException(), isNull);
+        expect(find.text('Career-Focused Learning'), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'guest anchor navigation is unaffected by the authenticated-body change',
+      (tester) async {
+        const viewport = Size(400, 800);
+        final container = await _pumpWithContainer(tester, size: viewport);
+        await _pumpAfterTap(tester);
+
+        container.read(homeScrollRequestProvider.notifier).request(HomeScrollTarget.about);
+        await _pumpAfterTap(tester);
+
+        expect(isWithinViewport(tester, find.text('Career-Focused Learning'), viewport.height), isTrue);
       },
     );
   });

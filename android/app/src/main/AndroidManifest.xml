@@ -21,7 +21,7 @@
          Buddy" — matching that here so the home-screen launcher doesn't
          show "career_buddy_lms" to a real user. -->
     <application
-        android:label="Career Buddy"
+        android:label="Career Buddy LMS"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

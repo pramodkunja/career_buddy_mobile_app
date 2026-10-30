@@ -10,19 +10,32 @@ import '../../../../shared/widgets/app_footer.dart';
 import '../../../../shared/widgets/app_nav_drawer.dart';
 import '../../../../shared/widgets/app_text_field.dart';
 import '../../../../shared/widgets/app_top_bar.dart';
+import '../../../../shared/widgets/auth_branding_pane.dart';
 import '../../../../shared/widgets/buddy_chatbot_overlay.dart';
 import '../controllers/auth_controller.dart';
 
 /// `templates/employer_login/login.html` — extends `base.html` like every
-/// other page (confirmed by reading the template directly), so it carries
-/// the same global shell (top nav/footer/chatbot) as the rest of the app,
-/// unlike the pre-existing student [LoginScreen] (built before that shared
-/// shell existed in Batch 5A) — not something this batch was asked to
-/// retrofit.
+/// other page, so it carries the same global shell (top nav/footer/
+/// chatbot) as the rest of the app, unlike the pre-existing student
+/// [LoginScreen] (built before that shared shell existed in Batch 5A) —
+/// not something this phase was asked to retrofit.
 ///
-/// A single centered `.login-card` (`login.html:12-24`), genuinely
-/// different from the student login's two-pane `.auth-card-container` —
-/// confirmed by reading both templates; not a shared component.
+/// Phase 68 (`UI-A-006`): this screen previously rendered a single
+/// centered `.login-card`, based on a doc comment claiming the real
+/// template never had the student login's two-pane `.auth-card-container`
+/// banner. Re-reading the template directly this phase found that claim
+/// is now wrong — confirmed by diffing against the **original** Django
+/// reference (`Career_Buddy_LMS/templates/employer_login/login.html`),
+/// which does still have the old single-card `.login-card`/`.login-icon-
+/// box` markup the doc comment (and this screen) were built from. The
+/// **updated** reference (`royalStaffing_CB01/templates/employer_login/
+/// login.html:17-34`) has since been redesigned to the exact same shared
+/// `.auth-banner-left`/`.auth-card-container` shell the student login page
+/// uses (`accounts_app/views.py:86-88` confirms this is still the live
+/// `EmployerLoginView.template_name`) — a real website update, not a
+/// research error. This screen now reproduces that shell via the same
+/// [AuthBrandingPane] the student [LoginScreen] uses, with this page's own
+/// "Welcome Back!"/employer-feature copy.
 class EmployerLoginScreen extends ConsumerStatefulWidget {
   const EmployerLoginScreen({super.key});
 
@@ -35,12 +48,16 @@ class _EmployerLoginScreenState extends ConsumerState<EmployerLoginScreen> {
   final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
 
-  // `--cb-primary` (final cascade value, `style.css:2550`) and the
-  // `.login-icon-box` gradient's own literal second stop (`login.html:29`).
-  static const _navy = Color(0xFF14213D);
-  static const _indigo = Color(0xFF6366F1);
-  static const _border = Color(0xFFE5E5E5); // `--cb-border` final value.
-  static const _textMuted = Color(0xFF64748B); // `--cb-text-muted`.
+  static const _blue = Color(0xFF185ADB);
+  static const _border = Color(0xFFE2E8F0); // `.auth-card-container` border.
+  static const _fieldBorder = Color(0xFFCBD5E1);
+  static const _fieldFill = Color(0xFFF8FAFC);
+  static const _textMuted = Color(0xFF64748B);
+
+  /// The web's own breakpoint for this shared banner/form shell
+  /// (`@media (max-width:860px)`, `style.css:2197`) — same value
+  /// `LoginScreen` uses for the identical real layout.
+  static const double _stackBreakpoint = 860;
 
   @override
   void dispose() {
@@ -71,124 +88,62 @@ class _EmployerLoginScreenState extends ConsumerState<EmployerLoginScreen> {
             child: Column(
               children: [
                 Padding(
-                  // `.login-container{max-width:420px;margin:1rem auto;padding:0 1rem}`.
-                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.md),
+                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.xl),
                   child: Center(
                     child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 420),
-                      child: Container(
-                        // `.login-card{padding:3.5rem 2.5rem;border-radius:var(--cb-radius)}`
-                        // = 56px/40px, 16px radius.
-                        padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 56),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          border: Border.all(color: _border),
-                          borderRadius: BorderRadius.circular(16),
-                          boxShadow: const [BoxShadow(color: Color(0x14000000), blurRadius: 30, offset: Offset(0, 10))],
-                        ),
-                        child: Form(
-                          key: _formKey,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Center(
-                                child: Container(
-                                  width: 56,
-                                  height: 56,
-                                  alignment: Alignment.center,
-                                  decoration: BoxDecoration(
-                                    gradient: const LinearGradient(
-                                      colors: [_navy, _indigo],
-                                      begin: Alignment.topLeft,
-                                      end: Alignment.bottomRight,
-                                    ),
-                                    borderRadius: BorderRadius.circular(16),
-                                  ),
-                                  child: const Icon(Icons.lock_outline, color: Colors.white, size: 22),
-                                ),
-                              ),
-                              const SizedBox(height: AppSpacing.md),
-                              Text(
-                                'Employer Login',
-                                textAlign: TextAlign.center,
-                                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                                  fontWeight: FontWeight.w700,
-                                  letterSpacing: -1,
-                                ),
-                              ),
-                              const SizedBox(height: 6),
-                              Text(
-                                'Sign in to your hiring dashboard',
-                                textAlign: TextAlign.center,
-                                style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: _textMuted),
-                              ),
-                              const SizedBox(height: AppSpacing.xl),
-                              if (errorMessage != null) ...[
-                                _ErrorAlert(message: errorMessage),
-                                const SizedBox(height: AppSpacing.md),
+                      // `.auth-card-container{max-width:920px}` — same real
+                      // shell the student login uses.
+                      constraints: const BoxConstraints(maxWidth: 920),
+                      child: LayoutBuilder(
+                        builder: (context, constraints) {
+                          final wide = constraints.maxWidth >= _stackBreakpoint;
+                          return Container(
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              border: Border.all(color: _border),
+                              borderRadius: BorderRadius.circular(24),
+                              boxShadow: const [
+                                BoxShadow(color: Color(0x0D000000), blurRadius: 40, offset: Offset(0, 10)),
                               ],
-                              AppTextField(
-                                label: 'Username or Email',
-                                hint: 'Enter username or email',
-                                controller: _usernameController,
-                                keyboardType: TextInputType.emailAddress,
-                                textInputAction: TextInputAction.next,
-                                autofillHints: const [AutofillHints.username],
-                                enabled: !isLoading,
-                                validator: (value) => Validators.required(value, fieldName: 'Username or email'),
-                              ),
-                              const SizedBox(height: AppSpacing.md),
-                              AppTextField(
-                                label: 'Password',
-                                hint: 'Enter password',
-                                controller: _passwordController,
-                                obscureText: true,
-                                textInputAction: TextInputAction.done,
-                                autofillHints: const [AutofillHints.password],
-                                enabled: !isLoading,
-                                validator: (value) => Validators.required(value, fieldName: 'Password'),
-                                onSubmitted: (_) => _submit(),
-                              ),
-                              const SizedBox(height: AppSpacing.lg),
-                              AppButton(
-                                label: 'Sign In',
-                                icon: Icons.login,
-                                isLoading: isLoading,
-                                onPressed: _submit,
-                              ),
-                              const SizedBox(height: AppSpacing.sm),
-                              AppButton(
-                                label: 'Create Employer Account',
-                                icon: Icons.person_add_outlined,
-                                variant: AppButtonVariant.outlined,
-                                onPressed: isLoading ? null : () => context.push(RoutePaths.employerRegister),
-                              ),
-                              const SizedBox(height: AppSpacing.lg),
-                              Text(
-                                'Hire talent, manage applications, and grow your team.',
-                                textAlign: TextAlign.center,
-                                style: Theme.of(context).textTheme.bodySmall?.copyWith(color: _textMuted),
-                              ),
-                              const SizedBox(height: AppSpacing.md),
-                              const Divider(color: _border),
-                              const SizedBox(height: AppSpacing.sm),
-                              Text(
-                                'Looking for the student portal?',
-                                textAlign: TextAlign.center,
-                                style: Theme.of(context).textTheme.bodySmall?.copyWith(color: _textMuted),
-                              ),
-                              const SizedBox(height: 4),
-                              Center(
-                                child: TextButton.icon(
-                                  onPressed: isLoading ? null : () => context.go(RoutePaths.login),
-                                  icon: const Icon(Icons.school_outlined, size: 16),
-                                  label: const Text('Job Seeker Login'),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
+                            ),
+                            clipBehavior: Clip.antiAlias,
+                            child: wide
+                                ? IntrinsicHeight(
+                                    child: Row(
+                                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                                      children: [
+                                        const Expanded(child: _EmployerBrandingPane(compact: false)),
+                                        SizedBox(
+                                          width: 460,
+                                          child: _EmployerFormPane(
+                                            formKey: _formKey,
+                                            usernameController: _usernameController,
+                                            passwordController: _passwordController,
+                                            isLoading: isLoading,
+                                            errorMessage: errorMessage,
+                                            onSubmit: _submit,
+                                            compact: false,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  )
+                                : Column(
+                                    children: [
+                                      const _EmployerBrandingPane(compact: true),
+                                      _EmployerFormPane(
+                                        formKey: _formKey,
+                                        usernameController: _usernameController,
+                                        passwordController: _passwordController,
+                                        isLoading: isLoading,
+                                        errorMessage: errorMessage,
+                                        onSubmit: _submit,
+                                        compact: true,
+                                      ),
+                                    ],
+                                  ),
+                          );
+                        },
                       ),
                     ),
                   ),
@@ -199,6 +154,176 @@ class _EmployerLoginScreenState extends ConsumerState<EmployerLoginScreen> {
           ),
           const BuddyChatbotOverlay(),
         ],
+      ),
+    );
+  }
+}
+
+/// `templates/employer_login/login.html:17-34` — this page's own copy for
+/// the shared [AuthBrandingPane] shell.
+class _EmployerBrandingPane extends StatelessWidget {
+  const _EmployerBrandingPane({required this.compact});
+
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    return AuthBrandingPane(
+      compact: compact,
+      heading: 'Welcome Back!',
+      subtitle: 'Hire talent, manage applications, and grow your team.',
+      features: const [
+        'AI-Powered Candidate Screening & Scoring',
+        'Post Jobs & Manage Applications',
+        'Direct Access to Top Talent',
+        'Build Your Dream Team Faster',
+      ],
+    );
+  }
+}
+
+/// `.auth-form-right` (`login.html:35-82`): title, subtitle, the form
+/// itself, the inline error alert, Sign In, the divider, "Create Employer
+/// Account", and the "Looking for the student portal?" link — unchanged
+/// from before this phase except for moving out from under the removed
+/// lock-icon header and duplicate "Hire talent..." line (both now carried
+/// by [_EmployerBrandingPane] instead, matching the real page's own
+/// banner/form split).
+class _EmployerFormPane extends StatelessWidget {
+  const _EmployerFormPane({
+    required this.formKey,
+    required this.usernameController,
+    required this.passwordController,
+    required this.isLoading,
+    required this.errorMessage,
+    required this.onSubmit,
+    required this.compact,
+  });
+
+  final GlobalKey<FormState> formKey;
+  final TextEditingController usernameController;
+  final TextEditingController passwordController;
+  final bool isLoading;
+  final String? errorMessage;
+  final VoidCallback onSubmit;
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: compact
+          ? const EdgeInsets.fromLTRB(32, 40, 32, 40)
+          : const EdgeInsets.fromLTRB(48, 56, 48, 56),
+      child: Form(
+        key: formKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Employer Login',
+              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                color: const Color(0xFF0F172A),
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              'Sign in to your hiring dashboard',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: _EmployerLoginScreenState._textMuted),
+            ),
+            const SizedBox(height: AppSpacing.xl),
+            if (errorMessage != null) ...[
+              _ErrorAlert(message: errorMessage!),
+              const SizedBox(height: AppSpacing.md),
+            ],
+            AppTextField(
+              label: 'Username or Email',
+              hint: 'Enter username or email',
+              controller: usernameController,
+              keyboardType: TextInputType.emailAddress,
+              textInputAction: TextInputAction.next,
+              autofillHints: const [AutofillHints.username],
+              enabled: !isLoading,
+              validator: (value) => Validators.required(value, fieldName: 'Username or email'),
+              fillColor: _EmployerLoginScreenState._fieldFill,
+              borderRadius: BorderRadius.circular(10),
+              borderColor: _EmployerLoginScreenState._fieldBorder,
+              focusedBorderColor: _EmployerLoginScreenState._blue,
+            ),
+            const SizedBox(height: AppSpacing.md),
+            AppTextField(
+              label: 'Password',
+              hint: 'Enter password',
+              controller: passwordController,
+              obscureText: true,
+              textInputAction: TextInputAction.done,
+              autofillHints: const [AutofillHints.password],
+              enabled: !isLoading,
+              validator: (value) => Validators.required(value, fieldName: 'Password'),
+              onSubmitted: (_) => onSubmit(),
+              fillColor: _EmployerLoginScreenState._fieldFill,
+              borderRadius: BorderRadius.circular(10),
+              borderColor: _EmployerLoginScreenState._fieldBorder,
+              focusedBorderColor: _EmployerLoginScreenState._blue,
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            AppButton(
+              label: 'Sign In',
+              icon: Icons.login,
+              isLoading: isLoading,
+              onPressed: onSubmit,
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            Row(
+              children: [
+                const Expanded(
+                  flex: 1,
+                  child: Divider(color: _EmployerLoginScreenState._border),
+                ),
+                Flexible(
+                  flex: 3,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
+                    child: Text(
+                      "Don't have an account?",
+                      textAlign: TextAlign.center,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(color: _EmployerLoginScreenState._textMuted),
+                    ),
+                  ),
+                ),
+                const Expanded(
+                  flex: 1,
+                  child: Divider(color: _EmployerLoginScreenState._border),
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            AppButton(
+              label: 'Create Employer Account',
+              icon: Icons.person_add_outlined,
+              variant: AppButtonVariant.outlined,
+              onPressed: isLoading ? null : () => context.push(RoutePaths.employerRegister),
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            const Divider(color: _EmployerLoginScreenState._border),
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              'Looking for the student portal?',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(color: _EmployerLoginScreenState._textMuted),
+            ),
+            const SizedBox(height: 4),
+            Center(
+              child: TextButton.icon(
+                onPressed: isLoading ? null : () => context.go(RoutePaths.login),
+                icon: const Icon(Icons.school_outlined, size: 16),
+                label: const Text('Job Seeker Login'),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -5,6 +5,10 @@ import 'package:flutter_test/flutter_test.dart';
 /// `templates/employer/profile_form.html` as rendered server-side (verified
 /// live against a real, complete employer profile) — not a guessed shape.
 const _fixtureHtmlComplete = '''
+<div class="sidebar-company-icon">
+    <img src="/media/logos/acme.png" alt="Company Logo"
+        style="width: 100%; height: 100%; object-fit: cover; border-radius: inherit;">
+</div>
 <button type="button" id="toggleEditBtn" class="btn btn-outline-primary">Edit Profile</button>
 <input type="text" name="company_name" value="Acme Talent Solutions" class="form-control" placeholder="Company Name" autofocus="autofocus" maxlength="200" required id="id_company_name">
 <input type="url" name="company_website" value="https://acme.example.com" class="form-control" placeholder="https://example.com" maxlength="200" id="id_company_website">
@@ -34,6 +38,9 @@ const _fixtureHtmlComplete = '''
 ''';
 
 const _fixtureHtmlFreshProfile = '''
+<div class="sidebar-company-icon">
+    <i class="fas fa-building"></i>
+</div>
 <button type="button" id="toggleEditBtn" class="btn btn-outline-primary">Edit Profile</button>
 <input type="text" name="company_name" value="New Co" class="form-control" placeholder="Company Name" autofocus="autofocus" maxlength="200" required id="id_company_name">
 <input type="url" name="company_website" class="form-control" placeholder="https://example.com" maxlength="200" id="id_company_website">
@@ -70,6 +77,10 @@ void main() {
       expect(data.maskedPan, 'XXXXXX285A');
       expect(data.hrContactE164, '+919876543210');
       expect(data.hrMail, 'hr@acme.example.com');
+      // Phase 74 — `employer/profile_form.html` extends `employer_base.html`,
+      // so the same response already carries that layout's own sidebar
+      // identity block; scraped here rather than fetched separately.
+      expect(data.companyLogoUrl, '/media/logos/acme.png');
     });
 
     test('parses a fresh/incomplete profile with no GST/PAN/size/logo on file', () {
@@ -85,6 +96,10 @@ void main() {
       // parser returns it as-is; `EmployerPhoneInputField` is what treats
       // a non-"+" value as a local number under the default country.
       expect(data.hrContactE164, '9876500000');
+      // Phase 74 — the sidebar's own `{% else %}` icon fallback (no `<img>`
+      // at all) when no logo is on file yet — `companyLogoUrl` is `null`,
+      // never a guessed or blank-string URL.
+      expect(data.companyLogoUrl, isNull);
     });
 
     test(

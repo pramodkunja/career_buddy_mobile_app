@@ -136,9 +136,19 @@ class CareerDepartmentsAssetDataSource {
     return _nonItCache!;
   }
 
-  /// [track] is `'it'` or `'non-it'` — the same 2 values
-  /// `RoutePaths`/`career_path`'s own `track` parameter uses.
-  Future<List<CareerDepartmentGroup>> load(String track) {
-    return track == 'it' ? _loadIt() : _loadNonIt();
+  /// [track] matches `career_path`'s own `track` values: `'it'`, `'non-it'`
+  /// (both Non-IT groups together), or the website's single-group tracks
+  /// `'technical'`/`'non-technical'` (`activities/views.py`'s
+  /// `CAREER_TRACKS`; panel visibility confirmed directly,
+  /// `landing.html:6746-6752`) — each returning only its matching group
+  /// instead of the combined pair.
+  Future<List<CareerDepartmentGroup>> load(String track) async {
+    if (track == 'it') return _loadIt();
+    final groups = await _loadNonIt();
+    return switch (track) {
+      'technical' => [groups[0]],
+      'non-technical' => [groups[1]],
+      _ => groups,
+    };
   }
 }

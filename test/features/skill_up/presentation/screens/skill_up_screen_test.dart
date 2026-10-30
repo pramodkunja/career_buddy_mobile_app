@@ -38,12 +38,15 @@ class _FakeAuthRepository implements AuthRepository {
   Future<Result<AuthUser>> register(StudentRegistrationData data) async => throw UnimplementedError();
 }
 
-GoRouter _router({int initialTabIndex = 0}) => GoRouter(
+GoRouter _router({int initialTabIndex = 0, String? initialSectionId}) => GoRouter(
   initialLocation: RoutePaths.skillUp,
   routes: [
     GoRoute(
       path: RoutePaths.skillUp,
-      builder: (context, state) => SkillUpScreen(initialTabIndex: initialTabIndex),
+      builder: (context, state) => SkillUpScreen(
+        initialTabIndex: initialTabIndex,
+        initialSectionId: initialSectionId,
+      ),
     ),
     GoRoute(
       path: RoutePaths.skillUpLesson,
@@ -72,18 +75,32 @@ GoRouter _router({int initialTabIndex = 0}) => GoRouter(
       path: RoutePaths.skillUpNonIt,
       builder: (context, state) => const Scaffold(body: Text('NON-IT DEPARTMENTS')),
     ),
+    // Phase 76 — same reasoning: a fake stand-in for
+    // `TechCenterDepartmentsScreen`, which has its own dedicated test file
+    // (`tech_center_departments_screen_test.dart`).
+    GoRoute(
+      path: RoutePaths.techCenterDepartments,
+      builder: (context, state) => const Scaffold(body: Text('TECH CENTER DEPARTMENTS')),
+    ),
   ],
 );
 
-Future<void> _pump(WidgetTester tester, {int initialTabIndex = 0}) async {
-  tester.view.physicalSize = const Size(400, 2400);
+Future<void> _pump(
+  WidgetTester tester, {
+  int initialTabIndex = 0,
+  String? initialSectionId,
+  Size size = const Size(400, 2400),
+}) async {
+  tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1.0;
   addTearDown(tester.view.reset);
 
   await tester.pumpWidget(
     ProviderScope(
       overrides: [authRepositoryProvider.overrideWithValue(_FakeAuthRepository())],
-      child: MaterialApp.router(routerConfig: _router(initialTabIndex: initialTabIndex)),
+      child: MaterialApp.router(
+        routerConfig: _router(initialTabIndex: initialTabIndex, initialSectionId: initialSectionId),
+      ),
     ),
   );
   await tester.pump();
@@ -207,6 +224,79 @@ void main() {
       }
     });
 
+    group('Phase 72 — deep-linking to a specific section via initialSectionId', () {
+      // Representative first-lesson title under each real section, used as
+      // a scroll-position marker exactly like the "Featured tracks" test
+      // above does for `#section-highlights`.
+      const markerForSection = {
+        'depth-english': 'Elementary · A1',
+        'depth-aptitude': 'Quant aptitude coach',
+        'depth-tech': 'Python learning',
+      };
+
+      for (final MapEntry(key: sectionId, value: marker) in markerForSection.entries) {
+        testWidgets(
+          '"$sectionId" scrolls straight to its own article, not just the top of the tab',
+          (tester) async {
+            await _pump(
+              tester,
+              initialTabIndex: 1,
+              initialSectionId: sectionId,
+              size: const Size(400, 800),
+            );
+            await _settle(tester);
+
+            final viewportHeight = tester.view.physicalSize.height / tester.view.devicePixelRatio;
+            final y = tester.getTopLeft(find.text(marker)).dy;
+            expect(
+              y,
+              lessThan(viewportHeight),
+              reason: '"$sectionId" should land with "$marker" already on screen, not below the fold',
+            );
+          },
+        );
+      }
+
+      testWidgets(
+        'without a requested section, the tab opens at its own top — existing direct-entry behavior is unchanged',
+        (tester) async {
+          await _pump(tester, initialTabIndex: 1, size: const Size(400, 800));
+          await _settle(tester);
+
+          final viewportHeight = tester.view.physicalSize.height / tester.view.devicePixelRatio;
+          // The eyebrow/headline at the very top of this tab should be on
+          // screen; the Tech section's first lesson (near the bottom of a
+          // long tab) should not be — confirms no scroll happened.
+          expect(find.text(SkillUpData.depthHeadline), findsOneWidget);
+          final techY = tester.getTopLeft(find.text('Python learning')).dy;
+          expect(techY, greaterThan(viewportHeight), reason: 'no section was requested, so nothing should be scrolled into view yet');
+        },
+      );
+
+      testWidgets(
+        'an unrecognized section id falls back safely — same as no id at all, no crash, tab still opens at its top',
+        (tester) async {
+          await _pump(
+            tester,
+            initialTabIndex: 1,
+            initialSectionId: 'not-a-real-section',
+            size: const Size(400, 800),
+          );
+          await _settle(tester);
+
+          expect(tester.takeException(), isNull);
+          expect(find.text(SkillUpData.depthHeadline), findsOneWidget);
+        },
+      );
+
+      testWidgets(
+        'RoutePaths.skillUpSectionsFor builds the exact query string SkillUpScreen reads',
+        (tester) async {
+          expect(RoutePaths.skillUpSectionsFor('depth-aptitude'), '${RoutePaths.skillUpSections}?section=depth-aptitude');
+        },
+      );
+    });
+
     group('Phase 47 — Non-IT Center entry point', () {
       testWidgets('renders the real header, counts copy, and tag verbatim from the web source', (tester) async {
         await _pump(tester);
@@ -233,6 +323,27 @@ void main() {
         await _settle(tester);
 
         expect(find.text('NON-IT DEPARTMENTS'), findsOneWidget);
+      });
+    });
+
+    group('Phase 76 — Tech Center department/role entry point', () {
+      testWidgets('"Browse departments & roles" appears only within the Tech Center section', (tester) async {
+        await _pump(tester);
+
+        await _tapTab(tester, 'Sections in depth');
+
+        expect(find.byKey(const Key('skillup-techcenter-browse-departments-button')), findsOneWidget);
+      });
+
+      testWidgets('"Browse departments & roles" navigates to the Tech Center departments screen', (tester) async {
+        await _pump(tester);
+
+        await _tapTab(tester, 'Sections in depth');
+        await tester.ensureVisible(find.byKey(const Key('skillup-techcenter-browse-departments-button')));
+        await tester.tap(find.byKey(const Key('skillup-techcenter-browse-departments-button')));
+        await _settle(tester);
+
+        expect(find.text('TECH CENTER DEPARTMENTS'), findsOneWidget);
       });
     });
   });

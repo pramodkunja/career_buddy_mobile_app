@@ -130,6 +130,30 @@ const _skillUpBlock = '''
 ''';
 
 void main() {
+  group('isResumeParsingLockedPage (Phase 66)', () {
+    test('detects the real resume_locked.html upsell page', () {
+      const html = '''
+<div class="resume-locked-page">
+  <a href="/pro/" class="resume-locked-card">
+    <h1>Resume Parsing Locked</h1>
+    <p>Unlock Resume Parsing &amp; ATS Score Analysis...</p>
+    <span class="resume-upgrade-btn">Upgrade to Unlock</span>
+  </a>
+</div>
+''';
+      expect(isResumeParsingLockedPage(html), isTrue);
+    });
+
+    test('is false for the real resume_builder.html form (has a Target role badge instead)', () {
+      const html = '<span>Target role: Software Developer &middot; Development</span>';
+      expect(isResumeParsingLockedPage(html), isFalse);
+    });
+
+    test('is false for an unrelated/unexpected page', () {
+      expect(isResumeParsingLockedPage('<form><input name="username"></form>'), isFalse);
+    });
+  });
+
   group('isResumeMatchResultHtml', () {
     test('true for a result page, false for an upload-page-with-error', () {
       expect(isResumeMatchResultHtml(_resultFixture), isTrue);

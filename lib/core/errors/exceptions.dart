@@ -97,3 +97,22 @@ final class MalpracticeTerminatedException extends AppException {
     super.message = 'This interview was ended due to repeated malpractice violations.',
   ]);
 }
+
+/// `selectTargetRole` (`resume_remote_datasource.dart`) found, by making a
+/// real read-only request against the live site, that a guest hitting
+/// `resume_builder_home` is redirected (302) to `/users/login/...` — a
+/// genuine login gate. (This contradicts the "updated" Django reference
+/// repo's own `career_app/views.py:815-820`, which has no `@login_required`
+/// and would instead render `templates/resume_locked.html`, a
+/// subscription-upsell page — kept here too as a secondary, defensive
+/// check in case that page is ever actually served.) Either way, the real
+/// website never shows a "session expired" message for this — it's a
+/// guest who was never signed in — so this is kept distinct from
+/// [UnauthorizedException]: the UI responds by redirecting straight to
+/// sign-in, the same clean behavior "Build Resume"/"Find Jobs" already
+/// use, with no error text shown at all.
+final class ResumeBuilderSignInRequiredException extends AppException {
+  const ResumeBuilderSignInRequiredException([
+    super.message = 'Please sign in to use Resume Parsing & Interview.',
+  ]);
+}
