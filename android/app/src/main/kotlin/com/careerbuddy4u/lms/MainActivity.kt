@@ -1,4 +1,4 @@
-package com.careerbuddy4u.lms
+package com.career.buddy
 
 import io.flutter.embedding.android.FlutterActivity
 

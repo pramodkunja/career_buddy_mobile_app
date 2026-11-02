@@ -22,7 +22,7 @@ val keystoreProperties = Properties().apply {
 }
 
 android {
-    namespace = "com.careerbuddy4u.lms"
+    namespace = "com.career.buddy"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -32,7 +32,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.careerbuddy4u.lms"
+        applicationId = "com.career.buddy"
 
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
