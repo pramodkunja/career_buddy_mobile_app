@@ -3,6 +3,7 @@ import '../../../../core/errors/exceptions.dart';
 import '../../../../core/utils/result.dart';
 import '../../domain/entities/payment_verification_result.dart';
 import '../../domain/entities/razorpay_order.dart';
+import '../../domain/entities/subscription_status.dart';
 import '../../domain/repositories/subscription_repository.dart';
 import '../datasources/subscription_remote_datasource.dart';
 
@@ -36,6 +37,24 @@ class SubscriptionRepositoryImpl implements SubscriptionRepository {
           razorpaySignature: razorpaySignature,
         ),
       );
+    } on AppException catch (e) {
+      return Failed(ExceptionMapper.map(e));
+    }
+  }
+
+  @override
+  Future<Result<SubscriptionStatus>> getStatus() async {
+    try {
+      return Success(await _remote.getStatus());
+    } on AppException catch (e) {
+      return Failed(ExceptionMapper.map(e));
+    }
+  }
+
+  @override
+  Future<Result<List<int>>> downloadInvoice(int paymentId) async {
+    try {
+      return Success(await _remote.downloadInvoiceBytes(paymentId));
     } on AppException catch (e) {
       return Failed(ExceptionMapper.map(e));
     }

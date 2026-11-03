@@ -47,16 +47,9 @@ const _overview = ProfileOverview(
   // real-world shape confirmed live against a production account, and the
   // root cause of the phone-normalization bug this file's tests cover below.
   fields: {'Mobile Number': '7993443081'},
-  // These 3 have no Edit-tab UI at all (see `ProfileEditData`'s doc
-  // comments) — a real, non-default value here proves the save path
-  // round-trips the server's actual current state, not a hardcoded
-  // placeholder.
   englishLevel: 'upper_intermediate',
   bio: 'Loves teaching Business English.',
   additionalEducationsJson: '[{"degree": "MBA", "year": "2021"}]',
-  // Has no Overview `info-item` at all (confirmed directly against
-  // production), only an Edit-tab UI — a real, non-default value here
-  // proves the save path preserves it even on an unrelated edit.
   contactPersonRole: 'HR Manager',
   contactPersonMobile: '+919876500000',
   contactPersonEmail: 'hr@example.com',
@@ -83,15 +76,16 @@ class _FakeProfileRepository implements ProfileRepository {
   }
 }
 
-Future<_FakeProfileRepository> _pump(WidgetTester tester) async {
-  // 3200 (was 2800) — the Contact Person section added a third field group,
-  // pushing "Save Changes" further down; at 2800 the button sat below the
-  // viewport and `tap()` silently missed it.
-  tester.view.physicalSize = const Size(400, 3200);
+Future<_FakeProfileRepository> _pump(WidgetTester tester, {ProfileOverview? overview}) async {
+  // 4000 (was 3200) — Phase 80's "About You" section added ~250dp, pushing
+  // "Save Changes" below the old 3200dp viewport; increased so `tap()` can
+  // still reach the button.
+  tester.view.physicalSize = const Size(400, 4000);
   tester.view.devicePixelRatio = 1.0;
   addTearDown(tester.view.reset);
 
   final repo = _FakeProfileRepository();
+  if (overview != null) repo.overview = overview;
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
@@ -223,8 +217,9 @@ void main() {
       // available space — this screen's dropdowns (several
       // `kIndustryOptions`/`kEducationLevelOptions` entries are long)
       // overflowed by 162px at a perfectly normal 400dp width before this
-      // was fixed, undetected until this test existed.
-      tester.view.physicalSize = const Size(360, 3200);
+      // was fixed, undetected until this test existed. Phase 80 adds the
+      // English Proficiency dropdown which must also use `isExpanded: true`.
+      tester.view.physicalSize = const Size(360, 4000);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.reset);
       final repo = _FakeProfileRepository();
@@ -261,6 +256,136 @@ void main() {
       await tester.pump();
 
       expect(repo.submitted, isEmpty);
+    });
+  });
+
+  group('ProfileScreen Phase 80 — English level, bio, avatar', () {
+    testWidgets('Edit tab pre-fills English level and bio from loaded profile', (tester) async {
+      await _pump(tester);
+
+      await tester.tap(find.text('Edit Details'));
+      await _settle(tester);
+
+      // Bio field pre-filled.
+      expect(find.text('Loves teaching Business English.'), findsOneWidget);
+      // English level dropdown shows the loaded value's label.
+      expect(find.text('Upper-Intermediate'), findsOneWidget);
+    });
+
+    testWidgets('editing English level sends the new selection on save', (tester) async {
+      final repo = await _pump(tester);
+
+      await tester.tap(find.text('Edit Details'));
+      await _settle(tester);
+
+      // Open the English Proficiency Level dropdown and pick 'Advanced'.
+      await tester.tap(find.widgetWithText(DropdownButtonFormField<String>, 'Upper-Intermediate'));
+      await tester.pump();
+      await tester.tap(find.text('Advanced').last);
+      await tester.pump();
+
+      await tester.tap(find.text('Save Changes'));
+      await tester.pump();
+      await tester.pump();
+
+      expect(repo.submitted, hasLength(1));
+      expect(repo.submitted.single.englishLevel, 'advanced');
+    });
+
+    testWidgets('editing bio sends the new text on save', (tester) async {
+      final repo = await _pump(tester);
+
+      await tester.tap(find.text('Edit Details'));
+      await _settle(tester);
+
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'Loves teaching Business English.'),
+        'Updated bio text.',
+      );
+      await tester.pump();
+
+      await tester.tap(find.text('Save Changes'));
+      await tester.pump();
+      await tester.pump();
+
+      expect(repo.submitted, hasLength(1));
+      expect(repo.submitted.single.bio, 'Updated bio text.');
+    });
+
+    testWidgets('saving without touching English level / bio preserves the loaded values', (tester) async {
+      final repo = await _pump(tester);
+
+      await tester.tap(find.text('Edit Details'));
+      await _settle(tester);
+
+      // Change only First Name — not English level or bio.
+      await tester.enterText(find.byType(TextFormField).first, 'Changed');
+      await tester.pump();
+
+      await tester.tap(find.text('Save Changes'));
+      await tester.pump();
+      await tester.pump();
+
+      expect(repo.submitted, hasLength(1));
+      final sent = repo.submitted.single;
+      expect(sent.englishLevel, 'upper_intermediate');
+      expect(sent.bio, 'Loves teaching Business English.');
+    });
+
+    testWidgets('no avatar selected means avatarImagePath/Name are null on save', (tester) async {
+      final repo = await _pump(tester);
+
+      await tester.tap(find.text('Edit Details'));
+      await _settle(tester);
+
+      await tester.tap(find.text('Save Changes'));
+      await tester.pump();
+      await tester.pump();
+
+      expect(repo.submitted, hasLength(1));
+      expect(repo.submitted.single.avatarImagePath, isNull);
+      expect(repo.submitted.single.avatarImageName, isNull);
+    });
+
+    testWidgets('avatar picker widget is rendered in the About You section', (tester) async {
+      await _pump(tester);
+
+      await tester.tap(find.text('Edit Details'));
+      await _settle(tester);
+
+      expect(find.text('About You'), findsOneWidget);
+      expect(find.text('Change Profile Photo (optional)'), findsOneWidget);
+    });
+
+    testWidgets('Overview tab renders avatar circle (initials fallback when no avatarUrl)', (tester) async {
+      await _pump(tester);
+      await _settle(tester);
+
+      // With no avatarUrl, the initials 'V' (from "Venkat Sai") should appear.
+      expect(find.text('V'), findsOneWidget);
+    });
+
+    testWidgets('Edit tab English Proficiency Level dropdown does not overflow at narrow width', (tester) async {
+      tester.view.physicalSize = const Size(360, 4000);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      final repo = _FakeProfileRepository();
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            authRepositoryProvider.overrideWithValue(_FakeAuthRepository()),
+            profileRepositoryProvider.overrideWithValue(repo),
+          ],
+          child: const MaterialApp(home: ProfileScreen()),
+        ),
+      );
+      await tester.pump();
+
+      await tester.tap(find.text('Edit Details'));
+      await _settle(tester);
+
+      expect(tester.takeException(), isNull);
     });
   });
 }

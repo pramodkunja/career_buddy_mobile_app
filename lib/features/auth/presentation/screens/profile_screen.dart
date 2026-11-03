@@ -1,9 +1,12 @@
+import 'dart:io';
+
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../app/theme/app_spacing.dart';
 import '../../../../core/data/country_codes.dart';
+import '../../../../core/media/media_url_resolver.dart';
 import '../../../../core/errors/failures.dart';
 import '../../../../core/utils/result.dart';
 import '../../../../core/validators/validators.dart';
@@ -91,6 +94,13 @@ class _OverviewTab extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                Center(
+                  child: _AvatarDisplay(
+                    avatarUrl: data.avatarUrl,
+                    displayName: data.fullName.isEmpty ? data.username : data.fullName,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.sm),
                 Text(
                   data.fullName.isEmpty ? data.username : data.fullName,
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
@@ -261,6 +271,9 @@ class _EditTabState extends ConsumerState<_EditTab> {
   String _alternateMobile = '';
   String _contactPersonMobile = '';
   PlatformFile? _resume;
+  late String? _englishLevel;
+  late final TextEditingController _bio;
+  PlatformFile? _avatar;
   bool _submitting = false;
   String? _submitError;
 
@@ -328,6 +341,8 @@ class _EditTabState extends ConsumerState<_EditTab> {
     _mobile = normalizePhoneToE164(d.field(ProfileFieldLabels.mobile));
     _alternateMobile = normalizePhoneToE164(d.field(ProfileFieldLabels.alternateMobile));
     _contactPersonMobile = normalizePhoneToE164(d.contactPersonMobile);
+    _englishLevel = d.englishLevel;
+    _bio = TextEditingController(text: d.bio);
   }
 
   @override
@@ -338,7 +353,7 @@ class _EditTabState extends ConsumerState<_EditTab> {
       _contactPersonRole, _contactPersonEmail, _skills,
       _currentCtc, _expectedCtc, _certification, _currentLocation,
       _preferredLocation, _abroadYears, _abroadCountry, _abroadIndustry,
-      _abroadSkills, _aadhar, _pan, _passport,
+      _abroadSkills, _aadhar, _pan, _passport, _bio,
     ]) {
       c.dispose();
     }
@@ -348,6 +363,11 @@ class _EditTabState extends ConsumerState<_EditTab> {
   Future<void> _pickResume() async {
     final files = await FilePicker.pickFiles(type: FileType.custom, allowedExtensions: ['pdf', 'doc', 'docx']);
     if (files.isNotEmpty) setState(() => _resume = files.single);
+  }
+
+  Future<void> _pickAvatar() async {
+    final files = await FilePicker.pickFiles(type: FileType.image);
+    if (files.isNotEmpty) setState(() => _avatar = files.single);
   }
 
   Future<void> _submit() async {
@@ -395,12 +415,14 @@ class _EditTabState extends ConsumerState<_EditTab> {
       abroadCountry: _abroadCountry.text.trim(),
       abroadIndustry: _abroadIndustry.text.trim(),
       abroadSkills: _abroadSkills.text.trim(),
-      // Not editable here — round-tripped from the last `getProfile()` so
-      // saving doesn't fail server-side validation or wipe these out (see
-      // `ProfileEditData`'s doc comments).
-      englishLevel: widget.data.englishLevel,
-      bio: widget.data.bio,
+      englishLevel: _englishLevel,
+      bio: _bio.text,
+      // `additional_educations_json` has no Edit-tab UI — round-tripped
+      // verbatim to avoid the silent-clear risk (see `ProfileEditData`'s
+      // doc comment).
       additionalEducationsJson: widget.data.additionalEducationsJson,
+      avatarImagePath: _avatar?.path,
+      avatarImageName: _avatar?.name,
     );
 
     final result = await ref.read(profileRepositoryProvider).updateProfile(data);
@@ -441,6 +463,37 @@ class _EditTabState extends ConsumerState<_EditTab> {
               AppTextField(label: 'Last Name', controller: _lastName, enabled: !_submitting, validator: Validators.required),
               const SizedBox(height: AppSpacing.sm),
               AppTextField(label: 'Email Address', controller: _email, enabled: !_submitting, validator: Validators.email),
+            ]),
+            _section('About You', [
+              DropdownButtonFormField<String>(
+                initialValue: _englishLevel,
+                isExpanded: true,
+                decoration: const InputDecoration(labelText: 'English Proficiency Level', isDense: true),
+                items: const [
+                  DropdownMenuItem(value: 'beginner', child: Text('Pre-Intermediate')),
+                  DropdownMenuItem(value: 'intermediate', child: Text('Intermediate')),
+                  DropdownMenuItem(value: 'upper_intermediate', child: Text('Upper-Intermediate')),
+                  DropdownMenuItem(value: 'advanced', child: Text('Advanced')),
+                ],
+                onChanged: _submitting ? null : (v) => setState(() => _englishLevel = v),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              TextFormField(
+                controller: _bio,
+                enabled: !_submitting,
+                maxLines: 5,
+                decoration: const InputDecoration(
+                  labelText: 'Bio',
+                  hintText: 'Tell employers about yourself (optional)',
+                  alignLabelWithHint: true,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              _AvatarPicker(
+                currentAvatarUrl: widget.data.avatarUrl,
+                selectedFile: _avatar,
+                onPick: _submitting ? null : _pickAvatar,
+              ),
             ]),
             _section('Personal', [
               _dropdown('Select Gender', _gender, kGenderOptions, (v) => setState(() => _gender = v)),
@@ -615,6 +668,125 @@ class _EditTabState extends ConsumerState<_EditTab> {
 
 extension _FirstOrNull<T> on List<T> {
   T? get firstOrNull => isEmpty ? null : first;
+}
+
+class _AvatarDisplay extends StatelessWidget {
+  const _AvatarDisplay({required this.avatarUrl, required this.displayName});
+
+  final String? avatarUrl;
+  final String displayName;
+
+  @override
+  Widget build(BuildContext context) {
+    final resolved = resolveMediaUrl(avatarUrl);
+    final initials = displayName.isNotEmpty ? displayName[0].toUpperCase() : '?';
+    if (resolved != null) {
+      return CircleAvatar(
+        radius: 40,
+        backgroundColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.15),
+        child: ClipOval(
+          child: Image.network(
+            resolved,
+            width: 80,
+            height: 80,
+            fit: BoxFit.cover,
+            errorBuilder: (imgContext, imgError, imgStack) => Text(
+              initials,
+              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                color: Theme.of(context).colorScheme.primary,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+    return CircleAvatar(
+      radius: 40,
+      backgroundColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.15),
+      child: Text(
+        initials,
+        style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+          color: Theme.of(context).colorScheme.primary,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+}
+
+class _AvatarPicker extends StatelessWidget {
+  const _AvatarPicker({
+    required this.currentAvatarUrl,
+    required this.selectedFile,
+    required this.onPick,
+  });
+
+  final String? currentAvatarUrl;
+  final PlatformFile? selectedFile;
+  final VoidCallback? onPick;
+
+  @override
+  Widget build(BuildContext context) {
+    Widget preview;
+    final path = selectedFile?.path;
+    if (path != null) {
+      preview = CircleAvatar(
+        radius: 28,
+        backgroundImage: FileImage(File(path)),
+      );
+    } else {
+      final resolved = resolveMediaUrl(currentAvatarUrl);
+      if (resolved != null) {
+        preview = CircleAvatar(
+          radius: 28,
+          backgroundImage: NetworkImage(resolved),
+        );
+      } else {
+        preview = const CircleAvatar(
+          radius: 28,
+          child: Icon(Icons.person_outline, size: 28),
+        );
+      }
+    }
+
+    return InkWell(
+      onTap: onPick,
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        padding: const EdgeInsets.all(AppSpacing.sm),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF8FAFC),
+          border: Border.all(color: const Color(0xFFCBD5E1)),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Row(
+          children: [
+            preview,
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    selectedFile != null ? selectedFile!.name : 'Change Profile Photo (optional)',
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(color: selectedFile == null ? const Color(0xFF64748B) : null),
+                  ),
+                  if (selectedFile == null)
+                    const Text(
+                      'Tap to upload from gallery',
+                      style: TextStyle(color: Color(0xFF64748B), fontSize: 11),
+                    ),
+                ],
+              ),
+            ),
+            const Icon(Icons.camera_alt_outlined, color: Color(0xFF185ADB)),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 class _ResumePicker extends StatelessWidget {

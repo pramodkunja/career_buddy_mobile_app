@@ -6,18 +6,22 @@ import '../../../../shared/widgets/app_button.dart';
 import '../../../../shared/widgets/app_card.dart';
 import '../../domain/entities/subscription_plan.dart';
 
-/// One plan's card — `templates/pro.html:140-360`'s three `.plan-card`
-/// blocks, reproduced with this app's own [AppCard]/[AppButton] instead of
-/// bespoke styling. [isCurrentPlanKnown] is always `false` today (no status
-/// endpoint — see `docs/PHASE_3_SUBSCRIPTION_DISCOVERY.md` §2), kept as a
-/// parameter rather than hardcoded so a future status-aware build only has
-/// to change the caller, not this widget.
 class PlanCard extends StatelessWidget {
-  const PlanCard({required this.plan, required this.onUpgrade, this.isProcessing = false, super.key});
+  const PlanCard({
+    required this.plan,
+    required this.onUpgrade,
+    this.isProcessing = false,
+    this.isCurrentPlan = false,
+    super.key,
+  });
 
   final SubscriptionPlan plan;
   final VoidCallback? onUpgrade;
   final bool isProcessing;
+
+  /// Whether this plan is the user's currently active plan. When true, a
+  /// "Current plan" badge replaces the "Recommended" badge on Pro.
+  final bool isCurrentPlan;
 
   @override
   Widget build(BuildContext context) {
@@ -28,28 +32,19 @@ class PlanCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                plan.label,
-                style: Theme.of(
-                  context,
-                ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold, color: isPro ? AppColors.primary : null),
-              ),
-              if (isPro)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
-                  decoration: BoxDecoration(
-                    color: AppColors.primary.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                  child: Text(
-                    'Recommended',
-                    style: Theme.of(
-                      context,
-                    ).textTheme.labelSmall?.copyWith(color: AppColors.primary, fontWeight: FontWeight.bold),
-                  ),
+              Expanded(
+                child: Text(
+                  plan.label,
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold, color: isPro ? AppColors.primary : null),
                 ),
+              ),
+              if (isCurrentPlan)
+                _PlanBadge(label: 'Current plan', color: AppColors.success)
+              else if (isPro)
+                _PlanBadge(label: 'Recommended', color: AppColors.primary),
             ],
           ),
           const SizedBox(height: AppSpacing.xs),
@@ -100,6 +95,28 @@ class PlanCard extends StatelessWidget {
               backgroundColor: isPro ? AppColors.primary : null,
             ),
         ],
+      ),
+    );
+  }
+}
+
+class _PlanBadge extends StatelessWidget {
+  const _PlanBadge({required this.label, required this.color});
+
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        label,
+        style: Theme.of(context).textTheme.labelSmall?.copyWith(color: color, fontWeight: FontWeight.bold),
       ),
     );
   }

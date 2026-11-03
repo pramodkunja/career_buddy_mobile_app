@@ -104,6 +104,17 @@ class ProfileRemoteDataSource {
   // input, matching `mobile`'s own confirmed markup) — so one matcher (match
   // the whole tag, then look for a `value="..."` attribute inside it) covers
   // all three regardless of whether a value is present.
+  // `templates/users/profile.html`'s avatar/selfie `<img>` tag — rendered as
+  // `<img src="{{ profile.selfie.url|default:profile.avatar.url }}" ...
+  // class="profile-avatar-img">` (selfie takes priority; if neither is set
+  // the template renders initials instead and no `<img>` at all). The `src`
+  // attribute is extracted separately with `_srcAttrPattern` so attribute
+  // order doesn't matter.
+  static final _avatarImgTagPattern = RegExp(
+    r'<img[^>]*\bclass="[^"]*profile-avatar-img[^"]*"[^>]*>',
+  );
+  static final _srcAttrPattern = RegExp(r'\bsrc="([^"]*)"');
+
   static final _contactPersonRoleInputPattern = RegExp(
     r'<input[^>]*\bname="contact_person_role"[^>]*>',
   );
@@ -160,6 +171,13 @@ class ProfileRemoteDataSource {
     } on FormatException {
       return '[]';
     }
+  }
+
+  String? _extractAvatarUrl(String html) {
+    final tag = _avatarImgTagPattern.firstMatch(html)?.group(0);
+    if (tag == null) return null;
+    final src = _srcAttrPattern.firstMatch(tag)?.group(1);
+    return (src == null || src.isEmpty) ? null : src;
   }
 
   String _extractInputValue(RegExp tagPattern, String html) {
@@ -220,6 +238,7 @@ class ProfileRemoteDataSource {
         contactPersonRole: _extractInputValue(_contactPersonRoleInputPattern, html),
         contactPersonMobile: _extractInputValue(_contactPersonMobileInputPattern, html),
         contactPersonEmail: _extractInputValue(_contactPersonEmailInputPattern, html),
+        avatarUrl: _extractAvatarUrl(html),
       );
     } on DioException catch (e) {
       throw e.error is AppException ? e.error as AppException : const UnexpectedResponseException();
@@ -295,17 +314,21 @@ class ProfileRemoteDataSource {
         'abroad_country': data.abroadCountry,
         'abroad_industry': data.abroadIndustry,
         'abroad_skills': data.abroadSkills,
-        // Not editable from any Flutter UI — sent unconditionally, verbatim
-        // from whatever `getProfile()` last scraped, purely so this save
-        // doesn't fail `form.is_valid()` (`english_level`) or silently wipe
-        // existing data (`bio`, `additional_educations_json`) — see
-        // `ProfileEditData`'s doc comments on these 3 fields.
+        // `english_level`/`bio` are now editable from the Edit tab's "About
+        // You" section (Phase 80) — the caller passes the user's current
+        // selection. `english_level` is still required server-side (see null
+        // guard above); `bio` still has no "absent means unchanged" behaviour
+        // server-side so must be sent explicitly. `additional_educations_json`
+        // remains round-trip-only (no Edit-tab UI) — see `ProfileEditData`'s
+        // doc comments on all three fields.
         'english_level': englishLevel,
         'bio': data.bio,
         'additional_educations_json': data.additionalEducationsJson,
         'csrfmiddlewaretoken': csrfToken ?? '',
         if (data.resumeFilePath != null)
           'resume': await MultipartFile.fromFile(data.resumeFilePath!, filename: data.resumeFileName),
+        if (data.avatarImagePath != null)
+          'avatar': await MultipartFile.fromFile(data.avatarImagePath!, filename: data.avatarImageName),
       });
 
       final response = await _apiClient.dio.post(

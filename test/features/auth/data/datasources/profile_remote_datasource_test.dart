@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:career_buddy_lms/core/errors/exceptions.dart';
 import 'package:career_buddy_lms/core/network/api_client.dart';
 import 'package:career_buddy_lms/features/auth/data/datasources/profile_remote_datasource.dart';
@@ -82,6 +84,14 @@ const _fixtureHtmlWithContactPerson =
     '<input type="hidden" name="contact_person_mobile" value="+919876500000" id="id_contact_person_mobile">'
     '<input type="email" name="contact_person_email" class="form-control" '
     'value="hr@example.com" placeholder="Contact Email ID" maxlength="320" id="id_contact_person_email">';
+
+/// `templates/users/profile.html` renders the avatar/selfie as an `<img>`
+/// with `class="profile-avatar-img"` — the src attribute may come before or
+/// after other attributes (verified attribute-order independence by placing
+/// src first here).
+const _fixtureHtmlWithAvatar =
+    '$_fixtureHtmlWithContactPerson'
+    '<img src="/media/avatars/photo_123.jpg" alt="Candidate Avatar" class="profile-avatar-img">';
 
 void main() {
   group('getProfile', () {
@@ -189,6 +199,26 @@ void main() {
       expect(profile.contactPersonRole, '');
       expect(profile.contactPersonMobile, '');
       expect(profile.contactPersonEmail, '');
+    });
+
+    test('Phase 80: extracts avatarUrl from the profile-avatar-img element', () async {
+      final dio = Dio(BaseOptions(baseUrl: 'https://example.test'))
+        ..httpClientAdapter = FakeHttpClientAdapter(statusCode: 200, body: _fixtureHtmlWithAvatar);
+      final datasource = ProfileRemoteDataSource(ApiClient.forTesting(dio));
+
+      final profile = await datasource.getProfile();
+
+      expect(profile.avatarUrl, '/media/avatars/photo_123.jpg');
+    });
+
+    test('Phase 80: avatarUrl is null when no profile-avatar-img element is present', () async {
+      final dio = Dio(BaseOptions(baseUrl: 'https://example.test'))
+        ..httpClientAdapter = FakeHttpClientAdapter(statusCode: 200, body: _fixtureHtmlWithContactPerson);
+      final datasource = ProfileRemoteDataSource(ApiClient.forTesting(dio));
+
+      final profile = await datasource.getProfile();
+
+      expect(profile.avatarUrl, isNull);
     });
 
     test('throws ServerException on a non-200 response', () async {
@@ -396,5 +426,56 @@ void main() {
         await expectLater(datasource.updateProfile(data), throwsA(isA<UnauthorizedException>()));
       },
     );
+
+    test('Phase 80: omits avatar field from FormData when avatarImagePath is null', () async {
+      RequestOptions? captured;
+      final dio = Dio(BaseOptions(baseUrl: 'https://example.test'))
+        ..httpClientAdapter = FakeHttpClientAdapter(statusCode: 302, body: '', onRequest: (o) => captured = o);
+      final datasource = ProfileRemoteDataSource(ApiClient.forTesting(dio));
+
+      await datasource.updateProfile(data);
+
+      final sentFiles = (captured!.data as FormData).files;
+      expect(sentFiles.any((e) => e.key == 'avatar'), isFalse);
+    });
+
+    test('Phase 80: sends avatar as a MultipartFile when avatarImagePath is set', () async {
+      final tempDir = await Directory.systemTemp.createTemp('avatar_test_');
+      final avatarFile = File('${tempDir.path}/photo.jpg');
+      await avatarFile.writeAsBytes([0xFF, 0xD8, 0xFF, 0xE0]);
+
+      RequestOptions? captured;
+      final dio = Dio(BaseOptions(baseUrl: 'https://example.test'))
+        ..httpClientAdapter = FakeHttpClientAdapter(statusCode: 302, body: '', onRequest: (o) => captured = o);
+      final datasource = ProfileRemoteDataSource(ApiClient.forTesting(dio));
+      const withAvatar = ProfileEditData(
+        firstName: 'Venkat',
+        lastName: 'Sai',
+        email: 'nvenkatsai@example.com',
+        englishLevel: 'intermediate',
+        bio: '',
+        additionalEducationsJson: '[]',
+        avatarImagePath: null, // will be overridden below
+        avatarImageName: 'photo.jpg',
+      );
+
+      final edited = ProfileEditData(
+        firstName: withAvatar.firstName,
+        lastName: withAvatar.lastName,
+        email: withAvatar.email,
+        englishLevel: withAvatar.englishLevel,
+        bio: withAvatar.bio,
+        additionalEducationsJson: withAvatar.additionalEducationsJson,
+        avatarImagePath: avatarFile.path,
+        avatarImageName: 'photo.jpg',
+      );
+
+      await datasource.updateProfile(edited);
+
+      final sentFiles = (captured!.data as FormData).files;
+      expect(sentFiles.any((e) => e.key == 'avatar'), isTrue);
+
+      await tempDir.delete(recursive: true);
+    });
   });
 }

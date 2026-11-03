@@ -1197,8 +1197,27 @@ abstract final class ApiEndpoints {
   /// `docs/PHASE_3_SUBSCRIPTION_DISCOVERY.md` §1 for the full verified
   /// request/response contract of both. There is deliberately no constant
   /// here for `pro_page` (`/pro/`, HTML only, no JSON variant exists — same
-  /// doc, §2) or `razorpay_webhook`/`payment_invoice` (server-to-server and
-  /// HTML-invoice respectively, neither relevant to this client).
+  /// doc, §2) or `razorpay_webhook` (server-to-server, not relevant to this
+  /// client).
   static const String createRazorpayOrder = '/pro/create-order/';
   static const String verifyRazorpayPayment = '/pro/verify-payment/';
+
+  /// Phase 81 — `career_app.views.subscription_status_api`
+  /// (`business_english_lms/urls.py`). `@login_required @require_GET`, returns
+  /// JSON with `plan_type`, `is_active`, `expiry_date`, `days_left`, and
+  /// `payments` (each captured `RazorpayPayment` with `id`/`invoice_number`/
+  /// `plan_type`/`amount_paise`/`created_at`). Calls `enforce_expiry()` before
+  /// responding so the result is never stale for a user whose paid plan lapsed
+  /// since their last browser visit.
+  static const String subscriptionStatus = '/pro/status/';
+
+  /// `career_app.views.payment_invoice` (`business_english_lms/urls.py`) —
+  /// `@login_required`. Renders the GST invoice HTML for one
+  /// `RazorpayPayment` by its pk. The template uses fully-inline CSS
+  /// (confirmed by reading `gst_invoice.html` directly — no external
+  /// stylesheets except the Google Fonts CDN `<link>` which degrades
+  /// gracefully offline) so saving the response bytes as a local `.html` file
+  /// and opening with `open_file` renders correctly in any system browser.
+  /// Owner or staff only — a 404 is returned for any other user's payment pk.
+  static String invoiceDownload(int pk) => '/pro/invoice/$pk/';
 }

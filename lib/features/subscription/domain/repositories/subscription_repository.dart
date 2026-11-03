@@ -1,13 +1,8 @@
 import '../../../../core/utils/result.dart';
 import '../entities/payment_verification_result.dart';
 import '../entities/razorpay_order.dart';
+import '../entities/subscription_status.dart';
 
-/// `career_app.views.create_razorpay_order`/`verify_razorpay_payment` — see
-/// `docs/PHASE_3_SUBSCRIPTION_DISCOVERY.md` §1 for the full verified
-/// contract. There is deliberately no `getCurrentPlan()`/similar method on
-/// this repository: no backend endpoint returns that (§2 of the same
-/// report) — adding one here would mean faking its implementation, which
-/// this phase's rules explicitly forbid.
 abstract class SubscriptionRepository {
   /// [planType] must be `'normal'` or `'pro'` (`SubscriptionPlan.planTypeParam`).
   Future<Result<RazorpayOrder>> createOrder(String planType);
@@ -22,4 +17,12 @@ abstract class SubscriptionRepository {
     required String razorpayOrderId,
     required String razorpaySignature,
   });
+
+  /// Phase 81 — fetches current plan state + captured-payment list from
+  /// `GET /pro/status/` (`subscription_status_api`).
+  Future<Result<SubscriptionStatus>> getStatus();
+
+  /// Phase 81 — downloads the GST invoice HTML bytes for one
+  /// `RazorpayPayment` by its pk from `GET /pro/invoice/<pk>/`.
+  Future<Result<List<int>>> downloadInvoice(int paymentId);
 }

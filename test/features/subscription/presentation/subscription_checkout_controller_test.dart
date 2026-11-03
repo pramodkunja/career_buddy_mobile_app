@@ -4,6 +4,7 @@ import 'package:career_buddy_lms/core/errors/failures.dart';
 import 'package:career_buddy_lms/core/utils/result.dart';
 import 'package:career_buddy_lms/features/subscription/domain/entities/payment_verification_result.dart';
 import 'package:career_buddy_lms/features/subscription/domain/entities/razorpay_order.dart';
+import 'package:career_buddy_lms/features/subscription/domain/entities/subscription_status.dart';
 import 'package:career_buddy_lms/features/subscription/domain/repositories/subscription_repository.dart';
 import 'package:career_buddy_lms/features/subscription/domain/services/razorpay_checkout_launcher.dart';
 import 'package:career_buddy_lms/features/subscription/presentation/controllers/subscription_checkout_controller.dart';
@@ -53,6 +54,14 @@ class _FakeSubscriptionRepository implements SubscriptionRepository {
   }) async {
     return verifyResult ?? Success(const PaymentActivated('normal'));
   }
+
+  @override
+  Future<Result<SubscriptionStatus>> getStatus() async =>
+      throw UnimplementedError();
+
+  @override
+  Future<Result<List<int>>> downloadInvoice(int paymentId) async =>
+      throw UnimplementedError();
 }
 
 void main() {
@@ -256,4 +265,12 @@ class _CountingVerifyRepository implements SubscriptionRepository {
       razorpaySignature: razorpaySignature,
     );
   }
+
+  @override
+  Future<Result<SubscriptionStatus>> getStatus() async =>
+      throw UnimplementedError();
+
+  @override
+  Future<Result<List<int>>> downloadInvoice(int paymentId) async =>
+      throw UnimplementedError();
 }

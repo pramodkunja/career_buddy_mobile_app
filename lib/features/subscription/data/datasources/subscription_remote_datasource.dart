@@ -5,6 +5,7 @@ import '../../../../core/network/api_client.dart';
 import '../../../../core/network/api_endpoints.dart';
 import '../../domain/entities/payment_verification_result.dart';
 import '../../domain/entities/razorpay_order.dart';
+import '../../domain/entities/subscription_status.dart';
 
 /// `create_razorpay_order`/`verify_razorpay_payment` — see
 /// `docs/PHASE_3_SUBSCRIPTION_DISCOVERY.md` §1. Both read
@@ -125,6 +126,40 @@ class SubscriptionRemoteDataSource {
       if (message != null) return ValidationException(const {}, message);
     }
     return e.error is AppException ? e.error as AppException : const UnexpectedResponseException();
+  }
+
+  Future<SubscriptionStatus> getStatus() async {
+    try {
+      final response = await _apiClient.dio.get(ApiEndpoints.subscriptionStatus);
+      final data = response.data;
+      if (data is! Map<String, dynamic>) throw const UnexpectedResponseException();
+      return SubscriptionStatus.fromJson(data);
+    } on DioException catch (e) {
+      throw e.error is AppException
+          ? e.error as AppException
+          : const UnexpectedResponseException();
+    } on TypeError {
+      throw const UnexpectedResponseException();
+    }
+  }
+
+  /// Downloads the raw HTML bytes of the GST invoice for [pk]. The caller
+  /// saves them as a local `.html` file and opens it with `open_file` so the
+  /// template's inline CSS renders correctly in any system browser.
+  Future<List<int>> downloadInvoiceBytes(int pk) async {
+    try {
+      final response = await _apiClient.dio.get(
+        ApiEndpoints.invoiceDownload(pk),
+        options: Options(responseType: ResponseType.bytes),
+      );
+      final data = response.data;
+      if (data is! List<int>) throw const UnexpectedResponseException();
+      return data;
+    } on DioException catch (e) {
+      throw e.error is AppException
+          ? e.error as AppException
+          : const UnexpectedResponseException();
+    }
   }
 
   String? _extractErrorMessage(Object? body) {

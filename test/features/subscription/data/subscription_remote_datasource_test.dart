@@ -23,6 +23,13 @@ SubscriptionRemoteDataSource _buildDatasource({required int statusCode, required
   return SubscriptionRemoteDataSource(ApiClient.forTesting(dio));
 }
 
+SubscriptionRemoteDataSource _buildDatasourceForBytes({required int statusCode, required String body}) {
+  final dio = Dio(BaseOptions(baseUrl: 'https://example.test'))
+    ..interceptors.add(ApiExceptionsInterceptor())
+    ..httpClientAdapter = FakeHttpClientAdapter(statusCode: statusCode, body: body);
+  return SubscriptionRemoteDataSource(ApiClient.forTesting(dio));
+}
+
 void main() {
   group('SubscriptionRemoteDataSource.createOrder', () {
     test('sends plan_type form-urlencoded (not JSON) with X-CSRFToken', () async {
@@ -173,6 +180,104 @@ void main() {
         ),
         throwsA(isA<ValidationException>().having((e) => e.message, 'message', 'This payment has already been used.')),
       );
+    });
+  });
+
+  group('SubscriptionRemoteDataSource.getStatus', () {
+    test('parses a free-plan status response with no payments', () async {
+      final datasource = _buildDatasource(
+        statusCode: 200,
+        body: '{"plan_type":"free","is_active":false,"expiry_date":null,"days_left":null,"payments":[]}',
+      );
+
+      final status = await datasource.getStatus();
+
+      expect(status.planType, 'free');
+      expect(status.isActive, false);
+      expect(status.expiryDate, isNull);
+      expect(status.daysLeft, isNull);
+      expect(status.payments, isEmpty);
+    });
+
+    test('parses an active pro plan with one invoice record', () async {
+      final datasource = _buildDatasource(
+        statusCode: 200,
+        body: '{"plan_type":"pro","is_active":true,"expiry_date":"2027-11-02T10:30:00+05:30","days_left":365,"payments":['
+            '{"id":42,"invoice_number":"CB/2026-27/00042","plan_type":"pro","amount_paise":117700,"created_at":"2026-11-02T10:30:00+05:30"}'
+            ']}',
+      );
+
+      final status = await datasource.getStatus();
+
+      expect(status.planType, 'pro');
+      expect(status.isActive, true);
+      expect(status.expiryDate, isNotNull);
+      expect(status.daysLeft, 365);
+      expect(status.payments, hasLength(1));
+      expect(status.payments.single.id, 42);
+      expect(status.payments.single.invoiceNumber, 'CB/2026-27/00042');
+      expect(status.payments.single.amountRupees, 1177.0);
+    });
+
+    test('invoice_number absent from the server defaults to empty string', () async {
+      final datasource = _buildDatasource(
+        statusCode: 200,
+        body: '{"plan_type":"normal","is_active":true,"expiry_date":"2027-06-01T00:00:00Z","days_left":200,"payments":['
+            '{"id":7,"plan_type":"normal","amount_paise":58882,"created_at":"2026-06-01T00:00:00Z"}'
+            ']}',
+      );
+
+      final status = await datasource.getStatus();
+
+      expect(status.payments.single.invoiceNumber, '');
+    });
+
+    test('a 401 (session expired) surfaces as UnauthorizedException', () async {
+      final datasource = _buildDatasource(statusCode: 401, body: '{}');
+
+      await expectLater(datasource.getStatus(), throwsA(isA<UnauthorizedException>()));
+    });
+
+    test('a 500 surfaces as ServerException', () async {
+      final datasource = _buildDatasource(statusCode: 500, body: '{}');
+
+      await expectLater(datasource.getStatus(), throwsA(isA<ServerException>()));
+    });
+
+    test('a malformed 200 body (not a JSON object) throws UnexpectedResponseException', () async {
+      final datasource = _buildDatasource(statusCode: 200, body: '"not-an-object"');
+
+      await expectLater(datasource.getStatus(), throwsA(isA<UnexpectedResponseException>()));
+    });
+  });
+
+  group('SubscriptionRemoteDataSource.downloadInvoiceBytes', () {
+    test('returns the raw bytes on a 200 response', () async {
+      const htmlBody = '<html><body>Invoice</body></html>';
+      final datasource = _buildDatasourceForBytes(statusCode: 200, body: htmlBody);
+
+      final bytes = await datasource.downloadInvoiceBytes(42);
+
+      expect(bytes, isNotEmpty);
+      expect(String.fromCharCodes(bytes), htmlBody);
+    });
+
+    test('a 401 surfaces as UnauthorizedException', () async {
+      final datasource = _buildDatasourceForBytes(statusCode: 401, body: '');
+
+      await expectLater(datasource.downloadInvoiceBytes(42), throwsA(isA<UnauthorizedException>()));
+    });
+
+    test('a 404 (payment pk not found) surfaces as NotFoundException', () async {
+      final datasource = _buildDatasourceForBytes(statusCode: 404, body: '');
+
+      await expectLater(datasource.downloadInvoiceBytes(99), throwsA(isA<NotFoundException>()));
+    });
+
+    test('a 500 surfaces as ServerException', () async {
+      final datasource = _buildDatasourceForBytes(statusCode: 500, body: '');
+
+      await expectLater(datasource.downloadInvoiceBytes(42), throwsA(isA<ServerException>()));
     });
   });
 }

@@ -22,6 +22,7 @@ class ProfileOverview {
     this.contactPersonRole = '',
     this.contactPersonMobile = '',
     this.contactPersonEmail = '',
+    this.avatarUrl,
   });
 
   final String fullName;
@@ -33,24 +34,22 @@ class ProfileOverview {
   final List<ProfileRecentResult> recentResults;
   final Map<String, String> fields;
 
-  /// `ProfileUpdateForm.Meta.fields`'s `english_level` — not editable via
-  /// any Edit tab control, but required server-side (see
-  /// [ProfileEditData.englishLevel]'s doc comment), so [getProfile] scrapes
-  /// the server's own current selection to round-trip it on save.
+  /// `ProfileUpdateForm.Meta.fields`'s `english_level` — editable via the
+  /// Edit tab's "About You" section (Phase 80). Required server-side; see
+  /// [ProfileEditData.englishLevel]'s doc comment.
   ///
   /// `null` only when the `<select name="english_level">` block or its
   /// `selected` option couldn't be found — **never fabricated** (previously
   /// defaulted to `'intermediate'`, a plausible-looking value that would
   /// have been silently resubmitted as the user's real English level on
-  /// every subsequent save; fixed per the Phase 11 audit's finding). This
-  /// field is invisible in every Flutter UI, so a guessed value here could
-  /// never have been noticed or corrected by the user — see
-  /// [ProfileEditData.englishLevel]'s doc comment for how `updateProfile`
-  /// now refuses to save at all rather than ever sending a guess.
+  /// every subsequent save; fixed per the Phase 11 audit's finding). With
+  /// Phase 80's Edit tab UI the user can now pick any of the 4 valid levels
+  /// to resolve a null; see [ProfileEditData.englishLevel]'s doc comment
+  /// for how `updateProfile` still refuses to save at all when still null.
   final String? englishLevel;
 
-  /// `ProfileUpdateForm.Meta.fields`'s `bio` — same round-trip-only
-  /// reasoning as [englishLevel].
+  /// `ProfileUpdateForm.Meta.fields`'s `bio` — editable via the Edit tab's
+  /// "About You" section (Phase 80).
   final String bio;
 
   /// The exact JSON array text (still JS-string-literal-escaped-then-decoded,
@@ -69,6 +68,15 @@ class ProfileOverview {
   final String contactPersonRole;
   final String contactPersonMobile;
   final String contactPersonEmail;
+
+  /// Root-relative URL of the student's uploaded avatar photo (e.g.
+  /// `/media/avatars/photo_123.jpg`), scraped from the Overview tab's
+  /// `profile-avatar-img` element. `null` when no avatar (or only initials)
+  /// is rendered. May be a selfie URL (`/media/selfies/...`) for accounts
+  /// that uploaded during registration; the display widget uses an error-
+  /// fallback to initials in that case so the protected-media 403 is handled
+  /// gracefully rather than shown as a broken image.
+  final String? avatarUrl;
 
   String field(String label) => fields[label] ?? '';
 }
@@ -169,6 +177,8 @@ class ProfileEditData {
     required this.englishLevel,
     required this.bio,
     required this.additionalEducationsJson,
+    this.avatarImagePath,
+    this.avatarImageName,
   });
 
   final String firstName;
@@ -242,4 +252,11 @@ class ProfileEditData {
   /// is posted under this key, with no "leave unchanged" fallback. Callers
   /// MUST pass through [ProfileOverview.additionalEducationsJson] verbatim.
   final String additionalEducationsJson;
+
+  /// `null` = leave the existing avatar image unchanged (optional on edit,
+  /// same contract as [resumeFilePath]). When non-null, the file at this
+  /// path is sent as a `MultipartFile` under the `avatar` field name
+  /// (`ProfileUpdateForm.Meta.fields`'s `avatar`).
+  final String? avatarImagePath;
+  final String? avatarImageName;
 }
