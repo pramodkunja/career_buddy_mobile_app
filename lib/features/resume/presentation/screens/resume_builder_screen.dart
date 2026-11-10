@@ -149,6 +149,7 @@ class _UploadFormState extends ConsumerState<_UploadForm> {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.all(AppSpacing.md),
       child: Column(
@@ -172,8 +173,8 @@ class _UploadFormState extends ConsumerState<_UploadForm> {
           const SizedBox(height: AppSpacing.lg),
           Container(
             decoration: BoxDecoration(
-              color: Colors.white,
-              border: Border.all(color: const Color(0xFFE2E8F0)),
+              color: cs.surface,
+              border: Border.all(color: cs.outlineVariant),
               borderRadius: BorderRadius.circular(16),
             ),
             padding: const EdgeInsets.all(AppSpacing.md),
@@ -204,10 +205,10 @@ class _UploadFormState extends ConsumerState<_UploadForm> {
                     width: double.infinity,
                     padding: const EdgeInsets.all(AppSpacing.lg),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFF8FAFC),
+                      color: cs.surfaceContainerLow,
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(
-                        color: _picked != null ? const Color(0xFF0EA5E9) : const Color(0xFFCBD5E1),
+                        color: _picked != null ? const Color(0xFF0EA5E9) : cs.outlineVariant,
                         width: 2,
                       ),
                     ),
@@ -316,12 +317,13 @@ class _ParseQuotaBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final atLimit = quota.left == 0;
+    final cs = Theme.of(context).colorScheme;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: atLimit ? const Color(0xFFFEF2F2) : const Color(0xFFF8FAFC),
-        border: Border.all(color: atLimit ? const Color(0xFFFECACA) : const Color(0xFFE2E8F0)),
+        color: atLimit ? const Color(0xFFFEF2F2) : cs.surfaceContainerLow,
+        border: Border.all(color: atLimit ? const Color(0xFFFECACA) : cs.outlineVariant),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
@@ -359,6 +361,7 @@ class _TargetRoleRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     final role = targetRole;
     if (role == null) {
       return SizedBox(
@@ -375,8 +378,8 @@ class _TargetRoleRow extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        color: cs.surfaceContainerLow,
+        border: Border.all(color: cs.outlineVariant),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
@@ -468,12 +471,13 @@ class _FeatureCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        color: cs.surface,
+        border: Border.all(color: cs.outlineVariant),
         borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
@@ -568,6 +572,7 @@ class _ResultView extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final cs = Theme.of(context).colorScheme;
     final analysis = result.analysis;
     return Padding(
       padding: const EdgeInsets.all(AppSpacing.md),
@@ -578,7 +583,7 @@ class _ResultView extends ConsumerWidget {
           Container(
             padding: const EdgeInsets.all(AppSpacing.lg),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: cs.surface,
               borderRadius: BorderRadius.circular(20),
               boxShadow: const [BoxShadow(color: Color(0x14000000), blurRadius: 20)],
             ),
@@ -608,8 +613,8 @@ class _ResultView extends ConsumerWidget {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF8FAFC),
-                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                    color: cs.surfaceContainerLow,
+                    border: Border.all(color: cs.outlineVariant),
                     borderRadius: BorderRadius.circular(50),
                   ),
                   child: Text.rich(
@@ -900,12 +905,13 @@ class _SkillsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        color: cs.surface,
+        border: Border.all(color: cs.outlineVariant),
         borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
@@ -1081,12 +1087,13 @@ class _AdviceCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        color: cs.surface,
+        border: Border.all(color: cs.outlineVariant),
         borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
@@ -1185,12 +1192,13 @@ class _ResumeTemplatesSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        color: cs.surface,
+        border: Border.all(color: cs.outlineVariant),
         borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
@@ -1283,10 +1291,11 @@ class _TemplateCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        color: cs.surface,
+        border: Border.all(color: cs.outlineVariant),
         borderRadius: BorderRadius.circular(16),
       ),
       clipBehavior: Clip.antiAlias,

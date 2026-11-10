@@ -85,7 +85,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                             height: 56,
                             alignment: Alignment.center,
                             decoration: BoxDecoration(
-                              color: const Color(0xFFEFF6FF),
+                              color: Theme.of(context).colorScheme.primaryContainer,
                               borderRadius: BorderRadius.circular(16),
                             ),
                             child: const Icon(
@@ -107,7 +107,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                           "Enter your account email and we'll send you a secure link to reset it.",
                           textAlign: TextAlign.center,
                           style: Theme.of(context).textTheme.bodyMedium
-                              ?.copyWith(color: const Color(0xFF64748B)),
+                              ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
                         ),
                         const SizedBox(height: AppSpacing.lg),
                         AppTextField(

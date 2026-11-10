@@ -40,7 +40,6 @@ class GenericWritingPromptCard extends StatefulWidget {
 class _GenericWritingPromptCardState extends State<GenericWritingPromptCard> {
   late final _controller = TextEditingController(text: widget.draft);
 
-  static const _neutral = Color(0xFF64748B);
   static const _valid = Color(0xFF198754);
   static const _invalid = Color(0xFFDC3545);
   static const _guideBg = Color(0xFFFFFBEB);
@@ -56,10 +55,11 @@ class _GenericWritingPromptCardState extends State<GenericWritingPromptCard> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final cs = theme.colorScheme;
     final words = countWritingWords(widget.draft);
     final limits = widget.limits;
     final isValid = words >= limits.min && (limits.max == null || words <= limits.max!);
-    final countColor = words == 0 ? _neutral : (isValid ? _valid : _invalid);
+    final countColor = words == 0 ? cs.onSurfaceVariant : (isValid ? _valid : _invalid);
     final hint = limits.max != null ? '${limits.min}–${limits.max} words required' : 'Minimum ${limits.min} words required';
 
     return Container(
@@ -67,7 +67,7 @@ class _GenericWritingPromptCardState extends State<GenericWritingPromptCard> {
       // `.writing-prompt-card{padding:1.5rem 1.75rem}` = 24px/28px
       // (`static/css/exercises.css:284`).
       padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
-      decoration: BoxDecoration(color: Colors.white, border: Border.all(color: AppColors.border), borderRadius: BorderRadius.circular(14)),
+      decoration: BoxDecoration(color: cs.surface, border: Border.all(color: cs.outlineVariant), borderRadius: BorderRadius.circular(14)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

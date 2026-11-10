@@ -67,7 +67,7 @@ class _ApplicationsBody extends ConsumerWidget {
               const SizedBox(height: 4),
               Text(
                 '${page.applications.length} candidate submission(s) for this job opening.',
-                style: const TextStyle(color: Color(0xFF64748B), fontSize: 13),
+                style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 13),
               ),
             ],
           ),
@@ -161,7 +161,7 @@ class _CandidateCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(app.applicantName, style: const TextStyle(fontWeight: FontWeight.w700)),
-                  Text(app.applicantEmail, style: const TextStyle(color: Color(0xFF64748B), fontSize: 12)),
+                  Text(app.applicantEmail, style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 12)),
                   const SizedBox(height: 4),
                   Text('${app.yearsExperience} yr(s) experience', style: const TextStyle(fontSize: 12)),
                 ],
@@ -197,14 +197,14 @@ class _EmptyState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.person_off_outlined, size: 40, color: Color(0xFFCBD5E1)),
+            Icon(Icons.person_off_outlined, size: 40, color: Theme.of(context).colorScheme.outlineVariant),
             const SizedBox(height: AppSpacing.sm),
             const Text('No applications found for this status.', style: TextStyle(fontWeight: FontWeight.w700)),
             const SizedBox(height: 4),
-            const Text(
+            Text(
               'Try selecting another filter or viewing all candidates.',
               textAlign: TextAlign.center,
-              style: TextStyle(color: Color(0xFF64748B), fontSize: 13),
+              style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 13),
             ),
           ],
         ),

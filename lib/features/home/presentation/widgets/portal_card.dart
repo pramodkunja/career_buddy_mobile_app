@@ -260,7 +260,7 @@ class _MiniHighlightCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: isDarkVisual
             ? Colors.white.withValues(alpha: 0.08)
-            : Colors.white,
+            : Theme.of(context).colorScheme.surface,
         borderRadius: AppRadius.mdRadius,
         border: Border.all(
           color: isDarkVisual

@@ -105,7 +105,7 @@ class _OverviewTab extends StatelessWidget {
                   data.fullName.isEmpty ? data.username : data.fullName,
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
                 ),
-                Text('@${data.username}', style: const TextStyle(color: Color(0xFF64748B))),
+                Text('@${data.username}', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
                 const SizedBox(height: AppSpacing.md),
                 Row(
                   children: [
@@ -185,7 +185,7 @@ class _OverviewTab extends StatelessWidget {
       child: Column(
         children: [
           Text('$value', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
-          Text(label, style: const TextStyle(color: Color(0xFF64748B), fontSize: 12)),
+          Text(label, style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 12)),
         ],
       ),
     );
@@ -208,7 +208,7 @@ class _OverviewTab extends StatelessWidget {
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    SizedBox(width: 150, child: Text(e.key, style: const TextStyle(color: Color(0xFF64748B), fontSize: 13))),
+                    SizedBox(width: 150, child: Text(e.key, style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 13))),
                     Expanded(child: Text(e.value)),
                   ],
                 ),
@@ -756,8 +756,8 @@ class _AvatarPicker extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(AppSpacing.sm),
         decoration: BoxDecoration(
-          color: const Color(0xFFF8FAFC),
-          border: Border.all(color: const Color(0xFFCBD5E1)),
+          color: Theme.of(context).colorScheme.surfaceContainerLow,
+          border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
           borderRadius: BorderRadius.circular(10),
         ),
         child: Row(
@@ -771,12 +771,12 @@ class _AvatarPicker extends StatelessWidget {
                   Text(
                     selectedFile != null ? selectedFile!.name : 'Change Profile Photo (optional)',
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(color: selectedFile == null ? const Color(0xFF64748B) : null),
+                    style: TextStyle(color: selectedFile == null ? Theme.of(context).colorScheme.onSurfaceVariant : null),
                   ),
                   if (selectedFile == null)
-                    const Text(
+                    Text(
                       'Tap to upload from gallery',
-                      style: TextStyle(color: Color(0xFF64748B), fontSize: 11),
+                      style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 11),
                     ),
                 ],
               ),
@@ -803,8 +803,8 @@ class _ResumePicker extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(AppSpacing.sm),
         decoration: BoxDecoration(
-          color: const Color(0xFFF8FAFC),
-          border: Border.all(color: const Color(0xFFCBD5E1)),
+          color: Theme.of(context).colorScheme.surfaceContainerLow,
+          border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
           borderRadius: BorderRadius.circular(10),
         ),
         child: Row(
@@ -815,7 +815,7 @@ class _ResumePicker extends StatelessWidget {
               child: Text(
                 fileName ?? 'Replace resume (optional)',
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(color: fileName == null ? const Color(0xFF64748B) : null),
+                style: TextStyle(color: fileName == null ? Theme.of(context).colorScheme.onSurfaceVariant : null),
               ),
             ),
           ],

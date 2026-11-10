@@ -49,7 +49,7 @@ class TimerExerciseResultView extends StatelessWidget {
       children: [
         Container(
           padding: const EdgeInsets.all(AppSpacing.md),
-          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
+          decoration: BoxDecoration(color: Theme.of(context).colorScheme.surface, borderRadius: BorderRadius.circular(12)),
           child: Column(
             children: [
               Container(

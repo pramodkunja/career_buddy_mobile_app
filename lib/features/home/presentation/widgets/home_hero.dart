@@ -252,7 +252,7 @@ class HomeHero extends StatelessWidget {
                         color: AppColors.border,
                         width: 1.5,
                       ),
-                      backgroundColor: Colors.white,
+                      backgroundColor: Theme.of(context).colorScheme.surface,
                       shape: const StadiumBorder(),
                     ),
                   ),
@@ -326,7 +326,7 @@ class _RolePill extends StatelessWidget {
       style: OutlinedButton.styleFrom(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
         side: const BorderSide(color: AppColors.border),
-        backgroundColor: Colors.white,
+        backgroundColor: Theme.of(context).colorScheme.surface,
         shape: const StadiumBorder(),
       ),
     );

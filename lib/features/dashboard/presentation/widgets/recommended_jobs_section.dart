@@ -32,11 +32,12 @@ class RecommendedJobsSection extends StatelessWidget {
     // (`dashboard.html:97`) — the whole section (header + every job card)
     // sits inside ONE outer white, radius-16, border-0, light-shadow card,
     // not loose in the page.
+    final cs = Theme.of(context).colorScheme;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(AppSpacing.lg),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: cs.surface,
         borderRadius: BorderRadius.circular(16),
         boxShadow: const [BoxShadow(color: Color(0x14000000), blurRadius: 8, offset: Offset(0, 2))],
       ),
@@ -124,11 +125,12 @@ class _JobCard extends StatelessWidget {
     // — a plain 1px-bordered, radius-8 card with NO shadow (unlike the
     // app's usual `AppCard`, which always adds one) and no custom
     // background (it inherits the outer card's white).
+    final cs = Theme.of(context).colorScheme;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
-        border: Border.all(color: const Color(0xFFE5E5E5)),
+        border: Border.all(color: cs.outlineVariant),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Column(
@@ -179,8 +181,8 @@ class _JobCard extends StatelessWidget {
             width: double.infinity,
             padding: const EdgeInsets.all(AppSpacing.sm),
             decoration: BoxDecoration(
-              color: const Color(0xFFF8F9FA),
-              border: Border.all(color: const Color(0xFFE5E5E5)),
+              color: cs.surfaceContainerLow,
+              border: Border.all(color: cs.outlineVariant),
               borderRadius: BorderRadius.circular(6),
             ),
             child: Text(
@@ -217,11 +219,12 @@ class _SkillBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: const Color(0xFFF8F9FA),
-        border: Border.all(color: const Color(0xFFE5E5E5)),
+        color: cs.surfaceContainerLow,
+        border: Border.all(color: cs.outlineVariant),
         borderRadius: BorderRadius.circular(6),
       ),
       child: Text(

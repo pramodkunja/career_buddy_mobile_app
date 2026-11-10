@@ -56,8 +56,8 @@ class ReadingPassageCard extends StatelessWidget {
                   selected: level == entry.key,
                   onSelected: (_) => onLevelChanged(entry.key),
                   selectedColor: ModuleColors.reading,
-                  backgroundColor: Colors.white,
-                  side: BorderSide(color: level == entry.key ? ModuleColors.reading : const Color(0xFFE2E8F0)),
+                  backgroundColor: Theme.of(context).colorScheme.surface,
+                  side: BorderSide(color: level == entry.key ? ModuleColors.reading : Theme.of(context).colorScheme.outlineVariant),
                 ),
               AppButton(
                 label: 'New',

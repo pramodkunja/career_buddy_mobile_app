@@ -1,10 +1,11 @@
+import 'package:career_buddy_lms/app/theme/app_theme.dart';
 import 'package:career_buddy_lms/features/mock_tests/presentation/widgets/mock_exam_colors.dart';
 import 'package:career_buddy_lms/features/mock_tests/presentation/widgets/mock_test_option_tile.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  Widget wrap(Widget child) => MaterialApp(home: Scaffold(body: child));
+  Widget wrap(Widget child) => MaterialApp(theme: AppTheme.light, home: Scaffold(body: child));
 
   Container containerFor(WidgetTester tester) {
     final containers = tester.widgetList<Container>(
@@ -22,7 +23,7 @@ void main() {
 
     final decoration = containerFor(tester).decoration! as BoxDecoration;
     expect(decoration.border!.top.color, MockExamColors.border);
-    expect(materialFor(tester).color, Colors.white);
+    expect(materialFor(tester).color, AppTheme.light.colorScheme.surface);
   });
 
   testWidgets('selected state uses navy border + lavender fill, not gold and not MCQ blue', (tester) async {

@@ -49,8 +49,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _passwordController = TextEditingController();
 
   static const _blue = Color(0xFF185ADB);
-  static const _fieldFill = Color(0xFFF8FAFC);
-  static const _fieldBorder = Color(0xFFCBD5E1);
 
   /// The web's own breakpoint for this page
   /// (`@media (max-width:860px)`, `style.css:2192`) — deliberately its own
@@ -88,12 +86,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         children: [
           Container(
             // `.auth-page-wrapper` (`style.css:2034-2041`).
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Color(0xFFF8FAFC), Color(0xFFF1F5F9)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.surface,
             ),
             child: SafeArea(
               child: Center(
@@ -110,8 +104,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         // `.auth-card-container` (`style.css:2043-2053`).
                         return Container(
                           decoration: BoxDecoration(
-                            color: Colors.white,
-                            border: Border.all(color: const Color(0xFFE2E8F0)),
+                            color: Theme.of(context).colorScheme.surface,
+                            border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
                             borderRadius: BorderRadius.circular(24),
                             boxShadow: const [
                               BoxShadow(
@@ -248,7 +242,7 @@ class _FormPane extends StatelessWidget {
             Text(
               'Job Seeker Sign In',
               style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                color: const Color(0xFF0F172A),
+                color: Theme.of(context).colorScheme.onSurface,
                 fontWeight: FontWeight.w800,
               ),
             ),
@@ -257,7 +251,7 @@ class _FormPane extends StatelessWidget {
               'Enter your login credentials to access your dashboard',
               style: Theme.of(
                 context,
-              ).textTheme.bodyMedium?.copyWith(color: const Color(0xFF64748B)),
+              ).textTheme.bodyMedium?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
             ),
             const SizedBox(height: AppSpacing.xl),
             AppTextField(
@@ -269,9 +263,9 @@ class _FormPane extends StatelessWidget {
               enabled: !isLoading,
               validator: (value) =>
                   Validators.required(value, fieldName: 'Username or email'),
-              fillColor: _LoginScreenState._fieldFill,
+              fillColor: Theme.of(context).colorScheme.surface,
               borderRadius: BorderRadius.circular(10),
-              borderColor: _LoginScreenState._fieldBorder,
+              borderColor: Theme.of(context).colorScheme.outlineVariant,
               focusedBorderColor: _LoginScreenState._blue,
             ),
             const SizedBox(height: AppSpacing.md),
@@ -285,9 +279,9 @@ class _FormPane extends StatelessWidget {
               validator: (value) =>
                   Validators.required(value, fieldName: 'Password'),
               onSubmitted: (_) => onSubmit(),
-              fillColor: _LoginScreenState._fieldFill,
+              fillColor: Theme.of(context).colorScheme.surface,
               borderRadius: BorderRadius.circular(10),
-              borderColor: _LoginScreenState._fieldBorder,
+              borderColor: Theme.of(context).colorScheme.outlineVariant,
               focusedBorderColor: _LoginScreenState._blue,
             ),
             Align(
@@ -317,9 +311,9 @@ class _FormPane extends StatelessWidget {
             // `.auth-divider` (`style.css:2167-2190`).
             Row(
               children: [
-                const Expanded(
+                Expanded(
                   flex: 1,
-                  child: Divider(color: Color(0xFFE2E8F0)),
+                  child: Divider(color: Theme.of(context).colorScheme.outlineVariant),
                 ),
                 Flexible(
                   flex: 3,
@@ -332,14 +326,14 @@ class _FormPane extends StatelessWidget {
                       textAlign: TextAlign.center,
                       overflow: TextOverflow.ellipsis,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: const Color(0xFF64748B),
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                     ),
                   ),
                 ),
-                const Expanded(
+                Expanded(
                   flex: 1,
-                  child: Divider(color: Color(0xFFE2E8F0)),
+                  child: Divider(color: Theme.of(context).colorScheme.outlineVariant),
                 ),
               ],
             ),
@@ -354,7 +348,7 @@ class _FormPane extends StatelessWidget {
               child: OutlinedButton(
                 style: OutlinedButton.styleFrom(
                   foregroundColor: _LoginScreenState._blue,
-                  side: const BorderSide(color: _LoginScreenState._fieldBorder),
+                  side: BorderSide(color: Theme.of(context).colorScheme.outlineVariant),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(10),
                   ),
@@ -383,7 +377,7 @@ class _FormPane extends StatelessWidget {
               textAlign: TextAlign.center,
               style: Theme.of(
                 context,
-              ).textTheme.bodySmall?.copyWith(color: const Color(0xFF64748B)),
+              ).textTheme.bodySmall?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
             ),
             const SizedBox(height: AppSpacing.sm),
             // `.btn-light` (Bootstrap default, unmodified) + inline
@@ -393,9 +387,9 @@ class _FormPane extends StatelessWidget {
               height: 48,
               child: OutlinedButton(
                 style: OutlinedButton.styleFrom(
-                  backgroundColor: const Color(0xFFF8F9FA),
-                  foregroundColor: const Color(0xFF475569),
-                  side: const BorderSide(color: _LoginScreenState._fieldBorder),
+                  backgroundColor: Theme.of(context).colorScheme.surfaceContainerLow,
+                  foregroundColor: Theme.of(context).colorScheme.onSurfaceVariant,
+                  side: BorderSide(color: Theme.of(context).colorScheme.outlineVariant),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(10),
                   ),

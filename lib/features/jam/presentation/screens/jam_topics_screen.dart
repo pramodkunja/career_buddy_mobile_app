@@ -248,7 +248,7 @@ class _TopicCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surface,
         border: Border.all(color: AppColors.border),
         borderRadius: BorderRadius.circular(16),
       ),

@@ -51,7 +51,7 @@ class CheckEmailScreen extends StatelessWidget {
                         'link. Please check your inbox (and spam folder). The link is '
                         'valid for a limited time.',
                         textAlign: TextAlign.center,
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: const Color(0xFF64748B)),
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
                       ),
                       const SizedBox(height: AppSpacing.lg),
                       AppButton(

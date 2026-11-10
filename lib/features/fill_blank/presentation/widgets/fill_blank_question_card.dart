@@ -57,7 +57,7 @@ class _FillBlankQuestionCardState extends State<FillBlankQuestionCard> {
       // (`static/css/exercises.css:116`).
       padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surface,
         border: Border.all(color: AppColors.border),
         borderRadius: BorderRadius.circular(14),
       ),

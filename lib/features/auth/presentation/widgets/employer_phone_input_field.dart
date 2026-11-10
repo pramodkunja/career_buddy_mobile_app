@@ -130,8 +130,8 @@ class _EmployerPhoneInputFieldState extends State<EmployerPhoneInputField> {
                 height: 48,
                 padding: const EdgeInsets.symmetric(horizontal: 10),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF8FAFC),
-                  border: Border.all(color: const Color(0xFFCBD5E1)),
+                  color: Theme.of(context).colorScheme.surfaceContainerLow,
+                  border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Row(
@@ -169,10 +169,10 @@ class _EmployerPhoneInputFieldState extends State<EmployerPhoneInputField> {
                   hintText: widget.hint,
                   helperText: _expectedLengthHint(_country),
                   filled: true,
-                  fillColor: const Color(0xFFF8FAFC),
+                  fillColor: Theme.of(context).colorScheme.surfaceContainerLow,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10),
-                    borderSide: const BorderSide(color: Color(0xFFCBD5E1)),
+                    borderSide: BorderSide(color: Theme.of(context).colorScheme.outlineVariant),
                   ),
                 ),
               ),

@@ -86,12 +86,12 @@ class _DetailBody extends StatelessWidget {
             const SizedBox(height: 2),
             Text(
               [data.companyName, data.jobLocation].where((s) => s.isNotEmpty).join(' · '),
-              style: const TextStyle(color: Color(0xFF64748B)),
+              style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
             ),
             const SizedBox(height: AppSpacing.md),
             Row(
               children: [
-                const Text('Current status', style: TextStyle(color: Color(0xFF64748B))),
+                Text('Current status', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
                 const SizedBox(width: AppSpacing.sm),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -108,20 +108,20 @@ class _DetailBody extends StatelessWidget {
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(child: _infoTile('Applied on', data.appliedAt)),
-                Expanded(child: _infoTile('Last updated', data.updatedAt)),
+                Expanded(child: _infoTile(context, 'Applied on', data.appliedAt)),
+                Expanded(child: _infoTile(context, 'Last updated', data.updatedAt)),
               ],
             ),
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(child: _infoTile('Applied as', '${data.applicantName} · ${data.applicantEmail}')),
-                Expanded(child: _infoTile('Job type', '${data.jobType} · ${data.jobExperience}')),
+                Expanded(child: _infoTile(context, 'Applied as', '${data.applicantName} · ${data.applicantEmail}')),
+                Expanded(child: _infoTile(context, 'Job type', '${data.jobType} · ${data.jobExperience}')),
               ],
             ),
             if (data.coverLetter != null && data.coverLetter!.isNotEmpty) ...[
               const Divider(height: AppSpacing.lg),
-              const Text('Your cover letter', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 11, fontWeight: FontWeight.w700)),
+              Text('Your cover letter', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 11, fontWeight: FontWeight.w700)),
               const SizedBox(height: 6),
               Text(data.coverLetter!),
             ],
@@ -139,14 +139,14 @@ class _DetailBody extends StatelessWidget {
     );
   }
 
-  Widget _infoTile(String label, String value) {
+  Widget _infoTile(BuildContext context, String label, String value) {
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.sm),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label.toUpperCase(), style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 11, fontWeight: FontWeight.w700)),
-          Text(value, style: const TextStyle(color: Color(0xFF0F172A))),
+          Text(label.toUpperCase(), style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 11, fontWeight: FontWeight.w700)),
+          Text(value, style: TextStyle(color: Theme.of(context).colorScheme.onSurface)),
         ],
       ),
     );

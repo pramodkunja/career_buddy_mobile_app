@@ -1,10 +1,12 @@
+import 'package:career_buddy_lms/app/theme/app_theme.dart';
 import 'package:career_buddy_lms/features/generic_writing/domain/entities/writing_prompt.dart';
 import 'package:career_buddy_lms/features/generic_writing/domain/services/writing_limits.dart';
 import 'package:career_buddy_lms/features/generic_writing/presentation/widgets/generic_writing_prompt_card.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-Widget _wrap(Widget child) => MaterialApp(home: Scaffold(body: SizedBox(width: 320, child: child)));
+Widget _wrap(Widget child) =>
+    MaterialApp(theme: AppTheme.light, home: Scaffold(body: SizedBox(width: 320, child: child)));
 
 void main() {
   testWidgets('shows the prompt text, its Guide box, and the min/max hint', (tester) async {
@@ -69,6 +71,6 @@ void main() {
 
     await tester.pumpWidget(_wrap(GenericWritingPromptCard(prompt: prompt, draft: '', limits: limits, onChanged: (_) {})));
     text = tester.widget<Text>(find.text('0 words'));
-    expect(text.style?.color, const Color(0xFF64748B)); // neutral, nothing typed yet
+    expect(text.style?.color, AppTheme.light.colorScheme.onSurfaceVariant); // neutral, nothing typed yet
   });
 }

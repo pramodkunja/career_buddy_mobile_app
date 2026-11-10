@@ -131,7 +131,7 @@ class _GrammarDetailContent extends StatelessWidget {
           _MediaCard(
             icon: Icons.image_outlined,
             iconColor: _kAccent,
-            previewBg: const Color(0xFFF8FAFC),
+            previewBg: Theme.of(context).colorScheme.surfaceContainerLow,
             title: 'Visual Guide',
             subtitle: 'Tap to view the presentation slides',
             onTap: () => _openSheet(context, GrammarImageCarouselSheet(slug: topic.slug)),
@@ -238,7 +238,7 @@ class _MediaCard extends StatelessWidget {
       onTap: onTap,
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: Theme.of(context).colorScheme.surface,
           border: Border.all(color: AppColors.border),
           borderRadius: BorderRadius.circular(20),
           boxShadow: const [BoxShadow(color: Color(0x0F000000), blurRadius: 12, offset: Offset(0, 2))],
@@ -284,7 +284,7 @@ class _SlideNoteCard extends ConsumerWidget {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surface,
         border: Border.all(color: AppColors.border),
         borderRadius: BorderRadius.circular(12),
       ),
@@ -410,7 +410,7 @@ class _DataTable extends StatelessWidget {
         columnWidths: const {0: IntrinsicColumnWidth()},
         children: [
           TableRow(
-            decoration: const BoxDecoration(color: Color(0xFFF8FAFC)),
+            decoration: BoxDecoration(color: Theme.of(context).colorScheme.surfaceContainerLow),
             children: [
               for (final h in headers)
                 Padding(
@@ -476,7 +476,7 @@ class _GrammarSection extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: const Color(0xFFF8FAFC),
+              color: Theme.of(context).colorScheme.surfaceContainerLow,
               border: Border.all(color: AppColors.border),
               borderRadius: BorderRadius.circular(12),
             ),
@@ -503,7 +503,7 @@ class _GrammarSection extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: const Color(0xFFF8FAFC),
+              color: Theme.of(context).colorScheme.surfaceContainerLow,
               border: const Border(left: BorderSide(color: _kAccent, width: 4)),
               borderRadius: const BorderRadius.only(topRight: Radius.circular(12), bottomRight: Radius.circular(12)),
             ),
@@ -546,7 +546,7 @@ class _ExerciseCard extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surface,
         border: Border.all(color: AppColors.border),
         borderRadius: BorderRadius.circular(12),
         boxShadow: const [BoxShadow(color: Color(0x0A000000), blurRadius: 6, offset: Offset(0, 2))],

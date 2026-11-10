@@ -193,7 +193,7 @@ class _CandidateCard extends ConsumerWidget {
                   children: [
                     Text(candidate.name, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
                     if (candidate.location.isNotEmpty)
-                      Text(candidate.location, style: const TextStyle(color: Color(0xFF64748B), fontSize: 12)),
+                      Text(candidate.location, style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 12)),
                   ],
                 ),
               ),
@@ -209,15 +209,15 @@ class _CandidateCard extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: AppSpacing.sm),
-          if (candidate.experience.isNotEmpty) _infoLine('Experience', candidate.experience),
-          if (candidate.industry.isNotEmpty) _infoLine('Industry', candidate.industry),
-          if (candidate.education.isNotEmpty) _infoLine('Education', candidate.education),
+          if (candidate.experience.isNotEmpty) _infoLine(context, 'Experience', candidate.experience),
+          if (candidate.industry.isNotEmpty) _infoLine(context, 'Industry', candidate.industry),
+          if (candidate.education.isNotEmpty) _infoLine(context, 'Education', candidate.education),
           if (candidate.skills.isNotEmpty) ...[
             const SizedBox(height: 6),
             Wrap(
               spacing: 6,
               runSpacing: 6,
-              children: [for (final s in candidate.skills) _skillChip(s)],
+              children: [for (final s in candidate.skills) _skillChip(context, s)],
             ),
           ],
           const Divider(height: AppSpacing.lg),
@@ -247,7 +247,7 @@ class _CandidateCard extends ConsumerWidget {
                   label: const Text('View Resume'),
                 )
               else
-                const Text('No resume uploaded', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 12)),
+                Text('No resume uploaded', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 12)),
             ],
           ),
           if (resumeDownload is ProtectedMediaDownloadFailed)
@@ -263,23 +263,23 @@ class _CandidateCard extends ConsumerWidget {
     );
   }
 
-  Widget _infoLine(String label, String value) {
+  Widget _infoLine(BuildContext context, String label, String value) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 2),
       child: Text.rich(
         TextSpan(
-          style: const TextStyle(color: Color(0xFF64748B), fontSize: 13),
-          children: [TextSpan(text: '$label: '), TextSpan(text: value, style: const TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.w600))],
+          style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 13),
+          children: [TextSpan(text: '$label: '), TextSpan(text: value, style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontWeight: FontWeight.w600))],
         ),
       ),
     );
   }
 
-  Widget _skillChip(String skill) {
+  Widget _skillChip(BuildContext context, String skill) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(color: const Color(0xFFF1F5F9), borderRadius: BorderRadius.circular(50)),
-      child: Text(skill, style: const TextStyle(color: Color(0xFF475569), fontSize: 11, fontWeight: FontWeight.w600)),
+      decoration: BoxDecoration(color: Theme.of(context).colorScheme.surfaceContainerLow, borderRadius: BorderRadius.circular(50)),
+      child: Text(skill, style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 11, fontWeight: FontWeight.w600)),
     );
   }
 }
@@ -297,14 +297,14 @@ class _EmptyState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.search_off_outlined, size: 40, color: Color(0xFFCBD5E1)),
+            Icon(Icons.search_off_outlined, size: 40, color: Theme.of(context).colorScheme.outlineVariant),
             const SizedBox(height: AppSpacing.sm),
             Text(hasFilters ? 'No candidates found' : 'No candidates available', style: const TextStyle(fontWeight: FontWeight.w700)),
             const SizedBox(height: 4),
             Text(
               hasFilters ? 'Try adjusting your filters or searching for different skills.' : 'No registered candidates are available to search right now.',
               textAlign: TextAlign.center,
-              style: const TextStyle(color: Color(0xFF64748B), fontSize: 13),
+              style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 13),
             ),
           ],
         ),

@@ -102,7 +102,7 @@ class _SkillUpScreenState extends ConsumerState<SkillUpScreen> with SingleTicker
           Column(
             children: [
               ColoredBox(
-                color: Colors.white,
+                color: Theme.of(context).colorScheme.surface,
                 child: TabBar(
                   controller: _tabController,
                   isScrollable: true,
@@ -340,7 +340,7 @@ class _LessonLikeCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(AppSpacing.md),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: Theme.of(context).colorScheme.surface,
           border: Border.all(color: AppColors.border),
           borderRadius: BorderRadius.circular(14),
         ),
@@ -585,7 +585,7 @@ class _LessonCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(AppSpacing.sm),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: Theme.of(context).colorScheme.surface,
           border: Border.all(color: AppColors.border),
           borderRadius: BorderRadius.circular(12),
         ),
@@ -768,7 +768,7 @@ class _GlanceCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surface,
         border: Border.all(color: AppColors.border),
         borderRadius: BorderRadius.circular(14),
       ),

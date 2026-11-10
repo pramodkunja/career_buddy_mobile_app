@@ -368,8 +368,8 @@ class _RegSection extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        color: Theme.of(context).colorScheme.surface,
+        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
         borderRadius: BorderRadius.circular(16),
         boxShadow: const [BoxShadow(color: Color(0x0A000000), blurRadius: 20)],
       ),
@@ -379,9 +379,9 @@ class _RegSection extends StatelessWidget {
         children: [
           Container(
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(colors: [Color(0xFFF0F9FF), Color(0xFFE0F2FE)]),
-              border: Border(bottom: BorderSide(color: Color(0xFFE2E8F0))),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(colors: [Color(0xFFF0F9FF), Color(0xFFE0F2FE)]),
+              border: Border(bottom: BorderSide(color: Theme.of(context).colorScheme.outlineVariant)),
             ),
             child: Row(
               children: [

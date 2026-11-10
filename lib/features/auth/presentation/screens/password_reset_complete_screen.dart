@@ -41,7 +41,7 @@ class PasswordResetCompleteScreen extends StatelessWidget {
                       Text(
                         'Your password has been updated. You can now log in with your new password.',
                         textAlign: TextAlign.center,
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: const Color(0xFF64748B)),
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
                       ),
                       const SizedBox(height: AppSpacing.lg),
                       AppButton(

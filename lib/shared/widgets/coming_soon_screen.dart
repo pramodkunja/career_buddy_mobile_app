@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_spacing.dart';
 
 /// Generic placeholder for a destination the web app has — and that a real
@@ -27,7 +26,7 @@ class ComingSoonScreen extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.construction_outlined, size: 40, color: AppColors.textMuted),
+              Icon(Icons.construction_outlined, size: 40, color: Theme.of(context).colorScheme.onSurfaceVariant),
               const SizedBox(height: AppSpacing.md),
               Text(
                 message,

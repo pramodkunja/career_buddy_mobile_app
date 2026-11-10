@@ -289,19 +289,24 @@ class _BuddyColumn extends StatelessWidget {
           // `.riya-greeting-bubble` — shown near the launcher while the
           // panel is closed, same visual styling as the original
           // decorative-only version.
-          Container(
-            constraints: const BoxConstraints(maxWidth: 170),
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              border: Border.all(color: const Color(0xFFE2E8F0), width: 1.5),
-              borderRadius: BorderRadius.circular(6),
-              boxShadow: const [BoxShadow(color: Color(0x260EA5E9), blurRadius: 14)],
-            ),
-            child: Text(
-              greeting,
-              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF0F172A)),
-            ),
+          Builder(
+            builder: (context) {
+              final cs = Theme.of(context).colorScheme;
+              return Container(
+                constraints: const BoxConstraints(maxWidth: 170),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: cs.surface,
+                  border: Border.all(color: cs.outlineVariant, width: 1.5),
+                  borderRadius: BorderRadius.circular(6),
+                  boxShadow: const [BoxShadow(color: Color(0x260EA5E9), blurRadius: 14)],
+                ),
+                child: Text(
+                  greeting,
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: cs.onSurface),
+                ),
+              );
+            },
           ),
         if (showLauncher) ...[
           const SizedBox(height: 8),
@@ -560,6 +565,7 @@ class _ChatPanelState extends ConsumerState<_ChatPanel> {
       }
     });
     final chatState = ref.watch(ariaChatControllerProvider);
+    final cs = Theme.of(context).colorScheme;
 
     return Container(
       width: 300,
@@ -577,9 +583,9 @@ class _ChatPanelState extends ConsumerState<_ChatPanel> {
       // of the silent clip this phase fixes).
       height: widget.maxHeight.clamp(0.0, _ChatPanel._idealHeight),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: cs.surface,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: cs.outlineVariant),
         boxShadow: const [BoxShadow(color: Color(0x33000000), blurRadius: 24, offset: Offset(0, 8))],
       ),
       clipBehavior: Clip.antiAlias,
@@ -587,8 +593,8 @@ class _ChatPanelState extends ConsumerState<_ChatPanel> {
         children: [
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: const BoxDecoration(
-              border: Border(bottom: BorderSide(color: Color(0xFFE2E8F0))),
+            decoration: BoxDecoration(
+              border: Border(bottom: BorderSide(color: cs.outlineVariant)),
             ),
             // Title group (`.riya-bubble-title-group`: name + language
             // select) on the left, actions group (`.riya-bubble-actions`:
@@ -600,7 +606,7 @@ class _ChatPanelState extends ConsumerState<_ChatPanel> {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Text('Buddy', style: TextStyle(fontWeight: FontWeight.w700, color: Color(0xFF0F172A))),
+                      Text('Buddy', style: TextStyle(fontWeight: FontWeight.w700, color: cs.onSurface)),
                       const SizedBox(width: 6),
                       _LanguageSelector(
                         value: chatState.language,
@@ -661,8 +667,8 @@ class _ChatPanelState extends ConsumerState<_ChatPanel> {
           if (chatState.voiceStatus != AriaVoiceStatus.idle) _VoiceStatusBanner(status: chatState.voiceStatus),
           Container(
             padding: const EdgeInsets.all(10),
-            decoration: const BoxDecoration(
-              border: Border(top: BorderSide(color: Color(0xFFE2E8F0))),
+            decoration: BoxDecoration(
+              border: Border(top: BorderSide(color: cs.outlineVariant)),
             ),
             child: Row(
               children: [
@@ -670,7 +676,7 @@ class _ChatPanelState extends ConsumerState<_ChatPanel> {
                   child: Container(
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(23),
-                      border: Border.all(color: const Color(0xFFBAE6FD)),
+                      border: Border.all(color: cs.outlineVariant),
                     ),
                     child: TextField(
                       controller: _textController,
@@ -708,14 +714,17 @@ class _ThinkingIndicator extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Padding(
-      padding: EdgeInsets.symmetric(vertical: 6),
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2)),
-          SizedBox(width: 8),
-          Text('Thinking...', style: TextStyle(color: Color(0xFF64748B), fontStyle: FontStyle.italic)),
+          const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2)),
+          const SizedBox(width: 8),
+          Text(
+            'Thinking...',
+            style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontStyle: FontStyle.italic),
+          ),
         ],
       ),
     );
@@ -749,7 +758,7 @@ class _LanguageSelector extends StatelessWidget {
         value: displayValue,
         isDense: true,
         iconSize: 16,
-        style: const TextStyle(fontSize: 11, color: Color(0xFF0F172A)),
+        style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurface),
         items: [
           for (final lang in kAriaLanguages) DropdownMenuItem(value: lang.code, child: Text(lang.label)),
         ],
@@ -883,7 +892,7 @@ class _SpeakerButton extends StatelessWidget {
       icon: Icon(
         state == _SpeakState.playing ? Icons.volume_up_rounded : Icons.volume_off_rounded,
         size: 20,
-        color: state == _SpeakState.playing ? const Color(0xFF2563EB) : const Color(0xFF64748B),
+        color: state == _SpeakState.playing ? const Color(0xFF2563EB) : Theme.of(context).colorScheme.onSurfaceVariant,
       ),
     );
   }
@@ -907,7 +916,7 @@ class _StreamingBubble extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 4),
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 260),
-          child: Text(text, style: const TextStyle(color: Color(0xFF0F172A))),
+          child: Text(text, style: TextStyle(color: Theme.of(context).colorScheme.onSurface)),
         ),
       ),
     );
@@ -923,6 +932,8 @@ class _MessageBubble extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isUser = message.role == AriaMessageRole.user;
+    final cs = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     Widget bubble;
     if (isUser) {
@@ -933,8 +944,11 @@ class _MessageBubble extends StatelessWidget {
           constraints: const BoxConstraints(maxWidth: 230),
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           decoration: BoxDecoration(
-            color: const Color(0xFFF0F9FF),
-            border: Border.all(color: const Color(0xFFBAE6FD), width: 1.5),
+            color: isDark ? const Color(0xFF1E3A5F) : const Color(0xFFF0F9FF),
+            border: Border.all(
+              color: isDark ? const Color(0xFF2563EB) : const Color(0xFFBAE6FD),
+              width: 1.5,
+            ),
             borderRadius: const BorderRadius.only(
               topLeft: Radius.circular(14),
               topRight: Radius.circular(14),
@@ -942,7 +956,10 @@ class _MessageBubble extends StatelessWidget {
               bottomLeft: Radius.circular(14),
             ),
           ),
-          child: Text(message.content, style: const TextStyle(color: Color(0xFF0C4A6E))),
+          child: Text(
+            message.content,
+            style: TextStyle(color: isDark ? const Color(0xFFBAE6FD) : const Color(0xFF0C4A6E)),
+          ),
         ),
       );
     } else if (message.isError) {
@@ -983,7 +1000,7 @@ class _MessageBubble extends StatelessWidget {
           padding: const EdgeInsets.symmetric(vertical: 4),
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 260),
-            child: Text(message.content, style: const TextStyle(color: Color(0xFF0F172A))),
+            child: Text(message.content, style: TextStyle(color: cs.onSurface)),
           ),
         ),
       );

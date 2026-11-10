@@ -162,7 +162,7 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
         Text(
           'Open the email we sent you, copy the reset link, and paste it here.',
           textAlign: TextAlign.center,
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: const Color(0xFF64748B)),
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
         ),
         const SizedBox(height: AppSpacing.lg),
         AppTextField(
@@ -203,7 +203,7 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
         Text(
           message,
           textAlign: TextAlign.center,
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: const Color(0xFF64748B)),
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
         ),
         const SizedBox(height: AppSpacing.lg),
         AppButton(
@@ -231,7 +231,7 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
           Text(
             'Choose a strong password for your account.',
             textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: const Color(0xFF64748B)),
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
           ),
           const SizedBox(height: AppSpacing.lg),
           AppTextField(
@@ -295,8 +295,8 @@ class _PasswordRequirements extends StatelessWidget {
         return Container(
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
           decoration: BoxDecoration(
-            color: const Color(0xFFF8FAFC),
-            border: Border.all(color: const Color(0xFFE2E8F0)),
+            color: Theme.of(context).colorScheme.surfaceContainerLow,
+            border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
             borderRadius: BorderRadius.circular(10),
           ),
           child: Column(
@@ -311,7 +311,7 @@ class _PasswordRequirements extends StatelessWidget {
                       Icon(
                         entry.value ? Icons.check_circle : Icons.circle_outlined,
                         size: 14,
-                        color: entry.value ? const Color(0xFF16A34A) : const Color(0xFF64748B),
+                        color: entry.value ? const Color(0xFF16A34A) : Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                       const SizedBox(width: 6),
                       Text(
@@ -319,7 +319,7 @@ class _PasswordRequirements extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w500,
-                          color: entry.value ? const Color(0xFF16A34A) : const Color(0xFF64748B),
+                          color: entry.value ? const Color(0xFF16A34A) : Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                       ),
                     ],

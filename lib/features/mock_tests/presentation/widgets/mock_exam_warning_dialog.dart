@@ -28,8 +28,8 @@ Future<bool> showMockExamWarningDialog(
         constraints: const BoxConstraints(maxWidth: 420),
         padding: const EdgeInsets.fromLTRB(28, 32, 28, 28),
         decoration: BoxDecoration(
-          color: Colors.white,
-          border: Border.all(color: MockExamColors.border),
+          color: Theme.of(context).colorScheme.surface,
+          border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
           borderRadius: BorderRadius.circular(14),
           boxShadow: const [BoxShadow(color: Color(0x1A101828), blurRadius: 24, offset: Offset(0, 8))],
         ),

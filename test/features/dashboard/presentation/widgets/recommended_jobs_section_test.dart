@@ -1,4 +1,5 @@
 import 'package:career_buddy_lms/app/router/route_paths.dart';
+import 'package:career_buddy_lms/app/theme/app_theme.dart';
 import 'package:career_buddy_lms/features/dashboard/domain/entities/recommended_job.dart';
 import 'package:career_buddy_lms/features/dashboard/presentation/widgets/recommended_jobs_section.dart';
 import 'package:career_buddy_lms/shared/widgets/coming_soon_screen.dart';
@@ -7,7 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 
 void main() {
-  Widget wrap(Widget child) => MaterialApp(home: Scaffold(body: child));
+  Widget wrap(Widget child) => MaterialApp(theme: AppTheme.light, home: Scaffold(body: child));
 
   RecommendedJob job({List<String> skills = const ['A', 'B', 'C', 'D', 'E'], int? id}) => RecommendedJob(
     id: id,
@@ -115,7 +116,7 @@ void main() {
     final outer = tester
         .widgetList<Container>(find.byType(Container))
         .firstWhere((c) => (c.decoration as BoxDecoration?)?.borderRadius == BorderRadius.circular(16));
-    expect((outer.decoration! as BoxDecoration).color, Colors.white);
+    expect((outer.decoration! as BoxDecoration).color, AppTheme.light.colorScheme.surface);
   });
 
   testWidgets('shows a job-logo icon (bare, no box) and a job-type badge, matching the web structure', (

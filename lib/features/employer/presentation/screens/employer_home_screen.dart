@@ -175,7 +175,7 @@ class _HowItWorksSection extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Container(
-      color: Colors.white,
+      color: Theme.of(context).colorScheme.surface,
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.xl),
       child: Column(

@@ -96,7 +96,7 @@ class GdReportScreen extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(AppSpacing.md),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: Theme.of(context).colorScheme.surface,
                     border: Border.all(color: AppColors.border),
                     borderRadius: BorderRadius.circular(16),
                   ),
@@ -139,7 +139,7 @@ class _DimensionCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surface,
         border: Border.all(color: AppColors.border),
         borderRadius: BorderRadius.circular(16),
       ),
@@ -197,7 +197,7 @@ class _InsightCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
-        color: dark ? AppColors.primary : Colors.white,
+        color: dark ? AppColors.primary : Theme.of(context).colorScheme.surface,
         border: dark ? null : Border.all(color: AppColors.border),
         borderRadius: BorderRadius.circular(16),
       ),

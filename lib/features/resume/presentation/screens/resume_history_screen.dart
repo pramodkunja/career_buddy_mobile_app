@@ -152,11 +152,12 @@ class _HistoryCard extends ConsumerWidget {
         : ref.watch(protectedMediaDownloadControllerProvider(resolvedUrl));
     final downloading = downloadState is ProtectedMediaDownloading;
 
+    final cs = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
-        color: item.isCurrent ? const Color(0xFFF0F9FF) : Colors.white,
-        border: Border.all(color: item.isCurrent ? const Color(0xFF0EA5E9) : const Color(0xFFE2E8F0), width: 1.5),
+        color: item.isCurrent ? const Color(0xFFF0F9FF) : cs.surface,
+        border: Border.all(color: item.isCurrent ? const Color(0xFF0EA5E9) : cs.outlineVariant, width: 1.5),
         borderRadius: BorderRadius.circular(16),
       ),
       child: Row(
@@ -256,12 +257,13 @@ class _EmptyHistory extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(vertical: AppSpacing.xxl, horizontal: AppSpacing.lg),
       decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border.all(color: AppColors.border),
+        color: cs.surface,
+        border: Border.all(color: cs.outlineVariant),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Column(

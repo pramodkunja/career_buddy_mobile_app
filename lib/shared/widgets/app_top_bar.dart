@@ -24,11 +24,12 @@ class AppTopBar extends StatelessWidget implements PreferredSizeWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return AppBar(
-      backgroundColor: Colors.white,
-      surfaceTintColor: Colors.white,
+      backgroundColor: cs.surface,
+      surfaceTintColor: cs.surface,
       elevation: 0,
-      shape: const Border(bottom: BorderSide(color: AppColors.border)),
+      shape: Border(bottom: BorderSide(color: cs.outlineVariant)),
       leading: drawerAwareBackLeading(context),
       titleSpacing: 0,
       title: Row(
@@ -49,7 +50,7 @@ class AppTopBar extends StatelessWidget implements PreferredSizeWidget {
           Text.rich(
             TextSpan(
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                color: AppColors.primary,
+                color: cs.onSurface,
                 fontWeight: FontWeight.w700,
               ),
               children: const [

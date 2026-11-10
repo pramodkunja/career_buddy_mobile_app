@@ -113,7 +113,7 @@ class _SessionTileState extends ConsumerState<_SessionTile> {
   Widget build(BuildContext context) {
     final createdAt = DateTime.tryParse(widget.session.createdAt);
     return Material(
-      color: Colors.white,
+      color: Theme.of(context).colorScheme.surface,
       borderRadius: BorderRadius.circular(16),
       child: InkWell(
         borderRadius: BorderRadius.circular(16),

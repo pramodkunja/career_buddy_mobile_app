@@ -35,7 +35,7 @@ class AriaWelcomeCardsPanel extends StatelessWidget {
     return ConstrainedBox(
       constraints: const BoxConstraints(maxHeight: 150),
       child: Container(
-        decoration: const BoxDecoration(border: Border(top: BorderSide(color: Color(0xFFEEF2F7)))),
+        decoration: BoxDecoration(border: Border(top: BorderSide(color: Theme.of(context).colorScheme.outlineVariant))),
         padding: const EdgeInsets.fromLTRB(12, 6, 12, 8),
         child: SingleChildScrollView(
           child: Column(
@@ -150,7 +150,7 @@ class _WelcomeCardTile extends StatelessWidget {
     final icon = _icons[card.icon] ?? Icons.arrow_forward_ios;
 
     return Material(
-      color: Colors.white,
+      color: Theme.of(context).colorScheme.surface,
       borderRadius: BorderRadius.circular(16),
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
@@ -158,7 +158,7 @@ class _WelcomeCardTile extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            border: Border.all(color: const Color(0xFFE5EAF3)),
+            border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
             borderRadius: BorderRadius.circular(16),
           ),
           child: Row(
@@ -182,7 +182,7 @@ class _WelcomeCardTile extends StatelessWidget {
                             card.localizedTitle(language),
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF17213A)),
+                            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Theme.of(context).colorScheme.onSurface),
                           ),
                         ),
                         const Icon(Icons.chevron_right, size: 16, color: Color(0xFF94A3B8)),
@@ -193,7 +193,7 @@ class _WelcomeCardTile extends StatelessWidget {
                       card.description,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontSize: 11, color: Color(0xFF64748B), height: 1.3),
+                      style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant, height: 1.3),
                     ),
                   ],
                 ),

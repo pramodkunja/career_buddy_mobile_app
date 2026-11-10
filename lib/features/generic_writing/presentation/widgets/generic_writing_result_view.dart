@@ -53,7 +53,7 @@ class GenericWritingResultView extends StatelessWidget {
       children: [
         Container(
           padding: const EdgeInsets.all(AppSpacing.md),
-          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
+          decoration: BoxDecoration(color: Theme.of(context).colorScheme.surface, borderRadius: BorderRadius.circular(12)),
           child: Column(
             children: [
               Container(
@@ -110,16 +110,15 @@ class _TaskFeedbackCard extends StatelessWidget {
 
   static const _danger = Color(0xFFDC3545);
   static const _success = Color(0xFF198754);
-  static const _improvedBg = Color(0xFFF8F9FA);
-  static const _improvedBorder = Color(0xFFDEE2E6);
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final cs = theme.colorScheme;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(color: Colors.white, border: Border.all(color: AppColors.border), borderRadius: BorderRadius.circular(10)),
+      decoration: BoxDecoration(color: cs.surface, border: Border.all(color: cs.outlineVariant), borderRadius: BorderRadius.circular(10)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -158,7 +157,7 @@ class _TaskFeedbackCard extends StatelessWidget {
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(AppSpacing.sm),
-              decoration: BoxDecoration(color: _improvedBg, border: Border.all(color: _improvedBorder), borderRadius: BorderRadius.circular(6)),
+              decoration: BoxDecoration(color: cs.surfaceContainerLow, border: Border.all(color: cs.outlineVariant), borderRadius: BorderRadius.circular(6)),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [

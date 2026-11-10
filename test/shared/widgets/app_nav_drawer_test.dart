@@ -1,8 +1,11 @@
 import 'dart:async';
 
 import 'package:career_buddy_lms/app/router/route_paths.dart';
+import 'package:career_buddy_lms/app/theme/theme_provider.dart';
 import 'package:career_buddy_lms/core/errors/failures.dart';
 import 'package:career_buddy_lms/core/media/media_url_resolver.dart';
+import 'package:career_buddy_lms/core/providers/core_providers.dart';
+import 'package:career_buddy_lms/core/storage/secure_storage_service.dart';
 import 'package:career_buddy_lms/core/utils/result.dart';
 import 'package:career_buddy_lms/features/auth/domain/entities/auth_user.dart';
 import 'package:career_buddy_lms/features/auth/domain/repositories/auth_repository.dart';
@@ -18,6 +21,28 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+
+class _FakeStorageService extends SecureStorageService {
+  final Map<String, String> _data = {};
+
+  @override
+  Future<void> write(String key, String value) async {
+    _data[key] = value;
+  }
+
+  @override
+  Future<String?> read(String key) async => _data[key];
+
+  @override
+  Future<void> delete(String key) async {
+    _data.remove(key);
+  }
+
+  @override
+  Future<void> deleteAll() async {
+    _data.clear();
+  }
+}
 
 class _FakeEmployerProfileRepository implements EmployerProfileRepository {
   _FakeEmployerProfileRepository({this.result, this.neverResolves = false});
@@ -391,8 +416,7 @@ void main() {
     testWidgets('tapping Logout calls the auth repository logout', (tester) async {
       final repo = await _pumpDrawer(tester, user: const AuthUser(username: 'janedoe'));
 
-      await tester.tap(find.text('Logout'));
-      await tester.pumpAndSettle();
+      await _scrollToAndTap(tester, 'Logout');
 
       expect(repo.logoutCallCount, 1);
     });
@@ -907,10 +931,123 @@ void main() {
     testWidgets('tapping Logout calls the auth repository logout', (tester) async {
       final repo = await _pumpDrawer(tester, user: employer);
 
-      await tester.tap(find.text('Logout'));
-      await tester.pumpAndSettle();
+      await _scrollToAndTap(tester, 'Logout');
 
       expect(repo.logoutCallCount, 1);
+    });
+  });
+
+  group('AppNavDrawer — Dark Mode theme toggle', () {
+    // Opens the drawer with an in-memory storage fake so toggle persistence
+    // can be verified without hitting the real Keychain/Keystore.
+    Future<_FakeStorageService> pumpDrawerWithStorage(
+      WidgetTester tester, {
+      AuthUser? user,
+      Size? surfaceSize,
+    }) async {
+      if (surfaceSize != null) {
+        await tester.binding.setSurfaceSize(surfaceSize);
+        addTearDown(() => tester.binding.setSurfaceSize(null));
+      }
+      final storage = _FakeStorageService();
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            authRepositoryProvider.overrideWithValue(
+              _FakeAuthRepository(restoredUser: user),
+            ),
+            employerProfileRepositoryProvider.overrideWithValue(
+              _FakeEmployerProfileRepository(),
+            ),
+            secureStorageProvider.overrideWithValue(storage),
+          ],
+          child: MaterialApp.router(routerConfig: _router()),
+        ),
+      );
+      await tester.pump();
+      await tester.tap(find.text('open'));
+      await tester.pumpAndSettle();
+      return storage;
+    }
+
+    testWidgets('Dark Mode switch is shown to an authenticated candidate', (tester) async {
+      await _pumpDrawer(tester, user: const AuthUser(username: 'jane'));
+
+      expect(find.text('Dark Mode'), findsOneWidget);
+      expect(find.byType(Switch), findsOneWidget);
+    });
+
+    testWidgets('Dark Mode switch is shown to a guest', (tester) async {
+      await _pumpDrawer(tester);
+
+      expect(find.text('Dark Mode'), findsOneWidget);
+      expect(find.byType(Switch), findsOneWidget);
+    });
+
+    testWidgets('Dark Mode switch is shown to an employer', (tester) async {
+      await _pumpDrawer(tester, user: const AuthUser(username: 'acmehr', isEmployer: true));
+
+      expect(find.text('Dark Mode'), findsOneWidget);
+      expect(find.byType(Switch), findsOneWidget);
+    });
+
+    testWidgets('switch value is OFF (false) in light mode by default', (tester) async {
+      await _pumpDrawer(tester, user: const AuthUser(username: 'jane'));
+
+      // MaterialApp defaults to light theme in the test host.
+      final sw = tester.widget<Switch>(find.byType(Switch));
+      expect(sw.value, false);
+    });
+
+    testWidgets(
+      'tapping the switch sets ThemeModeNotifier to dark and persists the choice',
+      (tester) async {
+        final storage = await pumpDrawerWithStorage(
+          tester,
+          user: const AuthUser(username: 'jane'),
+        );
+
+        await tester.tap(find.byType(Switch));
+        await tester.pumpAndSettle();
+
+        final container = ProviderScope.containerOf(
+          tester.element(find.byType(AppNavDrawer)),
+        );
+        expect(container.read(themeModeProvider), ThemeMode.dark);
+        expect(await storage.read('app_theme_mode'), 'dark');
+      },
+    );
+
+    testWidgets(
+      'toggling twice returns to light mode and persists "light" to storage',
+      (tester) async {
+        final storage = await pumpDrawerWithStorage(
+          tester,
+          user: const AuthUser(username: 'jane'),
+        );
+
+        await tester.tap(find.byType(Switch)); // → dark
+        await tester.pumpAndSettle();
+        await tester.tap(find.byType(Switch)); // → light
+        await tester.pumpAndSettle();
+
+        final container = ProviderScope.containerOf(
+          tester.element(find.byType(AppNavDrawer)),
+        );
+        expect(container.read(themeModeProvider), ThemeMode.light);
+        expect(await storage.read('app_theme_mode'), 'light');
+      },
+    );
+
+    testWidgets('Dark Mode switch does not cause overflow on a 320 px-wide viewport', (tester) async {
+      await pumpDrawerWithStorage(
+        tester,
+        user: const AuthUser(username: 'jane'),
+        surfaceSize: const Size(320, 640),
+      );
+
+      expect(tester.takeException(), isNull);
+      expect(find.text('Dark Mode'), findsOneWidget);
     });
   });
 }

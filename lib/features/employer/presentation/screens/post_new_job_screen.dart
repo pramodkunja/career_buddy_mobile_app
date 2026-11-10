@@ -1861,13 +1861,13 @@ class _PostNewJobScreenState extends ConsumerState<PostNewJobScreen> {
           _isIt
               ? 'Optional. If you select skills, mark 3–4 of them as mandatory.'
               : 'Skills follow the selected Department. Select the skills for this role, then mark 3–4 as mandatory.',
-          style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+          style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
         ),
         const SizedBox(height: 8),
         if (category == null)
-          const Text(
+          Text(
             'Select a Department above to see its skills.',
-            style: TextStyle(fontSize: 13, color: Color(0xFF64748B)),
+            style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onSurfaceVariant),
           )
         else ...[
           Wrap(
@@ -1904,7 +1904,7 @@ class _PostNewJobScreenState extends ConsumerState<PostNewJobScreen> {
           const SizedBox(height: 8),
           Text(
             'Mandatory skills marked: ${_mandatorySkills.length} of $kMandatorySkillsMin–$kMandatorySkillsMax',
-            style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+            style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
           ),
           if (_skillsHint != null)
             Padding(
@@ -1949,7 +1949,7 @@ class _PostNewJobScreenState extends ConsumerState<PostNewJobScreen> {
     return Material(
       color: mandatory
           ? const Color(0xFFFEF3C7)
-          : (selected ? const Color(0xFFDBEAFE) : Colors.white),
+          : (selected ? const Color(0xFFDBEAFE) : Theme.of(context).colorScheme.surface),
       shape: StadiumBorder(side: BorderSide(color: borderColor)),
       child: InkWell(
         customBorder: const StadiumBorder(),

@@ -21,6 +21,7 @@ class ResumeScoreRing extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return SizedBox(
       width: 160,
       height: 160,
@@ -30,19 +31,19 @@ class ResumeScoreRing extends StatelessWidget {
         curve: Curves.easeOut,
         builder: (context, value, child) {
           return CustomPaint(
-            painter: _RingPainter(value / 100),
+            painter: _RingPainter(value / 100, trackColor: cs.outlineVariant),
             child: Center(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
                     '${value.round()}%',
-                    style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: Color(0xFF0F172A), height: 1),
+                    style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: cs.onSurface, height: 1),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     label.toUpperCase(),
-                    style: const TextStyle(fontSize: 10, color: Color(0xFF94A3B8), letterSpacing: 1.2),
+                    style: TextStyle(fontSize: 10, color: cs.onSurfaceVariant, letterSpacing: 1.2),
                   ),
                 ],
               ),
@@ -55,9 +56,10 @@ class ResumeScoreRing extends StatelessWidget {
 }
 
 class _RingPainter extends CustomPainter {
-  _RingPainter(this.progress);
+  _RingPainter(this.progress, {required this.trackColor});
 
   final double progress;
+  final Color trackColor;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -65,7 +67,7 @@ class _RingPainter extends CustomPainter {
     final radius = (size.width - 10) / 2;
 
     final track = Paint()
-      ..color = const Color(0xFFE2E8F0)
+      ..color = trackColor
       ..style = PaintingStyle.stroke
       ..strokeWidth = 10;
     canvas.drawCircle(center, radius, track);
@@ -87,5 +89,6 @@ class _RingPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant _RingPainter oldDelegate) => oldDelegate.progress != progress;
+  bool shouldRepaint(covariant _RingPainter oldDelegate) =>
+      oldDelegate.progress != progress || oldDelegate.trackColor != trackColor;
 }

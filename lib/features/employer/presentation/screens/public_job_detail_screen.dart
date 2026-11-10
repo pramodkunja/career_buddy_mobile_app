@@ -140,7 +140,7 @@ class _JobDetailBodyState extends ConsumerState<_JobDetailBody> {
                 if (data.companyName.isNotEmpty)
                   Padding(
                     padding: const EdgeInsets.only(top: 2),
-                    child: Text(data.companyName, style: const TextStyle(color: Color(0xFF64748B))),
+                    child: Text(data.companyName, style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
                   ),
                 const SizedBox(height: AppSpacing.sm),
                 Wrap(
@@ -170,7 +170,7 @@ class _JobDetailBodyState extends ConsumerState<_JobDetailBody> {
                 ],
                 if (data.deadline.isNotEmpty) ...[
                   const SizedBox(height: AppSpacing.sm),
-                  Text('Application Deadline: ${data.deadline}', style: const TextStyle(color: Color(0xFF64748B), fontSize: 12)),
+                  Text('Application Deadline: ${data.deadline}', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 12)),
                 ],
               ],
             ),
@@ -263,8 +263,8 @@ class _JobDetailBodyState extends ConsumerState<_JobDetailBody> {
   Widget _skillChip(String skill) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(color: const Color(0xFFF1F5F9), borderRadius: BorderRadius.circular(6)),
-      child: Text(skill, style: const TextStyle(color: Color(0xFF475569), fontSize: 12, fontWeight: FontWeight.w600)),
+      decoration: BoxDecoration(color: Theme.of(context).colorScheme.surfaceContainerLow, borderRadius: BorderRadius.circular(6)),
+      child: Text(skill, style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 12, fontWeight: FontWeight.w600)),
     );
   }
 }
@@ -274,17 +274,17 @@ class _SubmittedConfirmation extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Column(
+    return Column(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        Icon(Icons.check_circle_outline, color: Color(0xFF16A34A), size: 40),
-        SizedBox(height: AppSpacing.sm),
-        Text('Application submitted successfully!', style: TextStyle(fontWeight: FontWeight.w700)),
-        SizedBox(height: 4),
+        const Icon(Icons.check_circle_outline, color: Color(0xFF16A34A), size: 40),
+        const SizedBox(height: AppSpacing.sm),
+        const Text('Application submitted successfully!', style: TextStyle(fontWeight: FontWeight.w700)),
+        const SizedBox(height: 4),
         Text(
           'A confirmation email has been sent.',
           textAlign: TextAlign.center,
-          style: TextStyle(color: Color(0xFF64748B), fontSize: 13),
+          style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 13),
         ),
       ],
     );
@@ -305,8 +305,8 @@ class _ResumePicker extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(AppSpacing.sm),
         decoration: BoxDecoration(
-          color: const Color(0xFFF8FAFC),
-          border: Border.all(color: const Color(0xFFCBD5E1)),
+          color: Theme.of(context).colorScheme.surfaceContainerLow,
+          border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
           borderRadius: BorderRadius.circular(10),
         ),
         child: Row(
@@ -317,7 +317,7 @@ class _ResumePicker extends StatelessWidget {
               child: Text(
                 fileName ?? 'Upload resume (optional)',
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(color: fileName == null ? const Color(0xFF64748B) : null),
+                style: TextStyle(color: fileName == null ? Theme.of(context).colorScheme.onSurfaceVariant : null),
               ),
             ),
           ],

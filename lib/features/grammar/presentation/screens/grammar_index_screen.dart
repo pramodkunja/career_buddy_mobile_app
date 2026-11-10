@@ -141,8 +141,8 @@ class _TopicCard extends StatelessWidget {
       onTap: () => context.push(RoutePaths.grammarTopic(topic.slug)),
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
-          border: Border.all(color: const Color(0xFFE8EDF2)),
+          color: Theme.of(context).colorScheme.surface,
+          border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
           borderRadius: BorderRadius.circular(20),
           boxShadow: const [BoxShadow(color: Color(0x0F000000), blurRadius: 12, offset: Offset(0, 2))],
         ),
@@ -182,7 +182,7 @@ class _TopicCard extends StatelessWidget {
                     const SizedBox(height: AppSpacing.sm),
                     Text(
                       topic.title,
-                      style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: Color(0xFF0F172A)),
+                      style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: Theme.of(context).colorScheme.onSurface),
                     ),
                     const SizedBox(height: 4),
                     Expanded(
@@ -190,7 +190,7 @@ class _TopicCard extends StatelessWidget {
                         topic.description,
                         maxLines: 4,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontSize: 12, color: Color(0xFF64748B), height: 1.4),
+                        style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant, height: 1.4),
                       ),
                     ),
                   ],
@@ -200,9 +200,9 @@ class _TopicCard extends StatelessWidget {
             // `.card-footer-row` — "Explore lesson" CTA.
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              decoration: const BoxDecoration(
-                border: Border(top: BorderSide(color: Color(0xFFF1F5F9))),
-                color: Color(0xFFFAFBFC),
+              decoration: BoxDecoration(
+                border: Border(top: BorderSide(color: Theme.of(context).colorScheme.outlineVariant)),
+                color: Theme.of(context).colorScheme.surfaceContainerLow,
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,

@@ -63,7 +63,7 @@ class PortalHeroCard extends StatelessWidget {
                   vertical: 9,
                 ),
                 decoration: BoxDecoration(
-                  color: const Color(0xEBFFFFFF),
+                  color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.92),
                   borderRadius: BorderRadius.circular(50),
                   boxShadow: const [
                     BoxShadow(color: Color(0x26000000), blurRadius: 16),
@@ -78,8 +78,8 @@ class PortalHeroCard extends StatelessWidget {
                       child: Text(
                         label,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: Color(0xFF0F172A),
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.onSurface,
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
                         ),

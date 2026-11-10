@@ -30,7 +30,7 @@ class JamResultScreen extends StatelessWidget {
                 width: double.infinity,
                 padding: const EdgeInsets.all(AppSpacing.lg),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: Theme.of(context).colorScheme.surface,
                   borderRadius: BorderRadius.circular(20),
                   boxShadow: const [
                     BoxShadow(color: Color(0x14000000), blurRadius: 20),
@@ -182,7 +182,7 @@ class _Pill extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
       decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
+        color: Theme.of(context).colorScheme.surfaceContainerLow,
         border: Border.all(color: AppColors.border),
         borderRadius: BorderRadius.circular(50),
       ),
@@ -265,7 +265,7 @@ class _TextCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
-        color: dark ? AppColors.primary : Colors.white,
+        color: dark ? AppColors.primary : Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(20),
         border: dark ? null : Border.all(color: AppColors.border),
       ),

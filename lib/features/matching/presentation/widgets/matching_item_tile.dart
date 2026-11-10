@@ -19,8 +19,9 @@ class MatchingItemTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     final (borderColor, bgColor, textColor, fontWeight) = switch (state) {
-      MatchItemVisualState.normal => (MatchingColors.border, Colors.white, null, FontWeight.w500),
+      MatchItemVisualState.normal => (cs.outlineVariant, cs.surface, null, FontWeight.w500),
       MatchItemVisualState.selected => (MatchingColors.blue, MatchingColors.selectedBg, MatchingColors.selectedText, FontWeight.w700),
       MatchItemVisualState.matched => (MatchingColors.blue, MatchingColors.selectedBg, MatchingColors.selectedText, FontWeight.w500),
       MatchItemVisualState.correct => (MatchingColors.correctBorder, MatchingColors.correctBg, MatchingColors.correctText, FontWeight.w500),

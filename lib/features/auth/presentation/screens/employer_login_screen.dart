@@ -49,10 +49,6 @@ class _EmployerLoginScreenState extends ConsumerState<EmployerLoginScreen> {
   final _passwordController = TextEditingController();
 
   static const _blue = Color(0xFF185ADB);
-  static const _border = Color(0xFFE2E8F0); // `.auth-card-container` border.
-  static const _fieldBorder = Color(0xFFCBD5E1);
-  static const _fieldFill = Color(0xFFF8FAFC);
-  static const _textMuted = Color(0xFF64748B);
 
   /// The web's own breakpoint for this shared banner/form shell
   /// (`@media (max-width:860px)`, `style.css:2197`) — same value
@@ -99,8 +95,8 @@ class _EmployerLoginScreenState extends ConsumerState<EmployerLoginScreen> {
                           final wide = constraints.maxWidth >= _stackBreakpoint;
                           return Container(
                             decoration: BoxDecoration(
-                              color: Colors.white,
-                              border: Border.all(color: _border),
+                              color: Theme.of(context).colorScheme.surface,
+                              border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
                               borderRadius: BorderRadius.circular(24),
                               boxShadow: const [
                                 BoxShadow(color: Color(0x0D000000), blurRadius: 40, offset: Offset(0, 10)),
@@ -223,14 +219,14 @@ class _EmployerFormPane extends StatelessWidget {
             Text(
               'Employer Login',
               style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                color: const Color(0xFF0F172A),
+                color: Theme.of(context).colorScheme.onSurface,
                 fontWeight: FontWeight.w800,
               ),
             ),
             const SizedBox(height: AppSpacing.xs),
             Text(
               'Sign in to your hiring dashboard',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: _EmployerLoginScreenState._textMuted),
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
             ),
             const SizedBox(height: AppSpacing.xl),
             if (errorMessage != null) ...[
@@ -246,9 +242,9 @@ class _EmployerFormPane extends StatelessWidget {
               autofillHints: const [AutofillHints.username],
               enabled: !isLoading,
               validator: (value) => Validators.required(value, fieldName: 'Username or email'),
-              fillColor: _EmployerLoginScreenState._fieldFill,
+              fillColor: Theme.of(context).colorScheme.surface,
               borderRadius: BorderRadius.circular(10),
-              borderColor: _EmployerLoginScreenState._fieldBorder,
+              borderColor: Theme.of(context).colorScheme.outlineVariant,
               focusedBorderColor: _EmployerLoginScreenState._blue,
             ),
             const SizedBox(height: AppSpacing.md),
@@ -262,9 +258,9 @@ class _EmployerFormPane extends StatelessWidget {
               enabled: !isLoading,
               validator: (value) => Validators.required(value, fieldName: 'Password'),
               onSubmitted: (_) => onSubmit(),
-              fillColor: _EmployerLoginScreenState._fieldFill,
+              fillColor: Theme.of(context).colorScheme.surface,
               borderRadius: BorderRadius.circular(10),
-              borderColor: _EmployerLoginScreenState._fieldBorder,
+              borderColor: Theme.of(context).colorScheme.outlineVariant,
               focusedBorderColor: _EmployerLoginScreenState._blue,
             ),
             const SizedBox(height: AppSpacing.lg),
@@ -277,9 +273,9 @@ class _EmployerFormPane extends StatelessWidget {
             const SizedBox(height: AppSpacing.lg),
             Row(
               children: [
-                const Expanded(
+                Expanded(
                   flex: 1,
-                  child: Divider(color: _EmployerLoginScreenState._border),
+                  child: Divider(color: Theme.of(context).colorScheme.outlineVariant),
                 ),
                 Flexible(
                   flex: 3,
@@ -289,13 +285,13 @@ class _EmployerFormPane extends StatelessWidget {
                       "Don't have an account?",
                       textAlign: TextAlign.center,
                       overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(color: _EmployerLoginScreenState._textMuted),
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
                     ),
                   ),
                 ),
-                const Expanded(
+                Expanded(
                   flex: 1,
-                  child: Divider(color: _EmployerLoginScreenState._border),
+                  child: Divider(color: Theme.of(context).colorScheme.outlineVariant),
                 ),
               ],
             ),
@@ -307,12 +303,12 @@ class _EmployerFormPane extends StatelessWidget {
               onPressed: isLoading ? null : () => context.push(RoutePaths.employerRegister),
             ),
             const SizedBox(height: AppSpacing.lg),
-            const Divider(color: _EmployerLoginScreenState._border),
+            Divider(color: Theme.of(context).colorScheme.outlineVariant),
             const SizedBox(height: AppSpacing.sm),
             Text(
               'Looking for the student portal?',
               textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(color: _EmployerLoginScreenState._textMuted),
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
             ),
             const SizedBox(height: 4),
             Center(

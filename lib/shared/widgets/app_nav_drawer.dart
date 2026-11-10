@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../app/router/route_paths.dart';
 import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_spacing.dart';
+import '../../app/theme/theme_provider.dart';
 import '../../core/media/media_url_resolver.dart';
 import '../../features/auth/presentation/controllers/auth_controller.dart';
 import '../../features/employer/domain/entities/employer_profile_form.dart';
@@ -241,6 +242,7 @@ class AppNavDrawer extends ConsumerWidget {
                   ),
                 ),
                 const Divider(height: 1),
+                const _ThemeToggleTile(),
                 _EmployerIdentityTile(
                   profile: employerProfile,
                   onTap: () =>
@@ -451,6 +453,7 @@ class AppNavDrawer extends ConsumerWidget {
                       _scrollHome(context, ref, HomeScrollTarget.contact),
                 ),
                 const Divider(height: 1),
+                const _ThemeToggleTile(),
                 if (user != null) ...[
                   ListTile(
                     leading: CircleAvatar(
@@ -545,6 +548,23 @@ class _NavTile extends StatelessWidget {
       leading: Icon(icon, color: AppColors.textMuted),
       title: Text(label),
       onTap: onTap,
+    );
+  }
+}
+
+class _ThemeToggleTile extends ConsumerWidget {
+  const _ThemeToggleTile();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return SwitchListTile(
+      secondary: const Icon(Icons.dark_mode_outlined),
+      title: const Text('Dark Mode'),
+      value: isDark,
+      onChanged: (_) => ref
+          .read(themeModeProvider.notifier)
+          .toggle(Theme.of(context).brightness),
     );
   }
 }

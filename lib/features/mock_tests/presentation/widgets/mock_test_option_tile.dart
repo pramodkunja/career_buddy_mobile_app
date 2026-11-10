@@ -57,7 +57,7 @@ class MockTestOptionTile extends StatelessWidget {
       badgeText = Colors.white;
     } else {
       borderColor = MockExamColors.border;
-      fillColor = Colors.white;
+      fillColor = Theme.of(context).colorScheme.surface;
       badgeBg = MockExamColors.badgeBg;
       badgeText = MockExamColors.navy;
     }

@@ -148,7 +148,7 @@ class _ApplicationDetailBodyState extends ConsumerState<_ApplicationDetailBody> 
               children: [
                 CircleAvatar(
                   radius: 36,
-                  backgroundColor: const Color(0xFFE2E8F0),
+                  backgroundColor: Theme.of(context).colorScheme.outlineVariant,
                   child: Text(
                     data.applicantName.isEmpty ? '?' : data.applicantName[0].toUpperCase(),
                     style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: Color(0xFF185ADB)),
@@ -177,8 +177,8 @@ class _ApplicationDetailBodyState extends ConsumerState<_ApplicationDetailBody> 
                   spacing: AppSpacing.md,
                   alignment: WrapAlignment.center,
                   children: [
-                    Text(data.applicantEmail, style: const TextStyle(color: Color(0xFF64748B))),
-                    Text(data.applicantPhone, style: const TextStyle(color: Color(0xFF64748B))),
+                    Text(data.applicantEmail, style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
+                    Text(data.applicantPhone, style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
                   ],
                 ),
               ],
@@ -243,7 +243,7 @@ class _ApplicationDetailBodyState extends ConsumerState<_ApplicationDetailBody> 
                   if (data.interviewRecordedAt != null)
                     Padding(
                       padding: const EdgeInsets.only(top: 4),
-                      child: Text('Recorded ${data.interviewRecordedAt}', style: const TextStyle(color: Color(0xFF64748B), fontSize: 12)),
+                      child: Text('Recorded ${data.interviewRecordedAt}', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 12)),
                     ),
                   if (resolvedVideoUrl != null) ...[
                     const SizedBox(height: AppSpacing.xs),
@@ -276,8 +276,8 @@ class _ApplicationDetailBodyState extends ConsumerState<_ApplicationDetailBody> 
                     width: double.infinity,
                     padding: const EdgeInsets.all(AppSpacing.sm),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFF8FAFC),
-                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                      color: Theme.of(context).colorScheme.surfaceContainerLow,
+                      border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Text(data.coverLetter!),
@@ -330,7 +330,7 @@ class _ApplicationDetailBodyState extends ConsumerState<_ApplicationDetailBody> 
           ),
           const SizedBox(height: AppSpacing.sm),
           Center(
-            child: Text('Applied on ${data.appliedAt}', style: const TextStyle(color: Color(0xFF64748B), fontSize: 12)),
+            child: Text('Applied on ${data.appliedAt}', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 12)),
           ),
         ],
       ),
@@ -343,7 +343,7 @@ class _ApplicationDetailBodyState extends ConsumerState<_ApplicationDetailBody> 
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label.toUpperCase(), style: const TextStyle(color: Color(0xFF64748B), fontSize: 11, fontWeight: FontWeight.w700)),
+          Text(label.toUpperCase(), style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 11, fontWeight: FontWeight.w700)),
           Text(value, style: const TextStyle(fontWeight: FontWeight.w600)),
         ],
       ),
