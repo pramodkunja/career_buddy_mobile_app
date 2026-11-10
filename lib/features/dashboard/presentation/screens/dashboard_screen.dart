@@ -13,6 +13,7 @@ import '../../../../shared/widgets/app_loader.dart';
 import '../../../../shared/widgets/app_nav_drawer.dart';
 import '../../../../shared/widgets/buddy_chatbot_overlay.dart';
 import '../../../../shared/widgets/drawer_aware_back_leading.dart';
+import '../../../../app/theme/theme_provider.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart';
 import '../../domain/entities/dashboard_data.dart';
 import '../controllers/dashboard_controller.dart';
@@ -59,9 +60,17 @@ class DashboardScreen extends ConsumerWidget {
         leading: drawerAwareBackLeading(context),
         actions: [
           IconButton(
-            icon: const Icon(Icons.logout),
-            tooltip: 'Sign out',
-            onPressed: () => ref.read(authControllerProvider.notifier).logout(),
+            icon: Icon(
+              Theme.of(context).brightness == Brightness.dark
+                  ? Icons.wb_sunny_outlined
+                  : Icons.dark_mode_outlined,
+            ),
+            tooltip: Theme.of(context).brightness == Brightness.dark
+                ? 'Switch to light mode'
+                : 'Switch to dark mode',
+            onPressed: () => ref
+                .read(themeModeProvider.notifier)
+                .toggle(Theme.of(context).brightness),
           ),
         ],
       ),
