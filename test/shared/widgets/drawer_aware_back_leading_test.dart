@@ -28,6 +28,44 @@ void main() {
     expect(find.text('Drawer content'), findsOneWidget, reason: 'the drawer itself must still open normally');
   });
 
+  testWidgets(
+    'while the drawer is open (LocalHistoryEntry active) the leading stays as a '
+    'hamburger — canPop returning true via willHandlePopInternally must not flip it '
+    'to a back arrow',
+    (tester) async {
+      await tester.pumpWidget(MaterialApp(home: _screen()));
+
+      // Open the drawer — Flutter adds a LocalHistoryEntry, making canPop = true.
+      await tester.tap(find.byIcon(Icons.menu));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+
+      expect(find.byIcon(Icons.menu), findsOneWidget);
+      expect(find.byType(BackButtonIcon), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'after the drawer is closed the hamburger is restored and no stale back arrow lingers',
+    (tester) async {
+      await tester.pumpWidget(MaterialApp(home: _screen()));
+
+      // Open
+      await tester.tap(find.byIcon(Icons.menu));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+
+      // Close by tapping the scrim (outside the 304 dp drawer panel; default test
+      // window is 800×600 at DPR 1.0, so x=600 is well into the scrim area).
+      await tester.tapAt(const Offset(600, 300));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+
+      expect(find.byIcon(Icons.menu), findsOneWidget);
+      expect(find.byType(BackButtonIcon), findsNothing);
+    },
+  );
+
   testWidgets('when pushed on top of another screen, shows a real back arrow instead of the hamburger', (tester) async {
     final navigatorKey = GlobalKey<NavigatorState>();
 

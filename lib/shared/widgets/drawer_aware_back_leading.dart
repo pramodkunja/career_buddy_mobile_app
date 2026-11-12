@@ -16,7 +16,29 @@ import 'package:flutter/material.dart';
 /// instance was reached directly from the drawer, not pushed — and a real
 /// back button when there is, so the drawer is never broken on a
 /// root-level visit but a pushed visit always gets a clear way back.
+///
+/// `ModalRoute.of(context)` is called first so the calling widget registers
+/// as a dependent of `_ModalScopeStatus` (the `InheritedWidget` that wraps
+/// every route's content). When the route's pop behaviour changes — the
+/// drawer opens (`LocalHistoryEntry` added, `canPop` → `true`) or closes
+/// (entry removed, `canPop` → `false`) — the dependency fires and the
+/// AppBar rebuilds, so a `const` AppBar widget never freezes on a stale
+/// value.
+///
+/// Two guards follow the `ModalRoute.of` call:
+/// 1. `!route.isCurrent` — when this screen is below the top route (another
+///    screen is showing on top of it), `Navigator.canPop()` returns `true`
+///    for every context in the Navigator regardless of which screen called
+///    it. Returning `null` here prevents a spurious back arrow from
+///    appearing on a background screen whose AppBar is still in the tree but
+///    not visible.
+/// 2. `route.willHandlePopInternally` — a drawer's own `LocalHistoryEntry`
+///    also makes `canPop` true, but that pop is handled internally and must
+///    never produce a back arrow on the foreground screen.
 Widget? drawerAwareBackLeading(BuildContext context) {
+  final route = ModalRoute.of(context);
+  if (route == null || !route.isCurrent) return null;
   if (!Navigator.canPop(context)) return null;
+  if (route.willHandlePopInternally) return null;
   return BackButton(onPressed: () => Navigator.of(context).pop());
 }

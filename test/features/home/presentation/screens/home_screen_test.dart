@@ -881,6 +881,183 @@ void main() {
     );
   });
 
+  group(
+    'BUG FIX — hamburger must always show on Home; drawer open/close must never change it to a back arrow',
+    () {
+      testWidgets(
+        '(1) initially shows the hamburger menu icon, never a back arrow',
+        (tester) async {
+          await _pump(tester);
+
+          expect(find.byIcon(Icons.menu), findsOneWidget);
+          expect(find.byType(BackButton), findsNothing);
+        },
+      );
+
+      testWidgets('(2) tapping the hamburger opens the navigation drawer', (tester) async {
+        await _pump(tester);
+
+        await tester.tap(find.byIcon(Icons.menu));
+        await _pumpAfterTap(tester);
+
+        final scaffold = tester.state<ScaffoldState>(find.byType(Scaffold).first);
+        expect(scaffold.isDrawerOpen, isTrue);
+      });
+
+      testWidgets(
+        '(3) closing the drawer (tap the scrim) leaves the user on the Home screen',
+        (tester) async {
+          await _pump(tester);
+
+          await tester.tap(find.byIcon(Icons.menu));
+          await _pumpAfterTap(tester);
+          // Tap the scrim area right of the 304 dp drawer panel; the viewport is
+          // 400×2900 at DPR 1.0, so x=390 is on the scrim.
+          await tester.tapAt(const Offset(390, 100));
+          await _pumpAfterTap(tester);
+
+          final scaffold = tester.state<ScaffoldState>(find.byType(Scaffold).first);
+          expect(scaffold.isDrawerOpen, isFalse);
+          expect(find.textContaining('Career Buddy', findRichText: true), findsOneWidget);
+        },
+      );
+
+      testWidgets(
+        '(4) hamburger remains after the drawer is closed, never switching to a back arrow',
+        (tester) async {
+          await _pump(tester);
+
+          await tester.tap(find.byIcon(Icons.menu));
+          await _pumpAfterTap(tester);
+          await tester.tapAt(const Offset(390, 100));
+          await _pumpAfterTap(tester);
+
+          expect(find.byIcon(Icons.menu), findsOneWidget);
+          expect(find.byType(BackButton), findsNothing);
+        },
+      );
+
+      testWidgets(
+        '(5) multiple open/close cycles never change the hamburger to a back arrow',
+        (tester) async {
+          await _pump(tester);
+
+          for (var i = 0; i < 3; i++) {
+            await tester.tap(find.byIcon(Icons.menu));
+            await _pumpAfterTap(tester);
+            await tester.tapAt(const Offset(390, 100));
+            await _pumpAfterTap(tester);
+
+            expect(find.byIcon(Icons.menu), findsOneWidget, reason: 'cycle ${i + 1}');
+            expect(find.byType(BackButton), findsNothing, reason: 'cycle ${i + 1}');
+          }
+        },
+      );
+
+      testWidgets(
+        '(6) no back arrow visible at any point: before, during, or after drawer interaction',
+        (tester) async {
+          await _pump(tester);
+
+          expect(find.byType(BackButton), findsNothing, reason: 'initial');
+
+          await tester.tap(find.byIcon(Icons.menu));
+          await _pumpAfterTap(tester);
+
+          expect(find.byType(BackButton), findsNothing, reason: 'while drawer is open');
+
+          await tester.tapAt(const Offset(390, 100));
+          await _pumpAfterTap(tester);
+
+          expect(find.byType(BackButton), findsNothing, reason: 'after drawer closes');
+        },
+      );
+
+      testWidgets(
+        '(7) tapping the hamburger does not pop any route — the navigator stack is unchanged',
+        (tester) async {
+          await _pump(tester);
+
+          final nav = tester.state<NavigatorState>(find.byType(Navigator).last);
+          expect(nav.canPop(), isFalse, reason: 'at root before any interaction');
+
+          await tester.tap(find.byIcon(Icons.menu));
+          await _pumpAfterTap(tester);
+          await tester.tapAt(const Offset(390, 100));
+          await _pumpAfterTap(tester);
+
+          expect(nav.canPop(), isFalse, reason: 'at root after open/close cycle');
+        },
+      );
+
+      testWidgets(
+        '(8) drawer navigation items still navigate to the correct destination '
+        '(Dashboard for an authenticated user)',
+        (tester) async {
+          await _pump(tester, user: const AuthUser(username: 'jane'));
+
+          await tester.tap(find.byIcon(Icons.menu));
+          await _pumpAfterTap(tester);
+          await tester.tap(
+            find.descendant(of: find.byType(Drawer), matching: find.text('Dashboard')),
+          );
+          await _pumpAfterTap(tester);
+
+          expect(find.text('Dashboard Screen'), findsOneWidget);
+        },
+      );
+
+      testWidgets(
+        '(9) after navigating away via context.push (Create Resume, a direct top-level drawer item) '
+        'and pressing back, the Home screen still shows the hamburger',
+        (tester) async {
+          await _pump(tester, user: const AuthUser(username: 'jane'));
+
+          await tester.tap(find.byIcon(Icons.menu));
+          await _pumpAfterTap(tester);
+          // 'Create Resume' is a top-level drawer tile (not inside an ExpansionTile):
+          // Navigator.pop() (closes drawer) + context.push(createResumeBuilder)
+          await tester.tap(
+            find.descendant(of: find.byType(Drawer), matching: find.text('Create Resume')),
+          );
+          await _pumpAfterTap(tester);
+          expect(find.text('Create Resume Builder Screen'), findsOneWidget);
+
+          final nav = tester.state<NavigatorState>(find.byType(Navigator).last);
+          nav.pop();
+          await _pumpAfterTap(tester);
+
+          expect(find.byIcon(Icons.menu), findsOneWidget);
+          expect(find.byType(BackButton), findsNothing);
+        },
+      );
+
+      testWidgets(
+        '(10) no blank screen after pushing a screen via the drawer and navigating back — '
+        'the Home screen and its AppBar render correctly',
+        (tester) async {
+          await _pump(tester, user: const AuthUser(username: 'jane'));
+
+          await tester.tap(find.byIcon(Icons.menu));
+          await _pumpAfterTap(tester);
+          await tester.tap(
+            find.descendant(of: find.byType(Drawer), matching: find.text('Create Resume')),
+          );
+          await _pumpAfterTap(tester);
+          expect(find.text('Create Resume Builder Screen'), findsOneWidget);
+
+          final nav = tester.state<NavigatorState>(find.byType(Navigator).last);
+          nav.pop();
+          await _pumpAfterTap(tester);
+
+          // The Home screen's own AppBar brand is visible — no blank/empty page.
+          expect(find.textContaining('Career Buddy', findRichText: true), findsOneWidget);
+          expect(find.byType(BackButton), findsNothing);
+        },
+      );
+    },
+  );
+
   group('REGRESSION (Phase 21/37) — hero and page responsive layout', () {
     testWidgets(
       'renders the whole page without horizontal overflow at narrow phone widths, guest and student alike',
